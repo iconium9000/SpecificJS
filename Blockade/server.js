@@ -26,23 +26,48 @@ serv.listen(port)
 
 log(`listening on port:${port}`)
 
-// -----------------------------------------------------------------------------
-// on connection
+LINE_WIDTH = 6
+BAR_START = 1 + 0.1
+BAR_W_MIN = 1/30
+BAR_H_MIN = 1/30
+BAR_W = 1/8
+BAR_H = 1/10
+BAR_FREQ = 4/1      // bar spawn per sec
+MAX_BAR_FREQ = 7/1
+BAR_SPEED  = 2/3    // w per sec
 
-var sockets = {}
+var client_sockets = {}
+
+setInterval(() => {
+  var w = BAR_W_MIN + BAR_W * Math.random()
+  var h = BAR_H_MIN + BAR_H * Math.random()
+  var x = BAR_START
+  var y = Math.random() * (1 - h)
+
+  for (var client_socket_id in client_sockets) {
+    var client_socket = client_sockets[client_socket_id]
+    client_socket.emit('new bar', x, y, w, h)
+  }
+}, 1e3/BAR_FREQ)
 
 socket_io.on('connection', client_socket => {
 
-  sockets[client_socket.id] = client_socket
+  client_sockets[client_socket.id] = client_socket
 
   client_socket.on('client name', msg => {
     client_socket.name = msg.name
-    log(`'${client_socket.name}' (${client_socket.id}) connected`)
+    client_socket.full_name = `'${msg.name}' (${client_socket.id})`
+    log(`${client_socket.full_name} connected`)
+  })
+
+  client_socket.on('death', msg => {
+    // TODO
+    log(`${client_socket.full_name} died at ${msg.score}`)
   })
 
   client_socket.on('disconnect', () => {
-    delete sockets[client_socket.id]
-    log(`'${client_socket.name}' (${client_socket.id}) disconnected`)
+    delete client_sockets[client_socket.id]
+    log(`${client_socket.full_name} disconnected`)
   })
 
 })
