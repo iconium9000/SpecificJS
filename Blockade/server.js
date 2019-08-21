@@ -2,8 +2,8 @@
 // server setup
 
 var proj_name = 'Blockade:'
-var jquery = 'node_modules/jquery/dist/jquery.slim.min.js'
-var socket_io_dir = 'node_modules/socket.io/lib/client.js'
+var jquery_dir = '/node_modules/jquery/dist/'
+var socket_io_dir = '/node_modules/socket.io-client/dist/'
 var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
 var err = console.error
 
@@ -20,8 +20,8 @@ var socket_io = require('socket.io')(serv, {})
 
 app.get('/', (req, res) => res.sendFile(__dirname + '/client/index.html'))
 app.use('/client', express.static(__dirname + '/client'))
-app.use('jquery.js', express.static(__dirname + jquery))
-app.use('socket.io.js', express.static(__dirname + socket_io_dir))
+app.use('/jquery', express.static(__dirname + jquery_dir))
+app.use('/socket_io', express.static(__dirname + socket_io_dir))
 serv.listen(port)
 
 log(`listening on port:${port}`)
@@ -29,13 +29,20 @@ log(`listening on port:${port}`)
 // -----------------------------------------------------------------------------
 // on connection
 
+var sockets = {}
+
 socket_io.on('connection', client_socket => {
 
-  log('connection', client_socket)
+  sockets[client_socket.id] = client_socket
+
+  client_socket.on('client name', msg => {
+    client_socket.name = msg.name
+    log(`'${client_socket.name}' (${client_socket.id}) connected`)
+  })
 
   client_socket.on('disconnect', () => {
-
-    log('disconnect')
+    delete sockets[client_socket.id]
+    log(`'${client_socket.name}' (${client_socket.id}) disconnected`)
   })
 
 })
