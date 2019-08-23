@@ -2,8 +2,11 @@
 // server setup
 
 var proj_name = 'Blockade:'
+<<<<<<< Updated upstream
 var jquery_dir = '/node_modules/jquery/dist/'
 var socket_io_dir = '/node_modules/socket.io-client/dist/'
+=======
+>>>>>>> Stashed changes
 var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
 var err = console.error
 
@@ -25,6 +28,7 @@ app.use('/socket_io', express.static(__dirname + socket_io_dir))
 serv.listen(port)
 
 log(`listening on port:${port}`)
+<<<<<<< Updated upstream
 
 LINE_WIDTH = 6
 BAR_START = 1 + 0.1
@@ -50,6 +54,12 @@ setInterval(() => {
   }
 }, 1e3/BAR_FREQ)
 
+=======
+
+// -----------------------------------------------------------------------------
+// on connection
+
+>>>>>>> Stashed changes
 socket_io.on('connection', client_socket => {
 
   client_sockets[client_socket.id] = client_socket
