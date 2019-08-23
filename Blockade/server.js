@@ -46,7 +46,7 @@ setInterval(() => {
 
   for (var client_socket_id in client_sockets) {
     var client_socket = client_sockets[client_socket_id]
-    client_socket.emit('new bar', x, y, w, h)
+    client_socket.emit('new bar', {x:x, y:y, w:w, h:h})
   }
 }, 1e3/BAR_FREQ)
 
@@ -54,15 +54,36 @@ socket_io.on('connection', client_socket => {
 
   client_sockets[client_socket.id] = client_socket
 
-  client_socket.on('client name', msg => {
-    client_socket.name = msg.name
-    client_socket.full_name = `'${msg.name}' (${client_socket.id})`
+  client_socket.on('client name', ({name}) => {
+    client_socket.name = name
+    client_socket.full_name = `'${name}' (${client_socket.id})`
     log(`${client_socket.full_name} connected`)
   })
 
-  client_socket.on('death', msg => {
-    // TODO
+  client_socket.on('player death', ({score}) => {
     log(`${client_socket.full_name} died at ${msg.score}`)
+
+    for (var client_socket_id in client_sockets) {
+      var tmp_client_socket = client_sockets[client_socket_id]
+      tmp_client_socket.emit('player death', {
+        score:score,
+        id: client_socket.id,
+        name: client_socket.name,
+        full_name: client_socket.full_name
+      })
+    }
+  })
+
+  client_socket.on('player location', ({x, y, score}) => {
+    for (var client_socket_id in client_sockets) {
+      var tmp_client_socket = client_sockets[client_socket_id]
+      tmp_client_socket.emit('player location', {
+        x:x, y:y, score:score,
+        id: client_socket.id,
+        name: client_socket.name,
+        full_name: client_socket.full_name
+      })
+    }
   })
 
   client_socket.on('disconnect', () => {

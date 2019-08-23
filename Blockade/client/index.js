@@ -1,6 +1,8 @@
 // -----------------------------------------------------------------------------
 // client setup
 
+var update_freq = 40
+var min_update_freq = 3*update_freq
 var max_bar_queue = 20
 var is_mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 var gravity = is_mobile ? 0.7 : 0.8
@@ -70,12 +72,39 @@ $(document).keyup(e => { e.which == 32 && (mouse_down = false)})
 
 var bar_queue = []
 var bars = []
+var players = {}
 
-client_socket.on('new bar', (x, y, w, h) => {
+client_socket.on('new bar', ({x, y, w, h}) => {
   if (bar_queue.length < max_bar_queue) {
     bar_queue.push({ start_x:x, x:x, y:y, w:w, h:h})
   }
 })
+client_socket.on('player location', ({x,y,score,id,name}) => {
+  if (id == client_socket.id) {
+    return
+  }
+  if (!player) {
+    players[id] = { x:x, y:y, score:score, id:id, name:name }
+  }
+  var player = players[id]
+  if (player.clearInterval) {
+    clearInterval(player.clearInterval)
+  }
+  player.clearInterval = setInterval(() => {
+    delete players[id]
+  }, min_update_freq)
+})
+client_socket.on('player death', ({score, id, name, full_name}) => {
+  delete players[id]
+})
+setInterval(() => {
+  if (!paused) {
+    client_socket.emit('player location', {
+      x: plr_x, y: plr_y,
+      socre: score,
+    })
+  }
+}, update_freq)
 
 function tick() {
   var width = canvas.width = window.innerWidth - 20
@@ -149,9 +178,6 @@ function tick() {
     thrust_time = 0
     start_time = now
   }
-
-
-
 
   // draw player
   ctx.strokeStyle = ctx.fillStyle = 'white'
