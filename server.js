@@ -1,7 +1,7 @@
 // -----------------------------------------------------------------------------
 // server setup
 
-var games = ['blockade']
+var games = ['blockade', 'knifeline']
 var servers = {}
 
 var jquery_dir = '/node_modules/jquery/dist/'
@@ -22,14 +22,14 @@ var serv = http.Server(app)
 var socket_io = require('socket.io')(serv, {})
 
 app.get('/', (req, res) => res.sendFile(__dirname + '/client/index.html'))
-for (var i in games) {
-  var name = games[i]
+var init_server = name => {
   app.get(`/${name}`, (req, res) => {
     res.sendFile(__dirname + `/projects/${name}/client/index.html`)
   })
   app.use(`/${name}`, express.static(__dirname + `/projects/${name}/client`))
   servers[name] = require(`./projects/${name}/server.js`)()
 }
+games.forEach(init_server)
 
 app.use('/images', express.static(__dirname + '/images'))
 app.use('/jquery', express.static(__dirname + jquery_dir))

@@ -1,4 +1,4 @@
-var proj_name = 'Blockade:'
+  var proj_name = 'Blockade:'
 var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
 var err = console.error
 
@@ -72,6 +72,15 @@ function client_socket_init(client_socket) {
     client_socket.name = msg.name
     client_socket.full_name = `'${msg.name}' (${client_socket.id})`
     log(`${client_socket.full_name} connected`)
+  })
+
+  client_socket.on('msg', msg => {
+    msg = `${client_socket.name}: ${msg}`
+    log(msg)
+    for (var client_socket_id in client_sockets) {
+      var soc = client_sockets[client_socket_id]
+      soc.emit('msg', msg)
+    }
   })
 
   client_socket.on('update', ({score, plr_y, high_score, dead}) => {
