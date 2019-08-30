@@ -31,6 +31,7 @@ for (var i in games) {
   servers[name] = require(`./projects/${name}/server.js`)()
 }
 
+app.use('/images', express.static(__dirname + '/images'))
 app.use('/jquery', express.static(__dirname + jquery_dir))
 app.use('/socket_io', express.static(__dirname + socket_io_dir))
 serv.listen(port)
@@ -38,6 +39,7 @@ serv.listen(port)
 log(`listening on port:${port}`)
 
 socket_io.on('connection', client_socket => {
+  // log('connection', client_socket.id)
   var hostname = client_socket.handshake.headers.referer.split('/').pop()
   var server = servers[hostname]
   if (typeof server == 'function') {
