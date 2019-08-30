@@ -1,0 +1,25 @@
+{
+  "name": "specificjs",
+  "version": "0.0.1",
+  "description": "John FitzGerald's NodeJS portfolio",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.17.1",
+    "jquery": "^3.4.1",
+    "socket.io": "^2.2.0"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/iconium9000/SpecificJS.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/iconium9000/SpecificJS/issues"
+  },
+  "homepage": "https://github.com/iconium9000/SpecificJS#readme"
+}
