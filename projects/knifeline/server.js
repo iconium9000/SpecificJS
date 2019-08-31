@@ -3,11 +3,23 @@ var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
 var err = console.error
 var msgs = []
 
-var node_grab_radius = 1/10
-var line_grab_radius = 1/10
+
+
+var functions = require('./client/game.js')
+
+var node_grab_radius = functions.node_grab_radius
+var line_grab_radius = functions.line_grab_radius
+var noise = functions.noise
+
+
+var colors = ['#ff5050','#00ff80','#0080ff','#ff8000','#ff40ff',
+  '#ffff40','#B22222','#00ffff', '#80ff00']
 
 module.exports = server_init
 var client_sockets = {}
+
+// -----------------------------------------------------------------------------
+// Client Socket Manip
 
 function server_init() {
   log('server_init')
@@ -15,91 +27,8 @@ function server_init() {
   return client_socket_init
 }
 
-function get_node(game, x, y) {
-  var min_dist2 = node_grab_radius*node_grab_radius
-  var ret_node = null
-  for (var idx in game.nodes) {
-    var node = game.nodes[idx]
-    var nx = node.x
-    var ny = node.y
-
-    var dist2 = (x-nx)*(x-nx) + (y-ny)*(y-ny)
-    if (dist2 < min_dist2) {
-      min_dist2 = dist2
-      ret_node = node
-    }
-  }
-  return ret_node
-}
-
-function get_line(game, px, py) {
-  var min_dist2 = line_grab_radius * line_grab_radius
-  var ret_line = null
-
-  for (var idx in game.lines) {
-    var line = game.lines[idx]
-    var ax = line.node_a.x, ay = line.node_a.y
-    var bx = line.node_b.x, by = line.node_b.y
-
-    var bax = bx - ax, bay = by - ay
-    var pax = px - ax, pay = py - ay
-
-    var pa_dot_ba = pax * bax + pay * bay
-    var ba_dist2 = bax * bax + bay * bay
-    var mult = pa_dot_ba / ba_dist2
-    if (1 > mult && mult > 0) {
-      var dx = ax + bax * mult
-      var dy = ay + bay * mult
-      var pd_dist2 = (px-dx)*(px-dx) + (py-dy)*(py-dy)
-
-      if (pd_dist2 < min_dist2) {
-        min_dist2 = pd_dist2
-        ret_line = line
-        line.x = dx
-        line.y = dy
-      }
-    }
-  }
-
-  return ret_line
-}
-
-function check_is_valid_line(game, node_a, node_b) {
-  var aax = node_a.x, aay = node_a.y
-  var abx = node_b.x, aby = node_b.y
-
-  for (var i in game.line) {
-    var line = game.lines[i]
-
-    if (line.node_a == node_a && line.node_b == node_b) {
-      return false
-    }
-    if (line.node_a == node_b && line.node_b == node_a) {
-      return false
-    }
-
-    var bax = line.node_a.x, bay = line.node_a.y
-    var bbx = line.node_b.x, bby = line.node_b.y
-
-    var aa_ba_x = aax - bax, aa_ba_y = aay - bay
-    var bb_ba_x = bbx - bax, bb_ba_y = bby - bay
-    var ab_ba_x = abx - bax, ab_ba_y = aby - bay
-    var ab_aa_x = abx - aax, ab_aa_y = aby - aay
-    var bb_aa_x = bbx - aax, bb_aa_y = bby - aay
-
-    var aa_ba_bb_ba = aa_ba_y * bb_ba_x - aa_ba_x * bb_ba_y
-    var ab_ba_bb_ba = ab_ba_y * bb_ba_x - ab_ba_x * bb_ba_y
-    var ab_aa_aa_ba = ab_aa_y * aa_ba_x - ab_aa_x * aa_ba_y
-    var bb_aa_ab_aa = bb_aa_y * ab_aa_x - bb_aa_x * ab_aa_y
-    if (aa_ba_bb_ba * ab_ba_bb_ba < 0 && ab_aa_aa_ba * bb_aa_ab_aa < 0) {
-      return false
-    }
-  }
-  return true
-}
-
 function update_game(game, reason, caller) {
-  log('update_game', game)
+  // log('update_game', game)
 
   var n_players = 0
   var players = {}
@@ -126,7 +55,7 @@ function update_game(game, reason, caller) {
     var temp_node = {
       idx: node.idx,
       state: node.state,
-      player: node.player,
+      player: node.player.id,
       x: node.x, y: node.y,
     }
     nodes.push(temp_node)
@@ -137,8 +66,9 @@ function update_game(game, reason, caller) {
     var temp_line = {
       node_a: line.node_a.idx,
       node_b: line.node_b.idx,
-      player_a: line.player_a,
-      player_b: line.player_b,
+      player_a: line.player_a.id,
+      player_b: line.player_b.id,
+      player: line.player.id,
       state_a: line.state_a,
       state_b: line.state_b,
     }
@@ -153,11 +83,10 @@ function update_game(game, reason, caller) {
     state: game.state,
     caller: caller,
     reason: reason,
-    node_grab_radius: node_grab_radius,
-    line_grab_radius: line_grab_radius,
   }
 
-  log('to_send', to_send)
+  // log('to_send', to_send
+  functions.copy_game(game, Infinity)
 
   for (var soc_id in game.players) {
     var soc = client_sockets[soc_id]
@@ -177,8 +106,9 @@ function find_idle_game_and_connect_to_it(client_socket) {
 
   for (var soc_id in client_sockets) {
     var soc = client_sockets[soc_id]
+    var game = soc.game
 
-    if (soc.game && soc.game.state == 'idle') {
+    if (game && game.state == 'idle' && game.n_players < colors.length) {
       client_socket.game = soc.game
       soc.game.players[client_socket.id] = client_socket
       update_game(soc.game, 'joined', client_socket.player)
@@ -236,18 +166,27 @@ function client_socket_init(client_socket) {
     }
 
     var caller = client_socket.player
-    var node = get_node(game, x, y)
-    var line = get_line(game, x, y)
+    var node = functions.get_node(game, x, y)
+    var line = functions.get_line(game, x, y)
     var caller_node = caller.node
     if (caller_node) {
-      caller_node = get_node(game, caller_node.x, caller_node.y)
+      caller_node = functions.get_node(game, caller_node.x, caller_node.y)
     }
 
     switch (game.state) {
       case 'idle':
         game.state = 'node'
+
+        colors.sort(() => Math.random() - 0.5)
+
+        var idx = 0
+        for (var soc_id in game.players) {
+          var player = game.players[soc_id]
+          player.color = colors[idx++]
+        }
+        update_game(game, 'started game', caller)
+
       case 'node':
-        log('node', node, caller.n_nodes <= 0)
 
         if (node || caller.n_nodes <= 0) {
           return
@@ -286,7 +225,7 @@ function client_socket_init(client_socket) {
           }
         }
         else if (node && node != caller_node &&
-          check_is_valid_line(game, node, caller_node))
+          functions.check_is_valid_line(game, node, caller_node))
         {
           var line = {
             node_a: node,
@@ -350,7 +289,7 @@ function client_socket_init(client_socket) {
 
             flag = game.state
           }
-          else if (line) {
+          else if (line && node.player != caller) {
             if (line.node_a == node && line.state_a == 'idle') {
               line.state_a = game.state
               line.player_a = caller
@@ -381,6 +320,7 @@ function client_socket_init(client_socket) {
             node_b: node,
             player_a: line.player_a,
             player_b: caller,
+            player: caller,
             state_a: line.state_a,
             state_b: 'idle',
           }
@@ -393,6 +333,7 @@ function client_socket_init(client_socket) {
             node_b: line.node_b,
             player_a: caller,
             player_b: line.player_b,
+            player: caller,
             state_a: 'idle',
             state_b: line.state_b,
           }

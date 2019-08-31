@@ -11,10 +11,23 @@ var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
 var err = console.error
 var name = null
 var node_radius = 10
+var line_width = 3
 
 var canvas = document.getElementById('canvas')
 var ctx = canvas.getContext('2d')
 var client_socket = io()
+
+var functions = null
+module = {
+  test: 1,
+  set exports(exports) {
+    functions = exports
+
+    noise = functions.noise
+    node_grab_radius = functions.node_grab_radius
+    line_grab_radius = functions.line_grab_radius
+  }
+}
 
 function get_cookie(name) {
   return document.cookie.
@@ -25,41 +38,45 @@ function get_cookie(name) {
 
 log('Index.js')
 
+// -----------------------------------------------------------------------------
+// Game Manip
+
 // mouse/touch controls
 {
   $(document).mousemove(e => {
     var width = canvas.width = window.innerWidth - 20
     var height = canvas.height = window.innerHeight - 22
-    var mws_x = client_socket.mws_x = e.clientX - 7
-    var mws_y = client_socket.mws_y = e.clientY - 7
+    var mouse_x = client_socket.mouse_x = e.clientX - 7
+    var mouse_y = client_socket.mouse_y = e.clientY - 7
   })
   $(document).mousedown(e => {
     var width = canvas.width = window.innerWidth - 20
     var height = canvas.height = window.innerHeight - 22
-    var mws_x = client_socket.mws_x = e.clientX - 7
-    var mws_y = client_socket.mws_y = e.clientY - 7
-    client_socket.emit('mouse down', mws_x/width, mws_y/height)
+    var mouse_x = client_socket.mouse_x = e.clientX - 7
+    var mouse_y = client_socket.mouse_y = e.clientY - 7
+
+    client_socket.emit('mouse down', mouse_x/width, mouse_y/height)
   })
   $(document).mouseup(e => {
     var width = canvas.width = window.innerWidth - 20
     var height = canvas.height = window.innerHeight - 22
-    var mws_x = client_socket.mws_x = e.clientX - 7
-    var mws_y = client_socket.mws_y = e.clientY - 7
-    client_socket.emit('mouse up', mws_x/width, mws_y/height)
+    var mouse_x = client_socket.mouse_x = e.clientX - 7
+    var mouse_y = client_socket.mouse_y = e.clientY - 7
+    client_socket.emit('mouse up', mouse_x/width, mouse_y/height)
   })
   document.addEventListener('touchstart', e => {
     var width = canvas.width = window.innerWidth - 20
     var height = canvas.height = window.innerHeight - 22
-    var mws_x = client_socket.mws_x = e.clientX - 7
-    var mws_y = client_socket.mws_y = e.clientY - 7
-    client_socket.emit('mouse down', mws_x/width, mws_y/height)
+    var mouse_x = client_socket.mouse_x = e.clientX - 7
+    var mouse_y = client_socket.mouse_y = e.clientY - 7
+    client_socket.emit('mouse down', mouse_x/width, mouse_y/height)
   }, false)
   document.addEventListener('touchend', e => {
     var width = canvas.width = window.innerWidth - 20
     var height = canvas.height = window.innerHeight - 22
-    var mws_x = client_socket.mws_x = e.clientX - 7
-    var mws_y = client_socket.mws_y = e.clientY - 7
-    client_socket.emit('mouse up', mws_x/width, mws_y/height)
+    var mouse_x = client_socket.mouse_x = e.clientX - 7
+    var mouse_y = client_socket.mouse_y = e.clientY - 7
+    client_socket.emit('mouse up', mouse_x/width, mouse_y/height)
   }, false)
 }
 
@@ -83,15 +100,23 @@ client_socket.on('connect', () => {
 })
 
 client_socket.on('update', game => {
-  client_socket.game = game
   log(`'${game.caller.name}' ${game.reason}`)
-  log(game)
+
+  for (var idx in game.nodes) {
+    var node = game.nodes[idx]
+    node.player = game.players[node.player]
+  }
 
   for (var idx in game.lines) {
     var line = game.lines[idx]
     line.node_a = game.nodes[line.node_a]
     line.node_b = game.nodes[line.node_b]
+    line.player_a = game.players[line.player_a]
+    line.player_b = game.players[line.player_b]
+    line.player = game.players[line.player]
   }
+
+  client_socket.game = functions.copy_game(game)
 })
 
 function tick() {
@@ -104,46 +129,80 @@ function tick() {
   }
   prev_now = now
 
+  ctx.lineWidth = line_width
+
   // ctx.textAlign = 'left'
   // ctx.font = `${font_size}px Arial`
   // ctx.fillStyle = 'white'
   // ctx.fillText('Knifeline', 0, font_size)
 
-  var game = client_socket.game
-  if (game) {
+  if (client_socket.game) {
+    var game = functions.copy_game(client_socket.game, Infinity)
 
     for (var idx in game.lines) {
       var line = game.lines[idx]
 
-      ctx.strokeStyle = 'white'
+      if (game.state == 'line') {
+        ctx.strokeStyle = line.player.color
+      }
+      else {
+        ctx.strokeStyle = 'white'
+      }
       ctx.beginPath()
       ctx.moveTo(line.node_a.x * width, line.node_a.y * height)
       ctx.lineTo(line.node_b.x * width, line.node_b.y * height)
       ctx.stroke()
     }
 
+    // draw player line
     var player = game.players[client_socket.id]
-    if (player && player.node && game.state == 'line') {
-      ctx.strokeStyle = 'white'
-      ctx.beginPath()
-      ctx.moveTo(client_socket.mws_x, client_socket.mws_y)
-      ctx.lineTo(player.node.x * width, player.node.y * height)
-      ctx.stroke()
+    if (player) {
+      var mouse_x = client_socket.mouse_x / width
+      var mouse_y = client_socket.mouse_y / height
+      var mouse_node = functions.get_node(game, mouse_x, mouse_y)
+      var mouse_line = functions.get_line(game, mouse_x, mouse_y)
 
+      if (player.node) {
+        var player_node = functions.get_node(game, player.node.x, player.node.y)
+
+        if (game.state == 'line') {
+
+          if (player_node && mouse_node &&
+            functions.check_is_valid_line(game, player_node, mouse_node))
+          {
+            ctx.strokeStyle = 'white'
+            ctx.beginPath()
+            ctx.moveTo(mouse_node.x * width, mouse_node.y * height)
+            ctx.lineTo(player_node.x * width, player_node.y * height)
+            ctx.stroke()
+          }
+          else {
+            ctx.strokeStyle = 'grey'
+            ctx.beginPath()
+            ctx.moveTo(client_socket.mouse_x, client_socket.mouse_y)
+            ctx.lineTo(player_node.x * width, player_node.y * height)
+            ctx.stroke()
+          }
+        }
+      }
     }
 
+    // draw nodes
     for (var idx in game.nodes) {
       var node = game.nodes[idx]
 
       ctx.strokeStyle = 'white'
       ctx.beginPath()
       ctx.ellipse(node.x * width, node.y * height,
-        game.node_grab_radius*width,
-        game.node_grab_radius*height,
-        0, 0, 2 * Math.PI)
+        node_grab_radius * width, node_grab_radius * height, 0, 0, 2 * Math.PI)
       ctx.stroke()
 
-      ctx.fillStyle = 'white'
+      if (game.state == 'node') {
+        ctx.fillStyle = node.player.color
+      }
+      else {
+        ctx.fillStyle = 'white'
+      }
       ctx.beginPath()
       ctx.arc(node.x * width, node.y * height, node_radius, 0, 2 * Math.PI)
       ctx.fill()
