@@ -10,11 +10,9 @@ var proj_name = 'Knifeline:'
 var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
 var err = console.error
 var name = null
-var node_radius = 10
 var line_width = 3
 
-var default_color = '#404040'
-var knife_color = 'black'
+
 
 var canvas = document.getElementById('canvas')
 var ctx = canvas.getContext('2d')
@@ -25,12 +23,6 @@ module = {
   test: 1,
   set exports(exports) {
     functions = exports
-
-    noise = functions.noise
-    node_grab_radius = functions.node_grab_radius
-    line_grab_radius = functions.line_grab_radius
-    sub_node_radius = functions.sub_node_radius
-    nub_radius = functions.nub_radius
   }
 }
 
@@ -49,17 +41,8 @@ log('Index.js')
 // mouse/touch controls
 {
   $(document).mousemove(e => {
-    var width = canvas.width = window.innerWidth - 20
-    var height = canvas.height = window.innerHeight - 22
-    if (width > height) {
-      width = height
-    }
-    else {
-      height = width
-    }
-
-    var mouse_x = client_socket.mouse_x = e.clientX - 7
-    var mouse_y = client_socket.mouse_y = e.clientY - 7
+    client_socket.mouse_x = (e.clientX - 7) / canvas.width
+    client_socket.mouse_y = (e.clientY - 7) / canvas.height
 
     if (!client_socket || !client_socket.game_backup) {
       return
@@ -71,66 +54,30 @@ log('Index.js')
       return
     }
     var action = functions.player_act_at(client_socket.game, caller,
-      mouse_x / width, mouse_y / height)
+      client_socket.mouse_x, client_socket.mouse_y)
     var total_length = action ? Infinity : 0
     client_socket.game = functions.copy_game(client_socket.game, total_length)
   })
   $(document).mousedown(e => {
-    var width = canvas.width = window.innerWidth - 20
-    var height = canvas.height = window.innerHeight - 22
-    if (width > height) {
-      width = height
-    }
-    else {
-      height = width
-    }
+    client_socket.mouse_x = (e.clientX - 7) / canvas.width
+    client_socket.mouse_y = (e.clientY - 7) / canvas.height
 
-    var mouse_x = client_socket.mouse_x = e.clientX - 7
-    var mouse_y = client_socket.mouse_y = e.clientY - 7
-
-    client_socket.emit('mouse down', mouse_x/width, mouse_y/height)
+    client_socket.emit('mouse down', client_socket.mouse_x, client_socket.mouse_y)
   })
   $(document).mouseup(e => {
-    var width = canvas.width = window.innerWidth - 20
-    var height = canvas.height = window.innerHeight - 22
-    if (width > height) {
-      width = height
-    }
-    else {
-      height = width
-    }
-
-    var mouse_x = client_socket.mouse_x = e.clientX - 7
-    var mouse_y = client_socket.mouse_y = e.clientY - 7
-    client_socket.emit('mouse up', mouse_x/width, mouse_y/height)
+    client_socket.mouse_x = (e.clientX - 7) / canvas.width
+    client_socket.mouse_y = (e.clientY - 7) / canvas.height
+    client_socket.emit('mouse up', client_socket.mouse_x, client_socket.mouse_y)
   })
   document.addEventListener('touchstart', e => {
-    var width = canvas.width = window.innerWidth - 20
-    var height = canvas.height = window.innerHeight - 22
-    if (width > height) {
-      width = height
-    }
-    else {
-      height = width
-    }
-
-    var mouse_x = client_socket.mouse_x = e.clientX - 7
-    var mouse_y = client_socket.mouse_y = e.clientY - 7
-    client_socket.emit('mouse down', mouse_x/width, mouse_y/height)
+    client_socket.mouse_x = (e.clientX - 7) / canvas.width
+    client_socket.mouse_y = (e.clientY - 7) / canvas.height
+    client_socket.emit('mouse down', client_socket.mouse_x, client_socket.mouse_y)
   }, false)
   document.addEventListener('touchend', e => {
-    var width = canvas.width = window.innerWidth - 20
-    var height = canvas.height = window.innerHeight - 22
-    if (width > height) {
-      width = height
-    }
-    else {
-      height = width
-    }
-
-    var mouse_x = client_socket.mouse_x = e.clientX - 7
-    var mouse_y = client_socket.mouse_y = e.clientY - 7
-    client_socket.emit('mouse up', mouse_x/width, mouse_y/height)
+    client_socket.mouse_x = (e.clientX - 7) / canvas.width
+    client_socket.mouse_y = (e.clientY - 7) / canvas.height
+    client_socket.emit('mouse up', client_socket.mouse_x, client_socket.mouse_y)
   }, false)
 }
 
@@ -153,25 +100,17 @@ client_socket.on('connect', () => {
   client_socket.emit('client name', {name: name})
 })
 
-client_socket.on('update', game => {
-  log(`'${game.caller.name}' ${game.reason}`)
-
-  if (game.state == 'over') {
+client_socket.on('update', game_export => {
+  if (!game_export) {
     return
   }
 
-  for (var idx in game.nodes) {
-    var node = game.nodes[idx]
-    node.player = game.players[node.player]
-  }
+  log(`'${game_export.caller.name}' ${game_export.reason}`)
 
-  for (var idx in game.lines) {
-    var line = game.lines[idx]
-    line.node_a = game.nodes[line.node_a]
-    line.node_b = game.nodes[line.node_b]
-    line.player_a = game.players[line.player_a]
-    line.player_b = game.players[line.player_b]
-    line.player = game.players[line.player]
+  var game = functions.import(game_export)
+
+  if (game.state == 'over') {
+    return
   }
 
   client_socket.game = functions.copy_game(game, Infinity)
@@ -179,8 +118,8 @@ client_socket.on('update', game => {
 })
 
 function tick() {
-  var width = canvas.width = window.innerWidth - 20
-  var height = canvas.height = window.innerHeight - 22
+  canvas.width = window.innerWidth - 20
+  canvas.height = window.innerHeight - 22
 
   var now = (new Date()).getTime() * 1e-3
   var deltaT = now - prev_now
@@ -191,11 +130,11 @@ function tick() {
 
   ctx.lineWidth = line_width
 
-  if (width > height) {
-    width = height
+  if (canvas.width > canvas.height) {
+    canvas.width = canvas.height
   }
   else {
-    height = width
+    canvas.height = canvas.width
   }
 
   // ctx.textAlign = 'left'
@@ -210,96 +149,9 @@ function tick() {
     ctx.strokeStyle = player.color
     ctx.beginPath()
     var lw = line_width/2
-    ctx.rect(lw, lw, width-lw, height-lw)
+    ctx.rect(lw, lw, canvas.width-lw, canvas.height-lw)
     ctx.stroke()
 
-
-    var player_node = null
-    if (player.node) {
-      player_node = functions.get_node(game, player.node.x, player.node.y)
-    }
-
-    // draw nodes
-    for (var idx in game.nodes) {
-      var node = game.nodes[idx]
-
-      ctx.strokeStyle = default_color
-      ctx.beginPath()
-      ctx.ellipse(node.x * width, node.y * height,
-        node_grab_radius * width, node_grab_radius * height, 0, 0, 2 * Math.PI)
-      ctx.stroke()
-
-      if (game.state == 'line' && node == player_node) {
-        ctx.fillStyle = player.color
-      }
-      else if (game.state == 'node' || node.state == 'fountain') {
-        ctx.fillStyle = node.player.color
-      }
-      else if (node.state == 'knife') {
-        ctx.fillStyle = knife_color
-      }
-      else {
-        ctx.fillStyle = default_color
-      }
-      ctx.beginPath()
-      ctx.ellipse(node.x * width, node.y * height,
-        sub_node_radius * width, sub_node_radius * height, 0, 0, 2 * Math.PI)
-      ctx.fill()
-    }
-
-    for (var idx in game.lines) {
-      var line = game.lines[idx]
-
-      var ax = line.node_a.x, ay = line.node_a.y
-      var bx = line.node_b.x, by = line.node_b.y
-      var lx = bx-ax, ly = by-ay
-      var len = node_grab_radius / Math.sqrt(lx*lx + ly*ly)
-
-      var lax = ax + lx * len, lay = ay + ly * len
-      var lbx = bx - lx * len, lby = by - ly * len
-
-      if (game.state == 'line') {
-        ctx.strokeStyle = line.player.color
-      }
-      else {
-        ctx.strokeStyle = default_color
-      }
-      ctx.beginPath()
-      ctx.moveTo(lax * width, lay * height)
-      ctx.lineTo(lbx * width, lby * height)
-      ctx.stroke()
-
-      if (line.state_a == 'fountain') {
-        ctx.fillStyle = line.player_a.color
-      }
-      else if (line.state_a == 'knife') {
-        ctx.fillStyle = knife_color
-      }
-      else {
-        ctx.fillStyle = default_color
-      }
-
-      ctx.beginPath()
-      ctx.ellipse(lax * width, lay * height,
-          nub_radius * width, nub_radius * height, 0, 0, 2 * Math.PI)
-      ctx.fill()
-
-
-      if (line.state_b == 'fountain') {
-        ctx.fillStyle = line.player_b.color
-      }
-      else if (line.state_b == 'knife') {
-        ctx.fillStyle = knife_color
-      }
-      else {
-        ctx.fillStyle = default_color
-      }
-
-      ctx.beginPath()
-      ctx.ellipse(lbx * width, lby * height,
-        nub_radius * width, nub_radius * height, 0, 0, 2 * Math.PI)
-      ctx.fill()
-    }
 
     ctx.fillStyle = player.color
     ctx.textAlign = 'left'
