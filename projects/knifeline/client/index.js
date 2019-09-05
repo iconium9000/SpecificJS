@@ -12,8 +12,6 @@ var err = console.error
 var name = null
 var line_width = 3
 
-
-
 var canvas = document.getElementById('canvas')
 var ctx = canvas.getContext('2d')
 var client_socket = io()
@@ -23,6 +21,7 @@ module = {
   test: 1,
   set exports(exports) {
     functions = exports
+    tick()
   }
 }
 
@@ -105,9 +104,9 @@ client_socket.on('update', game_export => {
     return
   }
 
-  log(`'${game_export.caller.name}' ${game_export.reason}`)
 
   var game = functions.import(game_export)
+  log(`'${game.caller.name}' ${game.reason}`)
 
   if (game.state == 'over') {
     return
@@ -161,4 +160,3 @@ function tick() {
 
   window.requestAnimationFrame(tick)
 }
-tick()

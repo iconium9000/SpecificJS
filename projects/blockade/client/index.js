@@ -1,10 +1,11 @@
+
+const proj_name = 'Blockade:'
+const log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
+const err = console.error
+const is_mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+
 // -----------------------------------------------------------------------------
 // client setup
-
-var max_bar_queue = 20
-var is_mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-var gravity = is_mobile ? 0.7 : 0.8
-var thrust = 2.5 * gravity // h per sec per sec
 
 function get_cookie(name) {
   return document.cookie.
@@ -13,11 +14,11 @@ function get_cookie(name) {
     ), '$1')
 }
 
-var colors = [
+const colors = [
   'green','yellow','orange','red',
   'purple','magenta','lightblue','blue'
 ]
-var high_block_color = '#202020'
+const high_block_color = '#202020'
 function get_color(v, max) {
   if (max <= v || v < 0) {
     return 'white'
@@ -25,42 +26,44 @@ function get_color(v, max) {
   return colors[Math.floor(v / max * colors.length)]
 }
 
-var line_width = 6
-var font_size = 20
-var msgs = []
-var num_msgs = 5
-var msg_key = 109
+// if
+const gravity = is_mobile ? 0.7 : 0.8
+const thrust = 2.5 * gravity // h per sec per sec
 
-var plr_x = 1/15 // 1/60
-var plr_y = 1/2
-var plr_w = 1/12
-var plr_h = 1/20
-var plr_v = 0
-
-var bar_speed = 2/3     // w per sec
-
-var score = 0
-var all_score = 0
-var my_deaths = 0
-var player_high_score = 0
-
-var timeout_freq = 20   // when to timeout
-var bar_freq = 4/1
-var max_bar_feq = 7/1
-var max_deltaT = 0.1
+const timeout_freq = 20   // when to timeout
+const max_deltaT = 0.1
 var start_time = (new Date()).getTime() * 1e-3
 var prev_now = start_time - max_deltaT
-var thrust_time = 0
-var bar_timer = start_time + 1/max_bar_feq
 
+const max_bar_queue = 5
+const max_bar_freq = 7/1
+const bar_freq = 4/1
+const bar_speed = 2/3     // w per sec
+
+const line_width = 6
+const font_size = 20
+
+const msgs = []
+const num_msgs = 5
+const msg_key = 109
+
+const plr_x = 1/15 // 1/60
+const plr_w = 1/12
+const plr_h = 1/20
+
+var plr_v = 0
+var plr_y = 1/2
+
+var score = 0
+var my_deaths = 0
+var player_high_score = 0
 var dead = true
 
-var proj_name = 'Blockade:'
-var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
-var err = console.error
+var thrust_time = 0
+var bar_timer = start_time + 1/max_bar_freq
 
-var canvas = document.getElementById('canvas')
-var client_socket = io()
+const canvas = document.getElementById('canvas')
+const client_socket = io()
 
 log('Index.js')
 
@@ -85,7 +88,7 @@ if (!player_high_score) {
 // reply to server with name
 client_socket.emit('client name', {name: name, high_score: player_high_score})
 
-var ctx = canvas.getContext('2d')
+const ctx = canvas.getContext('2d')
 ctx.lineWidth = line_width
 
 var mouse_down = false
@@ -97,7 +100,7 @@ document.addEventListener('touchend', e => { mouse_down = false }, false)
 $(document).keypress(e => {
   e.which == 32 && (mouse_down = true)
   if (e.which == msg_key) {
-    var msg = prompt('msg for group')
+    const msg = prompt('msg for group')
     if (msg) {
       client_socket.emit('msg', msg)
     }
@@ -111,13 +114,13 @@ $(document).keyup(e => { e.which == 32 && (mouse_down = false)})
 var max_score = 0
 var max_high_score = 0
 var temp_high_score = 0
-var bar_queue = []
-var bars = []
+const bar_queue = []
+const bars = []
 var players = {}
 
 client_socket.on('new bar', (x, y, w, h) => {
   if (bar_queue.length < max_bar_queue) {
-    var bar = {
+    const bar = {
       start_x:x, x:x, y:y, w:w, h:h,
       dead: dead,
       c: get_color(dead ? 0 : score + bar_speed * bar_freq, temp_high_score)
@@ -133,8 +136,8 @@ client_socket.on('msg', (msg) => {
 
 client_socket.on('update', ({plrs}) => {
   max_score = max_high_score = 0
-  for (var i in plrs) {
-    var plr = plrs[i]
+  for (const i in plrs) {
+    const plr = plrs[i]
 
     if (!plr.dead && max_score < plr.score) {
       max_score = plr.score
@@ -165,9 +168,12 @@ client_socket.on('update', ({plrs}) => {
 })
 
 function tick() {
-  var width = canvas.width = window.innerWidth - 20
-  var height = canvas.height = window.innerHeight - 22
-  var now = (new Date()).getTime() * 1e-3
+
+  const width = canvas.width = window.innerWidth - 20
+  const height = canvas.height = window.innerHeight - 22
+
+  const now = (new Date()).getTime() * 1e-3
+
   var deltaT = now - prev_now
   ctx.lineWidth = line_width
   if (deltaT > max_deltaT) {
@@ -177,23 +183,23 @@ function tick() {
 
   // get bar
   if (now > bar_timer && bar_queue.length > 0) {
-    var bar = bar_queue.splice(0,1)[0]
+    const bar = bar_queue.splice(0,1)[0]
     bar.t = now
     bars.push(bar)
-    bar_timer = now + 1/max_bar_feq
+    bar_timer = now + 1/max_bar_freq
   }
 
   // move player
   if (!dead) {
-    var acceleration = gravity - (mouse_down ? thrust : 0)
+    const acceleration = gravity - (mouse_down ? thrust : 0)
     plr_v += deltaT * acceleration
     plr_y += deltaT * plr_v
   }
 
   // is plr in bar?
   var hitbox = false
-  for (var i in bars) {
-    var bar = bars[i]
+  for (const i in bars) {
+    const bar = bars[i]
     if (bar.dead) {
       continue
     }
@@ -223,24 +229,22 @@ function tick() {
         score: score,
         deaths: my_deaths,
       })
-      for (var i in bars) {
-        var bar = bars[i]
+      for (const i in bars) {
+        const bar = bars[i]
         bar.dead = true
       }
       score = 0
     }
-    bar_score = 0
-    thrust_time = 0
     start_time = now
   }
 
-  var scores = []
+  const scores = []
 
   // draw other players
-  for (var player_id in players) {
-    var player = players[player_id]
+  for (const player_id in players) {
+    const player = players[player_id]
     if (!player.dead && player_id != client_socket.id) {
-      var color = get_color(player.score, temp_high_score)
+      const color = get_color(player.score, temp_high_score)
       ctx.fillStyle = color
       ctx.beginPath()
       ctx.rect(plr_x*width, player.plr_y*height, plr_w*width, plr_h*height)
@@ -274,18 +278,17 @@ function tick() {
   // draw bars
   ctx.lineWidth = 1
   for (var i = 0; i < bars.length; ++i) {
-    var bar = bars[i]
+    const bar = bars[i]
     bar.x = bar.start_x - bar_speed * (now - bar.t)
 
     if (bar.x < -bar.w) {
       if (!dead && !bar.dead) {
         ++score
-        ++all_score
       }
       bars.splice(i--,1)
     }
     else {
-      var color = bar.c == 'white' ? high_block_color : bar.c
+      const color = bar.c == 'white' ? high_block_color : bar.c
       ctx.strokeStyle = ctx.fillStyle = color
       // ctx.strokeStyle = ctx.fillStyle = 'white'
       ctx.beginPath()
@@ -297,7 +300,7 @@ function tick() {
   ctx.lineWidth = line_width
 
   // draw progress bar
-  var scale = temp_high_score < max_score ? temp_high_score / max_score : 1
+  const scale = temp_high_score < max_score ? temp_high_score / max_score : 1
   for (var i = 0; i < colors.length; ++i) {
     ctx.strokeStyle = colors[i]
     ctx.beginPath()
@@ -327,15 +330,15 @@ function tick() {
 
   ctx.fillStyle = 'white'
   for (var i = 0; i < msgs.length; ++i) {
-    var msg = msgs[i]
+    const msg = msgs[i]
     ctx.fillText(msg, width, line_width * 2 + (1+i)*font_size)
   }
 
   for (var i = 0 ; i < scores.length; ++i) {
-    var player = scores[i]
+    const player = scores[i]
 
     ctx.fillStyle = get_color(player.high_score, temp_high_score)
-    var txt = `${player.name}: ${player.score} (${player.high_score})`
+    const txt = `${player.name}: ${player.score} (${player.high_score})`
     ctx.fillText(txt, width-20, height - i*font_size*1.2)
   }
   if (mouse_down) {

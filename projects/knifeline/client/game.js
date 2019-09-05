@@ -151,6 +151,62 @@ var f = module.exports = {
 
   copy_game: function ( game, total_length ) {
 
+    var new_game = {
+      players: {},
+      nodes: [],
+      lines: [],
+      state: game.state,
+      reason: game.reason,
+    }
+
+    for ( var node_idx in game.nodes ) {
+      var node = game.nodes[ node_idx ]
+      node.idx = node_idx
+
+      var new_node = {
+        idx: node_idx,
+        x: node.x, y: node.y,
+        state: node.state,
+        lines: [],
+      }
+      new_game.nodes.push( new_node )
+    }
+
+    for ( var player_id in game.players ) {
+      var player = game.players[ player_id ]
+
+      var new_player = {
+        name: player.name,
+        node: new_game.nodes[ player.node.idx ],
+        color: player.color,
+      }
+      for ( var state in f.n_state ) {
+        var n_state = f.n_state[ state ]
+        new_player[ n_state ] = player[ n_state ]
+      }
+      new_game.players[ player_id ] = new_player
+    }
+
+    new_game.caller = new_game.players[ game.caller.id ]
+    for ( var node_idx in new_game.nodes ) {
+      var new_node = new_game.nodes[ node_idx ]
+      new_node.player = new_game.players[ node.player.id ]
+    }
+
+    for ( var line_idx in game.lines ) {
+      var line = game.lines[ line_idx ]
+
+      var new_line = {
+        node_a: new_game.nodes[ line.node_a.idx ],
+        node_b: new_game.nodes[ line.node_b.idx ],
+        player: new_game.players[ line.player.id ],
+      }
+      new_line.node_a.lines.push( new_line )
+      new_line.node_b.lines.push( new_line )
+      new_game.lines.push( new_line )
+    }
+
+    return new_game
   },
 
   // return a JSONable game object
@@ -162,7 +218,7 @@ var f = module.exports = {
       lines: [],
       state: game.state,
       reason: reason,
-      caller: caller.id,
+      caller_id: caller.id,
     }
 
     for ( var node_idx in game.nodes ) {
@@ -214,17 +270,17 @@ var f = module.exports = {
       nodes: [],
       lines: [],
       state: game.state,
-      reason: reason,
-      caller: caller.id,
+      reason: game.reason,
     }
 
     for ( var node_idx in game.nodes ) {
       var node = game.nodes[ node_idx ]
+      node.idx = node_idx
 
       var new_node = {
         x: node.x, y: node.y,
         state: node.state,
-        player: node.player_id, // wait for player to be defined
+        lines: [],
       }
       new_game.nodes.push( new_node )
     }
@@ -234,7 +290,7 @@ var f = module.exports = {
 
       var new_player = {
         name: player.name,
-        node: game.nodes[ player.node_idx ],
+        node: new_game.nodes[ player.node_idx ],
         color: player.color,
       }
       for ( var state in f.n_state ) {
@@ -244,18 +300,20 @@ var f = module.exports = {
       new_game.players[ player_id ] = new_player
     }
 
+    new_game.caller = new_game.players[game.caller_id]
     for ( var node_idx in new_game.nodes ) {
       var new_node = new_game.nodes[ node_idx ]
-      new_node.player = new_game.players[ new_node.player ]
+      var node = game.nodes[ node_idx ]
+      new_node.player = new_game.players[ node.player_id ]
     }
 
     for ( var line_idx in game.lines ) {
       var line = game.lines[ line_idx ]
 
       var new_line = {
-        node_a: game.nodes[ line.node_a_idx ],
-        node_b: game.nodes[ line.node_b_idx ],
-        player: game.players[ line.player_id ],
+        node_a: new_game.nodes[ line.node_a_idx ],
+        node_b: new_game.nodes[ line.node_b_idx ],
+        player: new_game.players[ line.player_id ],
       }
       new_line.node_a.lines.push( new_line )
       new_line.node_b.lines.push( new_line )
@@ -276,7 +334,7 @@ var f = module.exports = {
         var idx = 0
         for ( var player_id in game.players ) {
           var player = game.players[ player_id ]
-          player.color = colors[ idx++ ]
+          player.color = f.colors[ idx++ ]
           player.n_nodes = 3
           player.n_links = game.n_players < 6 ? game.n_players + 1 : 6
           player.n_fountains = 2
@@ -311,8 +369,8 @@ var f = module.exports = {
   player_act_at: function ( game, caller, px, py ) {
 
     var caller_node = caller.node
-    var closest_node = get_node( game, px, py, f.node_grab_radius )
-    var farther_node = get_node( game, px, py, 2*f.node_grab_radius )
+    var closest_node = f.get_node( game, px, py, f.node_grab_radius )
+    var farther_node = f.get_node( game, px, py, 2*f.node_grab_radius )
     var n_state = f.n_state[ game.state ]
 
     if ( !( caller[ n_state ] > 0 ) ) {
