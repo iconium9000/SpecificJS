@@ -1,10 +1,6 @@
-var proj_name = 'Knifeline:'
-var log = ( ...msg ) => console.log.apply ( null, [proj_name].concat ( msg ) )
-var err = console.error
-
 log ( 'game.js' )
 
-var f = module.exports = {
+const f = module.exports = {
 
   node_grab_radius: 1 / 30,
   line_grab_radius: 1 / 20,
@@ -210,7 +206,7 @@ var f = module.exports = {
   },
 
   // return a JSONable game object
-  export: function ( game, reason, caller ) {
+  export: function ( game, reason ) {
 
     var new_game = {
       players: {},
@@ -218,7 +214,6 @@ var f = module.exports = {
       lines: [],
       state: game.state,
       reason: reason,
-      caller_id: caller.id,
     }
 
     for ( var node_idx in game.nodes ) {

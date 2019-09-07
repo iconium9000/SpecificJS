@@ -19,7 +19,7 @@ function server_init() {
 
 function update_game(game, reason, caller) {
 
-  var to_send = functions.export(game, reason, caller)
+  var to_send = functions.export(game, `'${caller.name}' ${reason}`)
 
   for (var soc_id in game.players) {
     var soc = client_sockets[soc_id]
