@@ -1,21 +1,27 @@
+var proj_name = 'Knifeline:'
+var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
+
 log ( 'game.js' )
 
 const f = module.exports = {
 
-  node_grab_radius: 1 / 30,
-  line_grab_radius: 1 / 20,
-  sub_node_radius: 1 / 60,
-  nub_radius: 1 / 120,
-  noise: 1e-8,
+  node_radius: 1 / 50,
+  line_grab_radius: 1 / 50,
+  noise: 1e-9,
+
+  line_speed: 0.3,
 
   default_color: '#404040',
   knife_color: 'black',
-  colors: ['#ff5050','#00ff80','#0080ff','#ff8000','#ff40ff',
-    '#ffff40','#B22222','#00ffff', '#80ff00'],
+  colors: [
+    '#8800ff','#0088ff','#00ff88',
+    '#4444ff','#44aa44','#ff4444',
+    '#888800','#880888','#008888',
+  ],
   n_state: {
     node: 'n_nodes',
     line: 'n_lines',
-    fountain: 'n_fountain',
+    fountain: 'n_fountains',
     knife: 'n_knives',
   },
   next_state: {
@@ -28,10 +34,6 @@ const f = module.exports = {
   },
 
   get_node: function ( game, px, py, min_dist ) {
-
-    if ( min_dist > px || px > 1-min_dist || min_dist > py || py > 1-min_dist ) {
-      return null
-    }
 
     min_dist *= min_dist
     var ret_node = null
@@ -90,7 +92,7 @@ const f = module.exports = {
 
       var line_dist = f.line_dist( line, px, py )
 
-      if ( min_dist < line_dist ) {
+      if ( min_dist > line_dist ) {
         min_dist = line_dist
         ret_line = line
       }
@@ -102,50 +104,64 @@ const f = module.exports = {
 
   check_is_valid_line: function ( game, node_a, node_b ) {
     if ( !node_a || !node_b || node_a == node_b ) {
+      // log('!node_a || !node_b || node_a == node_b', !node_a, !node_b, node_a == node_b)
       return false
     }
 
-    var p111 = node_a.x, p112 = node_a.y, p121 = node_b.x, p122 = node_b.y
+    // var p111 = node_a.x, p112 = node_a.y, p121 = node_b.x, p122 = node_b.y
 
     for ( var idx in game.lines ) {
       var line = game.lines[ idx ]
-      var p211 = line.node_a.x, p212 = line.node_a.y
-      var p221 = line.node_b.x, p222 = line.node_b.y
-      var p222_212 = p222 - p212, p221_211 = p221 - p211
-      var p122_112 = p122 - p112, p121_111 = p121 - p111
 
-      var p11 = ( p111 - p211 ) * p222_212 > ( p112 - p212 ) * p221_211
-      var p12 = ( p121 - p211 ) * p222_212 > ( p122 - p212 ) * p221_211
-      var p21 = ( p211 - p111 ) * p122_112 > ( p212 - p112 ) * p121_111
-      var p22 = ( p221 - p111 ) * p122_112 > ( p222 - p112 ) * p121_111
-
-      if ( p11 != p12 && p21 != p22 ) {
+      if (line.node_a == node_a && line.node_b == node_b) {
+        // log('line.node_a == node_a && line.node_b == node_b')
         return false
       }
-    }
-
-    var line = {
-      node_a: node_a,
-      node_b: node_b
-    }
-
-    for ( var idx in game.nodes ) {
-      var node = game.nodes[ idx ]
-      if ( node == node_a || node == node_b ) {
-        continue
-      }
-
-      var line_dist = f.line_dist( line, node.x, node.y )
-      if ( line_dist < f.node_grab_radius*2 ) {
+      else if (line.node_b == node_a && line.node_a == node_b) {
+        // log('line.node_b == node_a && line.node_a == node_b')
         return false
       }
 
+      // var p211 = line.node_a.x, p212 = line.node_a.y
+      // var p221 = line.node_b.x, p222 = line.node_b.y
+      // var p222_212 = p222 - p212, p221_211 = p221 - p211
+      // var p122_112 = p122 - p112, p121_111 = p121 - p111
+      //
+      // var p11 = ( p111 - p211 ) * p222_212 > ( p112 - p212 ) * p221_211
+      // var p12 = ( p121 - p211 ) * p222_212 > ( p122 - p212 ) * p221_211
+      // var p21 = ( p211 - p111 ) * p122_112 > ( p212 - p112 ) * p121_111
+      // var p22 = ( p221 - p111 ) * p122_112 > ( p222 - p112 ) * p121_111
+      //
+      // if ( p11 != p12 && p21 != p22 ) {
+      //   log('detect cross')
+      //   return false
+      // }
     }
+    //
+    // var line = {
+    //   node_a: node_a,
+    //   node_b: node_b
+    // }
+    //
+    // for ( var idx in game.nodes ) {
+    //   var node = game.nodes[ idx ]
+    //   if ( node == node_a || node == node_b ) {
+    //     continue
+    //   }
+    //
+    //   var line_dist = f.line_dist( line, node.x, node.y )
+    //   log('line_dist', line_dist)
+    //   if ( line_dist < f.node_radius*2 ) {
+    //     log('cross node')
+    //     return false
+    //   }
+    //
+    // }
 
     return true
   },
 
-  copy_game: function ( game, total_length ) {
+  solve_game: function ( game, total_length ) {
 
     var new_game = {
       players: {},
@@ -153,6 +169,7 @@ const f = module.exports = {
       lines: [],
       state: game.state,
       reason: game.reason,
+      total_length: 0,
     }
 
     for ( var node_idx in game.nodes ) {
@@ -162,6 +179,7 @@ const f = module.exports = {
       var new_node = {
         idx: node_idx,
         x: node.x, y: node.y,
+        draw_dot: false,
         state: node.state,
         lines: [],
       }
@@ -172,9 +190,11 @@ const f = module.exports = {
       var player = game.players[ player_id ]
 
       var new_player = {
+        id: player_id,
         name: player.name,
-        node: new_game.nodes[ player.node.idx ],
+        node: player.node && new_game.nodes[ player.node.idx ],
         color: player.color,
+        total_length: 0,
       }
       for ( var state in f.n_state ) {
         var n_state = f.n_state[ state ]
@@ -183,23 +203,117 @@ const f = module.exports = {
       new_game.players[ player_id ] = new_player
     }
 
-    new_game.caller = new_game.players[ game.caller.id ]
     for ( var node_idx in new_game.nodes ) {
       var new_node = new_game.nodes[ node_idx ]
+      var node = game.nodes[ node_idx ]
       new_node.player = new_game.players[ node.player.id ]
     }
 
     for ( var line_idx in game.lines ) {
       var line = game.lines[ line_idx ]
 
+      var abx = line.node_a.x - line.node_b.x
+      var aby = line.node_a.y - line.node_b.y
+
       var new_line = {
+        idx: line_idx,
+        progress_a: 0,
+        progress_b: 0,
         node_a: new_game.nodes[ line.node_a.idx ],
         node_b: new_game.nodes[ line.node_b.idx ],
         player: new_game.players[ line.player.id ],
+        length: Math.sqrt(abx*abx + aby*aby)// - 2*f.node_radius + Math.random() * f.noise,
       }
+
       new_line.node_a.lines.push( new_line )
       new_line.node_b.lines.push( new_line )
       new_game.lines.push( new_line )
+    }
+
+
+
+    new_game.sanity = 100
+    while (new_game.sanity-- > 0){
+
+      var max_length = Infinity
+
+
+      for (var line_idx in new_game.lines) {
+        var line = new_game.lines[line_idx]
+
+        if (line.node_a.state != 'fountain' && line.node_b.state != 'fountain') {
+          continue
+        }
+
+        var length = line.length - line.progress_a - line.progress_b
+
+        if (length < 0) {
+          continue
+        }
+
+        if (line.node_a.state == 'fountain' && line.node_b.state == 'fountain') {
+          length /= 2
+        }
+
+        if (max_length > length) {
+          max_length = length
+        }
+      }
+
+
+      if (max_length == Infinity) {
+        return new_game
+      }
+      else if (max_length + new_game.total_length > total_length) {
+        max_length = total_length - new_game.total_length
+      }
+
+      max_length += Math.random() * f.noise
+
+      for (var line_idx in new_game.lines) {
+        var line = new_game.lines[line_idx]
+        var length = line.length - line.progress_a - line.progress_b
+
+        if (length < 0) {
+          continue
+        }
+
+        if (line.node_a.state == 'fountain') {
+          line.progress_a += max_length
+        }
+
+        if (line.node_b.state == 'fountain') {
+          line.progress_b += max_length
+        }
+      }
+
+
+      for (var line_idx in new_game.lines) {
+        var line = new_game.lines[line_idx]
+        var length = line.length - line.progress_a - line.progress_b
+
+        if (length > 0) {
+          continue
+        }
+
+        if (line.node_b.state == 'fountain' && line.node_a.state == 'idle') {
+          line.node_a.state = 'fountain'
+          line.node_a.draw_dot = true
+          line.node_a.player = line.node_b.player
+        }
+
+        if (line.node_a.state == 'fountain' && line.node_b.state == 'idle') {
+          line.node_b.state = 'fountain'
+          line.node_b.draw_dot = true
+          line.node_b.player = line.node_a.player
+        }
+
+      }
+
+      new_game.total_length += max_length
+      if (new_game.total_length > total_length) {
+        return new_game
+      }
     }
 
     return new_game
@@ -218,9 +332,9 @@ const f = module.exports = {
 
     for ( var node_idx in game.nodes ) {
       var node = game.nodes[ node_idx ]
+      node.idx = new_game.nodes.length
 
       var new_node = {
-        idx: new_game.nodes.length,
         x: node.x, y: node.y,
         state: node.state,
         player_id: node.player.id,
@@ -254,6 +368,8 @@ const f = module.exports = {
       new_game.lines.push( new_line )
     }
 
+    // log('export', new_game)
+
     return new_game
 
   },
@@ -284,6 +400,7 @@ const f = module.exports = {
       var player = game.players[ player_id ]
 
       var new_player = {
+        id: player_id,
         name: player.name,
         node: new_game.nodes[ player.node_idx ],
         color: player.color,
@@ -295,7 +412,6 @@ const f = module.exports = {
       new_game.players[ player_id ] = new_player
     }
 
-    new_game.caller = new_game.players[game.caller_id]
     for ( var node_idx in new_game.nodes ) {
       var new_node = new_game.nodes[ node_idx ]
       var node = game.nodes[ node_idx ]
@@ -315,6 +431,8 @@ const f = module.exports = {
       new_game.lines.push( new_line )
     }
 
+    log('import', new_game)
+
     return new_game
 
   },
@@ -331,7 +449,7 @@ const f = module.exports = {
           var player = game.players[ player_id ]
           player.color = f.colors[ idx++ ]
           player.n_nodes = 3
-          player.n_links = game.n_players < 6 ? game.n_players + 1 : 6
+          player.n_lines = game.n_players < 6 ? game.n_players + 1 : 6
           player.n_fountains = 2
           player.n_knives = 2
         }
@@ -363,10 +481,16 @@ const f = module.exports = {
 
   player_act_at: function ( game, caller, px, py ) {
 
+    var min_dist = f.node_radius*2
+    if ( min_dist > px || px > 1-min_dist || min_dist > py || py > 1-min_dist ) {
+      return
+    }
+
     var caller_node = caller.node
-    var closest_node = f.get_node( game, px, py, f.node_grab_radius )
-    var farther_node = f.get_node( game, px, py, 2*f.node_grab_radius )
+    var closest_node = f.get_node( game, px, py, f.node_radius )
+    var farther_node = f.get_node( game, px, py, 2*f.node_radius )
     var n_state = f.n_state[ game.state ]
+    var closest_line = f.get_line( game, px, py, f.node_radius )
 
     if ( !( caller[ n_state ] > 0 ) ) {
       return
@@ -415,11 +539,15 @@ const f = module.exports = {
           }
 
           game.lines.push( new_line )
-          line.node_a.lines.push( new_line )
-          line.node_b.lines.push( new_line )
+          closest_node.lines.push( new_line )
+          caller_node.lines.push( new_line )
+          caller.node = null
 
           --caller[ n_state ]
           return 'added line'
+        }
+        else {
+          return
         }
 
       case 'fountain':
@@ -427,28 +555,29 @@ const f = module.exports = {
 
         if ( closest_node && closest_node.state == 'idle' ) {
           closest_node.state = game.state
+          closest_node.player = caller
         }
-        else if (!line) {
+        else if (!closest_line) {
           return
         }
         else if ( farther_node ) {
 
-          if ( farther_node == line.node_a ) {
-            line.node_a = line.node_b
-            line.node_b = farther_node
+          if ( farther_node == closest_line.node_b ) {
+            closest_line.node_b = closest_line.node_a
+            closest_line.node_a = farther_node
           }
-          else if ( farther_node != line.node_b ) {
+          else if ( farther_node != closest_line.node_a ) {
             return
           }
 
-          var r = 2 * f.node_grab_radius
-          var ax = line.node_a.x, ay = line.node_a.y
-          var bx = line.node_b.x, by = line.node_b.y
+          var r = 2 * f.node_radius
+          var ax = closest_line.node_a.x, ay = closest_line.node_a.y
+          var bx = closest_line.node_b.x, by = closest_line.node_b.y
           var bax = bx - ax, bay = by - ay
           var q = ( r + f.noise ) / Math.sqrt( bax*bax + bay*bay )
           var qx = ax + bax * q, qy = ay + bay * q
 
-          var closest_node = get_node( game, qx, qy, r )
+          var closest_node = f.get_node( game, qx, qy, r )
 
           if ( closest_node ) {
             return
@@ -458,23 +587,30 @@ const f = module.exports = {
             x: qx, y: qy,
             state: game.state,
             player: caller,
-            lines: [ line ],
+            lines: [ closest_line ],
           }
 
-          farther_node.lines.splice( farther_node.lines.indexOf( line ), 1 )
-          line.node_a = new_node
+          var line_idx = farther_node.lines.indexOf( closest_line )
+          farther_node.lines.splice( line_idx, 1 )
+          closest_line.node_a = new_node
           game.nodes.push( new_node )
         }
         else {
 
-          var node_a = line.node_a, node_b = line.node_b
-          var q = f.point_on_line( line, px, py )
+          var node_a = closest_line.node_a, node_b = closest_line.node_b
+          var q = f.point_on_line( closest_line, px, py )
+
+          var closest_node = f.get_node( game, q.x, q.y, 2 * f.node_radiusx )
+
+          if ( closest_node ) {
+            return
+          }
 
           var new_node = {
             x: q.x, y: q.y,
             state: game.state,
             player: caller,
-            lines: [ line ],
+            lines: [ closest_line ],
           }
           var new_line = {
             node_a: new_node,
@@ -482,10 +618,11 @@ const f = module.exports = {
             player: caller,
           }
 
-          node_b.lines.splice( node_b.lines.indexOf( line ), 1 )
+          var line_idx = node_b.lines.indexOf( closest_line )
+          node_b.lines.splice( line_idx, 1 )
           node_b.lines.push(new_line)
           new_node.lines.push(new_line)
-          line.node_b = new_node
+          closest_line.node_b = new_node
           game.nodes.push(new_node)
           game.lines.push(new_line)
         }

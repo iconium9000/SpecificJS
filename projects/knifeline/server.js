@@ -1,8 +1,8 @@
-var proj_name = 'Knifeline:'
-var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
-var err = console.error
+const proj_name = 'Knifeline:'
+const log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
+const err = console.error
 
-var functions = require('./client/game.js')
+const functions = require('./client/game.js')
 
 module.exports = server_init
 var client_sockets = {}
