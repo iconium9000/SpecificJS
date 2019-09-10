@@ -11,7 +11,7 @@ const log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
 
 log(`Activated Server`)
 
-const default_port = 80
+const default_port = process.env.PORT || 80
 const port = parseInt(process.argv[2]) || default_port
 
 const express = require('express')
