@@ -79,7 +79,7 @@ client_socket.on('connect', () => {
   }
 
   // if no name is found in cookies, get one from the user
-  while (!name) {
+  while (!name || name == 'null') {
     name = prompt('Choose a name:', name)
     document.cookie = `name=${name}`
   }
@@ -164,6 +164,7 @@ function tick() {
     var total_length = Math.abs(now - show_time) * functions.line_speed
 
     var game = functions.solve_game(client_socket.game, total_length)
+    client_socket.game = game
 
     // var game = functions.solve_game(client_socket.game, Infinity)
     var player = game.players[client_socket.id]
@@ -238,6 +239,7 @@ function tick() {
       else {
         ctx.fillStyle = functions.default_color
       }
+
       ctx.beginPath()
       ctx.ellipse(
         node.x * canvas.width, node.y * canvas.height,
@@ -247,19 +249,63 @@ function tick() {
       )
       ctx.fill()
 
-      if (node.draw_dot) {
-        ctx.fillStyle = functions.default_color
-        ctx.beginPath()
-        ctx.ellipse(
-          node.x * canvas.width, node.y * canvas.height,
-          functions.node_radius * canvas.width / 2,
-          functions.node_radius * canvas.height / 2,
-          0, 0, Math.PI*2
-        )
-        ctx.fill()
-      }
+      ctx.fillStyle = node.dot_color
+      ctx.beginPath()
+      ctx.ellipse(
+        node.x * canvas.width, node.y * canvas.height,
+        functions.node_radius * canvas.width / 2,
+        functions.node_radius * canvas.height / 2,
+        0, 0, Math.PI*2
+      )
+      ctx.fill()
     }
 
+    // var neg = node.super_line < 0 || super_line < 0
+    // var eql = node.super_line == super_line
+    //
+    // if ( min_dist > dist && (eql || neg)) {
+    //   min_dist = dist
+    //   ret_node = node
+    // }
+
+
+    var lw = 2*f.node_radius * canvas.height
+    var idx = 2*lw
+
+    for (var player_id in game.players) {
+      const player = game.players[player_id]
+
+      ctx.fillStyle = ctx.strokeStyle = player.color
+      ctx.beginPath()
+      ctx.moveTo(lw, canvas.height - idx)
+      ctx.lineTo(
+        lw + (player.total_length / game.full_length) * (canvas.width - 2*lw),
+        canvas.height - idx)
+      ctx.stroke()
+
+
+      // if (game.state != 'line') {
+      //   for (var i = 0; i < player.n_nodes; ++i) {
+      //     ctx.beginPath()
+      //
+      //     ctx.fill()
+      //   }
+      // }
+
+
+      idx += lw
+    }
+
+    ctx.strokeStyle = f.default_color
+    ctx.beginPath()
+    ctx.moveTo(lw, canvas.height - idx)
+    ctx.lineTo(
+      lw + (game.empty_length / game.full_length) * (canvas.width - 2*lw),
+      canvas.height - idx)
+    ctx.stroke()
+
+
+    idx = 2*lw
 
 
     ctx.fillStyle = player.color

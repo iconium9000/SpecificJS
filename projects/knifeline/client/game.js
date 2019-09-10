@@ -33,7 +33,21 @@ const f = module.exports = {
     over: 'idle',
   },
 
-  get_node: function ( game, px, py, min_dist ) {
+  set_players: function (game) {
+    f.colors.sort( () => Math.random() - 0.5 )
+
+    var idx = 0
+    for ( const player_id in game.players ) {
+      const player = game.players[ player_id ]
+      player.color = f.colors[ idx++ ]
+      player.n_nodes = 4
+      player.n_lines = game.n_players + 3
+      player.n_fountains = 3
+      player.n_knives = 2
+    }
+  },
+
+  get_node: function ( game, px, py, min_dist, super_line ) {
 
     min_dist *= min_dist
     var ret_node = null
@@ -44,7 +58,10 @@ const f = module.exports = {
       var nx = px-node.x, ny = py-node.y
       var dist = nx*nx + ny*ny
 
-      if ( min_dist > dist ) {
+      var neg = node.super_line < 0 || super_line < 0
+      var eql = node.super_line == super_line
+
+      if ( min_dist > dist && (eql || neg)) {
         min_dist = dist
         ret_node = node
       }
@@ -108,7 +125,7 @@ const f = module.exports = {
       return false
     }
 
-    // var p111 = node_a.x, p112 = node_a.y, p121 = node_b.x, p122 = node_b.y
+    var p111 = node_a.x, p112 = node_a.y, p121 = node_b.x, p122 = node_b.y
 
     for ( var idx in game.lines ) {
       var line = game.lines[ idx ]
@@ -122,20 +139,27 @@ const f = module.exports = {
         return false
       }
 
-      // var p211 = line.node_a.x, p212 = line.node_a.y
-      // var p221 = line.node_b.x, p222 = line.node_b.y
-      // var p222_212 = p222 - p212, p221_211 = p221 - p211
-      // var p122_112 = p122 - p112, p121_111 = p121 - p111
-      //
-      // var p11 = ( p111 - p211 ) * p222_212 > ( p112 - p212 ) * p221_211
-      // var p12 = ( p121 - p211 ) * p222_212 > ( p122 - p212 ) * p221_211
-      // var p21 = ( p211 - p111 ) * p122_112 > ( p212 - p112 ) * p121_111
-      // var p22 = ( p221 - p111 ) * p122_112 > ( p222 - p112 ) * p121_111
-      //
-      // if ( p11 != p12 && p21 != p22 ) {
-      //   log('detect cross')
-      //   return false
-      // }
+      if (line.node_a == node_a || line.node_a == node_b) {
+        continue
+      }
+      if (line.node_b == node_a || line.node_b == node_b) {
+        continue
+      }
+
+      var p211 = line.node_a.x, p212 = line.node_a.y
+      var p221 = line.node_b.x, p222 = line.node_b.y
+      var p222_212 = p222 - p212, p221_211 = p221 - p211
+      var p122_112 = p122 - p112, p121_111 = p121 - p111
+
+      var p11 = ( p111 - p211 ) * p222_212 > ( p112 - p212 ) * p221_211
+      var p12 = ( p121 - p211 ) * p222_212 > ( p122 - p212 ) * p221_211
+      var p21 = ( p211 - p111 ) * p122_112 > ( p212 - p112 ) * p121_111
+      var p22 = ( p221 - p111 ) * p122_112 > ( p222 - p112 ) * p121_111
+
+      if ( p11 != p12 && p21 != p22 ) {
+        // log('detect cross')
+        return false
+      }
     }
     //
     // var line = {
@@ -170,6 +194,8 @@ const f = module.exports = {
       state: game.state,
       reason: game.reason,
       total_length: 0,
+      empty_length: 0,
+      full_length: 0,
     }
 
     for ( var node_idx in game.nodes ) {
@@ -179,9 +205,10 @@ const f = module.exports = {
       var new_node = {
         idx: node_idx,
         x: node.x, y: node.y,
-        draw_dot: false,
+        dot_color: node.dot_color,
         state: node.state,
         lines: [],
+        super_line: node.super_line,
       }
       new_game.nodes.push( new_node )
     }
@@ -221,10 +248,13 @@ const f = module.exports = {
         progress_b: 0,
         node_a: new_game.nodes[ line.node_a.idx ],
         node_b: new_game.nodes[ line.node_b.idx ],
+        super_line: line.super_line,
         player: new_game.players[ line.player.id ],
-        length: Math.sqrt(abx*abx + aby*aby)// - 2*f.node_radius + Math.random() * f.noise,
+        length: Math.sqrt(abx*abx + aby*aby),
       }
 
+      new_game.empty_length += new_line.length
+      new_game.full_length += new_line.length
       new_line.node_a.lines.push( new_line )
       new_line.node_b.lines.push( new_line )
       new_game.lines.push( new_line )
@@ -236,7 +266,6 @@ const f = module.exports = {
     while (new_game.sanity-- > 0){
 
       var max_length = Infinity
-
 
       for (var line_idx in new_game.lines) {
         var line = new_game.lines[line_idx]
@@ -280,10 +309,14 @@ const f = module.exports = {
 
         if (line.node_a.state == 'fountain') {
           line.progress_a += max_length
+          line.node_a.player.total_length += max_length
+          new_game.empty_length -= max_length
         }
 
         if (line.node_b.state == 'fountain') {
           line.progress_b += max_length
+          line.node_b.player.total_length += max_length
+          new_game.empty_length -= max_length
         }
       }
 
@@ -298,13 +331,11 @@ const f = module.exports = {
 
         if (line.node_b.state == 'fountain' && line.node_a.state == 'idle') {
           line.node_a.state = 'fountain'
-          line.node_a.draw_dot = true
           line.node_a.player = line.node_b.player
         }
 
         if (line.node_a.state == 'fountain' && line.node_b.state == 'idle') {
           line.node_b.state = 'fountain'
-          line.node_b.draw_dot = true
           line.node_b.player = line.node_a.player
         }
 
@@ -338,6 +369,8 @@ const f = module.exports = {
         x: node.x, y: node.y,
         state: node.state,
         player_id: node.player.id,
+        super_line: node.super_line,
+        dot_color: node.dot_color,
       }
       new_game.nodes.push( new_node )
     }
@@ -364,6 +397,7 @@ const f = module.exports = {
         node_a_idx: line.node_a.idx,
         node_b_idx: line.node_b.idx,
         player_id: line.player.id,
+        super_line: line.super_line,
       }
       new_game.lines.push( new_line )
     }
@@ -392,6 +426,8 @@ const f = module.exports = {
         x: node.x, y: node.y,
         state: node.state,
         lines: [],
+        super_line: node.super_line,
+        dot_color: node.dot_color,
       }
       new_game.nodes.push( new_node )
     }
@@ -425,13 +461,14 @@ const f = module.exports = {
         node_a: new_game.nodes[ line.node_a_idx ],
         node_b: new_game.nodes[ line.node_b_idx ],
         player: new_game.players[ line.player_id ],
+        super_line: line.super_line,
       }
       new_line.node_a.lines.push( new_line )
       new_line.node_b.lines.push( new_line )
       new_game.lines.push( new_line )
     }
 
-    log('import', new_game)
+    // log('import', new_game)
 
     return new_game
 
@@ -442,17 +479,7 @@ const f = module.exports = {
 
     switch ( game.state ) {
       case 'idle':
-        f.colors.sort( () => Math.random() - 0.5 )
-
-        var idx = 0
-        for ( var player_id in game.players ) {
-          var player = game.players[ player_id ]
-          player.color = f.colors[ idx++ ]
-          player.n_nodes = 3
-          player.n_lines = game.n_players < 6 ? game.n_players + 1 : 6
-          player.n_fountains = 2
-          player.n_knives = 2
-        }
+        f.set_players(game)
 
         return true
 
@@ -487,10 +514,11 @@ const f = module.exports = {
     }
 
     var caller_node = caller.node
-    var closest_node = f.get_node( game, px, py, f.node_radius )
-    var farther_node = f.get_node( game, px, py, 2*f.node_radius )
-    var n_state = f.n_state[ game.state ]
+    var closest_node = f.get_node( game, px, py, f.node_radius, -1 )
     var closest_line = f.get_line( game, px, py, f.node_radius )
+    var super_line = closest_line ? closest_line.super_line : -1
+    var farther_node = f.get_node( game, px, py, 2*f.node_radius, super_line )
+    var n_state = f.n_state[ game.state ]
 
     if ( !( caller[ n_state ] > 0 ) ) {
       return
@@ -510,6 +538,8 @@ const f = module.exports = {
             state: 'idle',
             player: caller,
             lines: [],
+            super_line: -1,
+            dot_color: f.default_color,
           }
           game.nodes.push( new_node )
 
@@ -536,6 +566,7 @@ const f = module.exports = {
             node_a: closest_node,
             node_b: caller_node,
             player: caller,
+            super_line: game.lines.length,
           }
 
           game.lines.push( new_line )
@@ -556,66 +587,57 @@ const f = module.exports = {
         if ( closest_node && closest_node.state == 'idle' ) {
           closest_node.state = game.state
           closest_node.player = caller
+          closest_node.dot_color = caller.color
         }
         else if (!closest_line) {
           return
         }
-        else if ( farther_node ) {
-
-          if ( farther_node == closest_line.node_b ) {
-            closest_line.node_b = closest_line.node_a
-            closest_line.node_a = farther_node
-          }
-          else if ( farther_node != closest_line.node_a ) {
-            return
-          }
-
-          var r = 2 * f.node_radius
-          var ax = closest_line.node_a.x, ay = closest_line.node_a.y
-          var bx = closest_line.node_b.x, by = closest_line.node_b.y
-          var bax = bx - ax, bay = by - ay
-          var q = ( r + f.noise ) / Math.sqrt( bax*bax + bay*bay )
-          var qx = ax + bax * q, qy = ay + bay * q
-
-          var closest_node = f.get_node( game, qx, qy, r )
-
-          if ( closest_node ) {
-            return
-          }
-
-          var new_node = {
-            x: qx, y: qy,
-            state: game.state,
-            player: caller,
-            lines: [ closest_line ],
-          }
-
-          var line_idx = farther_node.lines.indexOf( closest_line )
-          farther_node.lines.splice( line_idx, 1 )
-          closest_line.node_a = new_node
-          game.nodes.push( new_node )
-        }
         else {
 
-          var node_a = closest_line.node_a, node_b = closest_line.node_b
-          var q = f.point_on_line( closest_line, px, py )
+          var r = 2 * f.node_radius
 
-          var closest_node = f.get_node( game, q.x, q.y, 2 * f.node_radiusx )
+          if ( farther_node ) {
+            if ( farther_node == closest_line.node_b ) {
+              closest_line.node_b = closest_line.node_a
+              closest_line.node_a = farther_node
+            }
+            else if ( farther_node != closest_line.node_a ) {
+              return
+            }
 
-          if ( closest_node ) {
+            var ax = closest_line.node_a.x, ay = closest_line.node_a.y
+            var bx = closest_line.node_b.x, by = closest_line.node_b.y
+            var bax = bx - ax, bay = by - ay
+            var len = ( r + f.noise ) / Math.sqrt( bax*bax + bay*bay )
+            var q = {
+              x: ax + bax * len,
+              y: ay + bay * len,
+            }
+          }
+          else {
+            var q = f.point_on_line( closest_line, px, py )
+          }
+
+
+          if ( f.get_node( game, q.x, q.y, r, closest_line.super_line ) ) {
             return
           }
+
+          var node_a = closest_line.node_a, node_b = closest_line.node_b
 
           var new_node = {
             x: q.x, y: q.y,
             state: game.state,
+            dot_color: caller.color,
             player: caller,
             lines: [ closest_line ],
+            super_line: closest_line.super_line,
           }
           var new_line = {
             node_a: new_node,
             node_b: node_b,
             player: caller,
+            super_line: closest_line.super_line,
           }
 
           var line_idx = node_b.lines.indexOf( closest_line )
