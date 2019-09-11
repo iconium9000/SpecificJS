@@ -2,7 +2,6 @@
 // client setup
 
 var is_mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-var font_size = 30
 var max_deltaT = 0.1
 var start_time = (new Date()).getTime() * 1e-3
 var prev_now = start_time - max_deltaT
@@ -10,7 +9,6 @@ var proj_name = 'Knifeline:'
 var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
 var err = console.error
 var name = null
-var line_width = 3
 
 var show_toggle = false
 var show_time = Infinity
@@ -43,28 +41,28 @@ log('Index.js')
 // mouse/touch controls
 {
   $(document).mousemove(e => {
-    client_socket.mouse_x = (e.clientX - 7) / canvas.width
-    client_socket.mouse_y = (e.clientY - 7) / canvas.height
+    client_socket.mouse_x = (e.clientX - 7) / client_socket.scale
+    client_socket.mouse_y = (e.clientY - 7) / client_socket.scale
   })
   $(document).mousedown(e => {
-    client_socket.mouse_x = (e.clientX - 7) / canvas.width
-    client_socket.mouse_y = (e.clientY - 7) / canvas.height
+    client_socket.mouse_x = (e.clientX - 7) / client_socket.scale
+    client_socket.mouse_y = (e.clientY - 7) / client_socket.scale
 
     client_socket.emit('mouse down', client_socket.mouse_x, client_socket.mouse_y)
   })
   $(document).mouseup(e => {
-    client_socket.mouse_x = (e.clientX - 7) / canvas.width
-    client_socket.mouse_y = (e.clientY - 7) / canvas.height
+    client_socket.mouse_x = (e.clientX - 7) / client_socket.scale
+    client_socket.mouse_y = (e.clientY - 7) / client_socket.scale
     client_socket.emit('mouse up', client_socket.mouse_x, client_socket.mouse_y)
   })
   document.addEventListener('touchstart', e => {
-    client_socket.mouse_x = (e.clientX - 7) / canvas.width
-    client_socket.mouse_y = (e.clientY - 7) / canvas.height
+    client_socket.mouse_x = (e.clientX - 7) / client_socket.scale
+    client_socket.mouse_y = (e.clientY - 7) / client_socket.scale
     client_socket.emit('mouse down', client_socket.mouse_x, client_socket.mouse_y)
   }, false)
   document.addEventListener('touchend', e => {
-    client_socket.mouse_x = (e.clientX - 7) / canvas.width
-    client_socket.mouse_y = (e.clientY - 7) / canvas.height
+    client_socket.mouse_x = (e.clientX - 7) / client_socket.scale
+    client_socket.mouse_y = (e.clientY - 7) / client_socket.scale
     client_socket.emit('mouse up', client_socket.mouse_x, client_socket.mouse_y)
   }, false)
 }
@@ -116,14 +114,8 @@ function tick() {
   }
   prev_now = now
 
-  ctx.lineWidth = line_width
-
-  if (canvas.width > canvas.height) {
-    canvas.width = canvas.height
-  }
-  else {
-    canvas.height = canvas.width
-  }
+  client_socket.scale = canvas.width > canvas.height?canvas.height:canvas.width
+  var line_width = ctx.lineWidth = functions.line_width * client_socket.scale
 
 
   // var sum = 10
@@ -169,11 +161,11 @@ function tick() {
     // var game = functions.solve_game(client_socket.game, Infinity)
     var player = game.players[client_socket.id]
     ctx.strokeStyle = player.color
-    ctx.lineWidth = line_width
+    ctx.lineWidth = functions.line_width * client_socket.scale
 
     ctx.beginPath()
-    var lw = line_width*2
-    ctx.rect(lw, lw, canvas.width-2*lw, canvas.height-2*lw)
+    var lw = functions.line_width*2 * client_socket.scale
+    ctx.rect(lw, lw, client_socket.scale-2*lw, client_socket.scale-2*lw)
     ctx.stroke()
 
 
@@ -204,20 +196,20 @@ function tick() {
       }
 
       ctx.beginPath()
-      ctx.moveTo(apx * canvas.width, apy * canvas.height)
-      ctx.lineTo(bpx * canvas.width, bpy * canvas.height)
+      ctx.moveTo(apx * client_socket.scale, apy * client_socket.scale)
+      ctx.lineTo(bpx * client_socket.scale, bpy * client_socket.scale)
       ctx.stroke()
 
       ctx.strokeStyle = line.node_a.player.color
       ctx.beginPath()
-      ctx.moveTo(ax * canvas.width, ay * canvas.height)
-      ctx.lineTo(apx * canvas.width, apy * canvas.height)
+      ctx.moveTo(ax * client_socket.scale, ay * client_socket.scale)
+      ctx.lineTo(apx * client_socket.scale, apy * client_socket.scale)
       ctx.stroke()
 
       ctx.strokeStyle = line.node_b.player.color
       ctx.beginPath()
-      ctx.moveTo(bpx * canvas.width, bpy * canvas.height)
-      ctx.lineTo(bx * canvas.width, by * canvas.height)
+      ctx.moveTo(bpx * client_socket.scale, bpy * client_socket.scale)
+      ctx.lineTo(bx * client_socket.scale, by * client_socket.scale)
       ctx.stroke()
     }
 
@@ -242,9 +234,9 @@ function tick() {
 
       ctx.beginPath()
       ctx.ellipse(
-        node.x * canvas.width, node.y * canvas.height,
-        functions.node_radius * canvas.width,
-        functions.node_radius * canvas.height,
+        node.x * client_socket.scale, node.y * client_socket.scale,
+        functions.node_radius * client_socket.scale,
+        functions.node_radius * client_socket.scale,
         0, 0, Math.PI*2
       )
       ctx.fill()
@@ -252,9 +244,9 @@ function tick() {
       ctx.fillStyle = node.dot_color
       ctx.beginPath()
       ctx.ellipse(
-        node.x * canvas.width, node.y * canvas.height,
-        functions.node_radius * canvas.width / 2,
-        functions.node_radius * canvas.height / 2,
+        node.x * client_socket.scale, node.y * client_socket.scale,
+        functions.dot_radius * client_socket.scale,
+        functions.dot_radius * client_socket.scale,
         0, 0, Math.PI*2
       )
       ctx.fill()
@@ -269,48 +261,91 @@ function tick() {
     // }
 
 
-    var lw = 2*f.node_radius * canvas.height
-    var idx = 2*lw
+    var lw = functions.line_width * client_socket.scale
+    var idx = 0
+
+    var font_size = functions.font_size * client_socket.scale
+    ctx.font = `${Math.ceil(font_size)}px sans-serif`
+    ctx.textAlign = 'left'
+    var pi2 = Math.PI * 2
+
+    var node_radius = functions.node_radius * client_socket.scale
+    var dot_radius = functions.dot_radius * client_socket.scale
 
     for (var player_id in game.players) {
       const player = game.players[player_id]
 
+      if (game.state == 'line') {
+        var length = player.n_lines / game.n_lines
+      }
+      else {
+        var length = player.total_length / game.full_length
+      }
+
+      if (game.state == 'node') {
+        var n_dots = player.n_nodes
+        var color = player.color
+        var dot_color = functions.default_color
+      }
+      else if (game.state == 'fountain') {
+        var n_dots = player.n_fountains
+        var color = player.color
+        var dot_color =  player.color
+      }
+      else if (game.state == 'knife') {
+        var n_dots = player.n_knives
+        var color = functions.knife_color
+        var dot_color =  player.color
+      }
+      else {
+        var n_dots = 0
+      }
+
+      for (var i = 0; i < n_dots; ++i) {
+
+        var x = client_socket.scale - 2 * (i+1) * node_radius - 2*lw
+        var y = 2 * (idx+1) * node_radius + 2*lw
+
+        ctx.fillStyle = color
+        ctx.beginPath()
+        ctx.arc(x,y,node_radius, 0, pi2)
+        ctx.fill()
+
+        ctx.fillStyle = dot_color
+        ctx.beginPath()
+        ctx.arc(x,y,dot_radius, 0, pi2)
+        ctx.fill()
+      }
+
       ctx.fillStyle = ctx.strokeStyle = player.color
       ctx.beginPath()
-      ctx.moveTo(lw, canvas.height - idx)
+      ctx.moveTo(4*lw, client_socket.scale - 2*(idx+2)*lw)
       ctx.lineTo(
-        lw + (player.total_length / game.full_length) * (canvas.width - 2*lw),
-        canvas.height - idx)
+        4*lw + length * (client_socket.scale - 8*lw),
+        client_socket.scale - 2*(idx+2)*lw)
       ctx.stroke()
 
+      ctx.fillText(player.name, font_size, 2*font_size * (idx+1))
 
-      // if (game.state != 'line') {
-      //   for (var i = 0; i < player.n_nodes; ++i) {
-      //     ctx.beginPath()
-      //
-      //     ctx.fill()
-      //   }
-      // }
-
-
-      idx += lw
+      idx += 1
     }
 
-    ctx.strokeStyle = f.default_color
+    if (game.state == 'line') {
+      var length = 0
+    }
+    else {
+      var length = game.empty_length / game.full_length
+    }
+    ctx.strokeStyle = functions.default_color
     ctx.beginPath()
-    ctx.moveTo(lw, canvas.height - idx)
+    ctx.moveTo(4*lw, client_socket.scale - 2*lw*(idx+2))
     ctx.lineTo(
-      lw + (game.empty_length / game.full_length) * (canvas.width - 2*lw),
-      canvas.height - idx)
+      4*lw + length * (client_socket.scale - 8*lw),
+      client_socket.scale - 2*lw*(idx+2))
     ctx.stroke()
 
 
     idx = 2*lw
-
-
-    ctx.fillStyle = player.color
-    ctx.textAlign = 'left'
-    ctx.fillText(player.name, font_size, font_size)
   }
 
 

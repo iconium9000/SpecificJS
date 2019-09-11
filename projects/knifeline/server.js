@@ -82,6 +82,7 @@ function client_socket_init(client_socket) {
   client_socket.game = null
   client_socket.player = {
     name: null,
+    color: functions.default_color,
     id: client_socket.id,
     n_nodes: 0,
     n_lines: 0,

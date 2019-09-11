@@ -6,9 +6,11 @@ log ( 'game.js' )
 const f = module.exports = {
 
   node_radius: 1 / 50,
+  dot_radius: 1 / 100,
   line_grab_radius: 1 / 50,
   noise: 1e-9,
-
+  line_width: 1 / 100,
+  font_size: 1 / 20,
   line_speed: 0.3,
 
   default_color: '#404040',
@@ -36,14 +38,19 @@ const f = module.exports = {
   set_players: function (game) {
     f.colors.sort( () => Math.random() - 0.5 )
 
+    game.n_nodes = 4
+    game.n_lines = game.n_players + 3
+    game.n_fountains = 3
+    game.n_knives = 2
+
     var idx = 0
     for ( const player_id in game.players ) {
       const player = game.players[ player_id ]
       player.color = f.colors[ idx++ ]
-      player.n_nodes = 4
-      player.n_lines = game.n_players + 3
-      player.n_fountains = 3
-      player.n_knives = 2
+      player.n_nodes = game.n_nodes
+      player.n_lines = game.n_lines
+      player.n_fountains = game.n_fountains
+      player.n_knives = game.n_knives
     }
   },
 
@@ -196,6 +203,10 @@ const f = module.exports = {
       total_length: 0,
       empty_length: 0,
       full_length: 0,
+      n_nodes: game.n_nodes,
+      n_lines: game.n_lines,
+      n_fountains: game.n_fountains,
+      n_knives: game.n_knives,
     }
 
     for ( var node_idx in game.nodes ) {
@@ -359,6 +370,10 @@ const f = module.exports = {
       lines: [],
       state: game.state,
       reason: reason,
+      n_nodes: game.n_nodes,
+      n_lines: game.n_lines,
+      n_fountains: game.n_fountains,
+      n_knives: game.n_knives,
     }
 
     for ( var node_idx in game.nodes ) {
@@ -416,6 +431,10 @@ const f = module.exports = {
       lines: [],
       state: game.state,
       reason: game.reason,
+      n_nodes: game.n_nodes,
+      n_lines: game.n_lines,
+      n_fountains: game.n_fountains,
+      n_knives: game.n_knives,
     }
 
     for ( var node_idx in game.nodes ) {
