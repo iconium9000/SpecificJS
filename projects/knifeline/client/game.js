@@ -59,14 +59,14 @@ const f = module.exports = {
     min_dist *= min_dist
     var ret_node = null
 
-    for ( var idx in game.nodes ) {
-      var node = game.nodes[ idx ]
+    for ( const idx in game.nodes ) {
+      const node = game.nodes[ idx ]
 
-      var nx = px-node.x, ny = py-node.y
-      var dist = nx*nx + ny*ny
+      const nx = px-node.x, ny = py-node.y
+      const dist = nx*nx + ny*ny
 
-      var neg = node.super_line < 0 || super_line < 0
-      var eql = node.super_line == super_line
+      const neg = node.super_line < 0 || super_line < 0
+      const eql = node.super_line == super_line
 
       if ( min_dist > dist && (eql || neg)) {
         min_dist = dist
@@ -80,27 +80,27 @@ const f = module.exports = {
 
   point_on_line: function ( line, px, py ) {
 
-    var ax = line.node_a.x, ay = line.node_a.y
-    var bx = line.node_b.x, by = line.node_b.y
+    const ax = line.node_a.x, ay = line.node_a.y
+    const bx = line.node_b.x, by = line.node_b.y
 
-    var bax = bx - ax, bay = by - ay
-    var pax = px - ax, pay = py - ay
-    var p = ( pax*bax + pay*bay ) / ( bax*bax + bay*bay )
+    const bax = bx - ax, bay = by - ay
+    const pax = px - ax, pay = py - ay
+    const p = ( pax*bax + pay*bay ) / ( bax*bax + bay*bay )
 
     if ( p > 1 || 0 > p ) {
       return Infinity
     }
 
-    var qx = ax + bax*p
-    var qy = ay + bay*p
+    const qx = ax + bax*p
+    const qy = ay + bay*p
 
     return { x: qx, y: qy }
   },
 
   line_dist: function ( line, px, py ) {
 
-    var q = f.point_on_line( line, px, py )
-    var qx = px - q.x, qy = py - q.y
+    const q = f.point_on_line( line, px, py )
+    const qx = px - q.x, qy = py - q.y
 
     return qx*qx + qy*qy
 
@@ -111,10 +111,10 @@ const f = module.exports = {
     min_dist *= min_dist
     var ret_line = null
 
-    for ( var idx in game.lines ) {
-      var line = game.lines[idx]
+    for ( const idx in game.lines ) {
+      const line = game.lines[idx]
 
-      var line_dist = f.line_dist( line, px, py )
+      const line_dist = f.line_dist( line, px, py )
 
       if ( min_dist > line_dist ) {
         min_dist = line_dist
@@ -132,17 +132,15 @@ const f = module.exports = {
       return false
     }
 
-    var p111 = node_a.x, p112 = node_a.y, p121 = node_b.x, p122 = node_b.y
+    const p111 = node_a.x, p112 = node_a.y, p121 = node_b.x, p122 = node_b.y
 
-    for ( var idx in game.lines ) {
-      var line = game.lines[ idx ]
+    for ( const idx in game.lines ) {
+      const line = game.lines[ idx ]
 
       if (line.node_a == node_a && line.node_b == node_b) {
-        // log('line.node_a == node_a && line.node_b == node_b')
         return false
       }
       else if (line.node_b == node_a && line.node_a == node_b) {
-        // log('line.node_b == node_a && line.node_a == node_b')
         return false
       }
 
@@ -153,48 +151,27 @@ const f = module.exports = {
         continue
       }
 
-      var p211 = line.node_a.x, p212 = line.node_a.y
-      var p221 = line.node_b.x, p222 = line.node_b.y
-      var p222_212 = p222 - p212, p221_211 = p221 - p211
-      var p122_112 = p122 - p112, p121_111 = p121 - p111
+      const p211 = line.node_a.x, p212 = line.node_a.y
+      const p221 = line.node_b.x, p222 = line.node_b.y
+      const p222_212 = p222 - p212, p221_211 = p221 - p211
+      const p122_112 = p122 - p112, p121_111 = p121 - p111
 
-      var p11 = ( p111 - p211 ) * p222_212 > ( p112 - p212 ) * p221_211
-      var p12 = ( p121 - p211 ) * p222_212 > ( p122 - p212 ) * p221_211
-      var p21 = ( p211 - p111 ) * p122_112 > ( p212 - p112 ) * p121_111
-      var p22 = ( p221 - p111 ) * p122_112 > ( p222 - p112 ) * p121_111
+      const p11 = ( p111 - p211 ) * p222_212 > ( p112 - p212 ) * p221_211
+      const p12 = ( p121 - p211 ) * p222_212 > ( p122 - p212 ) * p221_211
+      const p21 = ( p211 - p111 ) * p122_112 > ( p212 - p112 ) * p121_111
+      const p22 = ( p221 - p111 ) * p122_112 > ( p222 - p112 ) * p121_111
 
       if ( p11 != p12 && p21 != p22 ) {
-        // log('detect cross')
         return false
       }
     }
-    //
-    // var line = {
-    //   node_a: node_a,
-    //   node_b: node_b
-    // }
-    //
-    // for ( var idx in game.nodes ) {
-    //   var node = game.nodes[ idx ]
-    //   if ( node == node_a || node == node_b ) {
-    //     continue
-    //   }
-    //
-    //   var line_dist = f.line_dist( line, node.x, node.y )
-    //   log('line_dist', line_dist)
-    //   if ( line_dist < f.node_radius*2 ) {
-    //     log('cross node')
-    //     return false
-    //   }
-    //
-    // }
 
     return true
   },
 
   solve_game: function ( game, total_length ) {
 
-    var new_game = {
+    const new_game = {
       players: {},
       nodes: [],
       lines: [],
@@ -209,11 +186,11 @@ const f = module.exports = {
       n_knives: game.n_knives,
     }
 
-    for ( var node_idx in game.nodes ) {
-      var node = game.nodes[ node_idx ]
+    for ( const node_idx in game.nodes ) {
+      const node = game.nodes[ node_idx ]
       node.idx = node_idx
 
-      var new_node = {
+      const new_node = {
         idx: node_idx,
         x: node.x, y: node.y,
         dot_color: node.dot_color,
@@ -224,36 +201,36 @@ const f = module.exports = {
       new_game.nodes.push( new_node )
     }
 
-    for ( var player_id in game.players ) {
-      var player = game.players[ player_id ]
+    for ( const player_id in game.players ) {
+      const player = game.players[ player_id ]
 
-      var new_player = {
+      const new_player = {
         id: player_id,
         name: player.name,
         node: player.node && new_game.nodes[ player.node.idx ],
         color: player.color,
         total_length: 0,
       }
-      for ( var state in f.n_state ) {
-        var n_state = f.n_state[ state ]
+      for ( const state in f.n_state ) {
+        const n_state = f.n_state[ state ]
         new_player[ n_state ] = player[ n_state ]
       }
       new_game.players[ player_id ] = new_player
     }
 
-    for ( var node_idx in new_game.nodes ) {
-      var new_node = new_game.nodes[ node_idx ]
-      var node = game.nodes[ node_idx ]
+    for ( const node_idx in new_game.nodes ) {
+      const new_node = new_game.nodes[ node_idx ]
+      const node = game.nodes[ node_idx ]
       new_node.player = new_game.players[ node.player.id ]
     }
 
-    for ( var line_idx in game.lines ) {
-      var line = game.lines[ line_idx ]
+    for ( const line_idx in game.lines ) {
+      const line = game.lines[ line_idx ]
 
-      var abx = line.node_a.x - line.node_b.x
-      var aby = line.node_a.y - line.node_b.y
+      const abx = line.node_a.x - line.node_b.x
+      const aby = line.node_a.y - line.node_b.y
 
-      var new_line = {
+      const new_line = {
         idx: line_idx,
         progress_a: 0,
         progress_b: 0,
@@ -278,8 +255,8 @@ const f = module.exports = {
 
       var max_length = Infinity
 
-      for (var line_idx in new_game.lines) {
-        var line = new_game.lines[line_idx]
+      for (const line_idx in new_game.lines) {
+        const line = new_game.lines[line_idx]
 
         if (line.node_a.state != 'fountain' && line.node_b.state != 'fountain') {
           continue
@@ -310,9 +287,9 @@ const f = module.exports = {
 
       max_length += Math.random() * f.noise
 
-      for (var line_idx in new_game.lines) {
-        var line = new_game.lines[line_idx]
-        var length = line.length - line.progress_a - line.progress_b
+      for (const line_idx in new_game.lines) {
+        const line = new_game.lines[line_idx]
+        const length = line.length - line.progress_a - line.progress_b
 
         if (length < 0) {
           continue
@@ -332,9 +309,9 @@ const f = module.exports = {
       }
 
 
-      for (var line_idx in new_game.lines) {
-        var line = new_game.lines[line_idx]
-        var length = line.length - line.progress_a - line.progress_b
+      for (const line_idx in new_game.lines) {
+        const line = new_game.lines[line_idx]
+        const length = line.length - line.progress_a - line.progress_b
 
         if (length > 0) {
           continue
@@ -364,7 +341,7 @@ const f = module.exports = {
   // return a JSONable game object
   export: function ( game, reason ) {
 
-    var new_game = {
+    const new_game = {
       players: {},
       nodes: [],
       lines: [],
@@ -376,11 +353,11 @@ const f = module.exports = {
       n_knives: game.n_knives,
     }
 
-    for ( var node_idx in game.nodes ) {
-      var node = game.nodes[ node_idx ]
+    for ( const node_idx in game.nodes ) {
+      const node = game.nodes[ node_idx ]
       node.idx = new_game.nodes.length
 
-      var new_node = {
+      const new_node = {
         x: node.x, y: node.y,
         state: node.state,
         player_id: node.player.id,
@@ -390,25 +367,25 @@ const f = module.exports = {
       new_game.nodes.push( new_node )
     }
 
-    for ( var player_id in game.players ) {
-      var player = game.players[ player_id ]
+    for ( const player_id in game.players ) {
+      const player = game.players[ player_id ]
 
-      var new_player = {
+      const new_player = {
         name: player.name,
         node_idx: player.node ? player.node.idx : -1,
         color: player.color,
       }
-      for ( var state in f.n_state ) {
-        var n_state = f.n_state[ state ]
+      for ( const state in f.n_state ) {
+        const n_state = f.n_state[ state ]
         new_player[ n_state ] = player[ n_state ]
       }
       new_game.players[ player_id ] = new_player
     }
 
-    for ( var line_idx in game.lines ) {
-      var line = game.lines[ line_idx ]
+    for ( const line_idx in game.lines ) {
+      const line = game.lines[ line_idx ]
 
-      var new_line = {
+      const new_line = {
         node_a_idx: line.node_a.idx,
         node_b_idx: line.node_b.idx,
         player_id: line.player.id,
@@ -425,7 +402,7 @@ const f = module.exports = {
 
   import: function ( game ) {
 
-    var new_game = {
+    const new_game = {
       players: {},
       nodes: [],
       lines: [],
@@ -437,11 +414,11 @@ const f = module.exports = {
       n_knives: game.n_knives,
     }
 
-    for ( var node_idx in game.nodes ) {
-      var node = game.nodes[ node_idx ]
+    for ( const node_idx in game.nodes ) {
+      const node = game.nodes[ node_idx ]
       node.idx = node_idx
 
-      var new_node = {
+      const new_node = {
         x: node.x, y: node.y,
         state: node.state,
         lines: [],
@@ -451,32 +428,32 @@ const f = module.exports = {
       new_game.nodes.push( new_node )
     }
 
-    for ( var player_id in game.players ) {
-      var player = game.players[ player_id ]
+    for ( const player_id in game.players ) {
+      const player = game.players[ player_id ]
 
-      var new_player = {
+      const new_player = {
         id: player_id,
         name: player.name,
         node: new_game.nodes[ player.node_idx ],
         color: player.color,
       }
-      for ( var state in f.n_state ) {
-        var n_state = f.n_state[ state ]
+      for ( const state in f.n_state ) {
+        const n_state = f.n_state[ state ]
         new_player[ n_state ] = player[ n_state ]
       }
       new_game.players[ player_id ] = new_player
     }
 
-    for ( var node_idx in new_game.nodes ) {
-      var new_node = new_game.nodes[ node_idx ]
-      var node = game.nodes[ node_idx ]
+    for ( const node_idx in new_game.nodes ) {
+      const new_node = new_game.nodes[ node_idx ]
+      const node = game.nodes[ node_idx ]
       new_node.player = new_game.players[ node.player_id ]
     }
 
-    for ( var line_idx in game.lines ) {
-      var line = game.lines[ line_idx ]
+    for ( const line_idx in game.lines ) {
+      const line = game.lines[ line_idx ]
 
-      var new_line = {
+      const new_line = {
         node_a: new_game.nodes[ line.node_a_idx ],
         node_b: new_game.nodes[ line.node_b_idx ],
         player: new_game.players[ line.player_id ],
@@ -507,10 +484,10 @@ const f = module.exports = {
       case 'fountain':
       case 'knife':
         var count = 0
-        var n_state = f.n_state[ game.state ]
+        const n_state = f.n_state[ game.state ]
 
-        for ( var player_id in game.players ) {
-          var player = game.players[ player_id ]
+        for ( const player_id in game.players ) {
+          const player = game.players[ player_id ]
           count += player[ n_state ]
         }
 
@@ -527,17 +504,17 @@ const f = module.exports = {
 
   player_act_at: function ( game, caller, px, py ) {
 
-    var min_dist = f.node_radius*2
+    const min_dist = f.node_radius*2
     if ( min_dist > px || px > 1-min_dist || min_dist > py || py > 1-min_dist ) {
       return
     }
 
-    var caller_node = caller.node
-    var closest_node = f.get_node( game, px, py, f.node_radius, -1 )
-    var closest_line = f.get_line( game, px, py, f.node_radius )
-    var super_line = closest_line ? closest_line.super_line : -1
-    var farther_node = f.get_node( game, px, py, 2*f.node_radius, super_line )
-    var n_state = f.n_state[ game.state ]
+    const caller_node = caller.node
+    const closest_node = f.get_node( game, px, py, f.node_radius, -1 )
+    const closest_line = f.get_line( game, px, py, f.node_radius )
+    const super_line = closest_line ? closest_line.super_line : -1
+    const farther_node = f.get_node( game, px, py, 2*f.node_radius, super_line )
+    const n_state = f.n_state[ game.state ]
 
     if ( !( caller[ n_state ] > 0 ) ) {
       return
@@ -552,7 +529,7 @@ const f = module.exports = {
           return
         }
         else {
-          var new_node = {
+          const new_node = {
             x: px, y: py,
             state: 'idle',
             player: caller,
@@ -581,7 +558,7 @@ const f = module.exports = {
         }
         else if ( f.check_is_valid_line( game, closest_node, caller_node ) ) {
 
-          var new_line = {
+          const new_line = {
             node_a: closest_node,
             node_b: caller_node,
             player: caller,
@@ -613,7 +590,7 @@ const f = module.exports = {
         }
         else {
 
-          var r = 2 * f.node_radius
+          const r = 2 * f.node_radius
 
           if ( farther_node ) {
             if ( farther_node == closest_line.node_b ) {
@@ -624,10 +601,10 @@ const f = module.exports = {
               return
             }
 
-            var ax = closest_line.node_a.x, ay = closest_line.node_a.y
-            var bx = closest_line.node_b.x, by = closest_line.node_b.y
-            var bax = bx - ax, bay = by - ay
-            var len = ( r + f.noise ) / Math.sqrt( bax*bax + bay*bay )
+            const ax = closest_line.node_a.x, ay = closest_line.node_a.y
+            const bx = closest_line.node_b.x, by = closest_line.node_b.y
+            const bax = bx - ax, bay = by - ay
+            const len = ( r + f.noise ) / Math.sqrt( bax*bax + bay*bay )
             var q = {
               x: ax + bax * len,
               y: ay + bay * len,
@@ -642,9 +619,9 @@ const f = module.exports = {
             return
           }
 
-          var node_a = closest_line.node_a, node_b = closest_line.node_b
+          const node_a = closest_line.node_a, node_b = closest_line.node_b
 
-          var new_node = {
+          const new_node = {
             x: q.x, y: q.y,
             state: game.state,
             dot_color: caller.color,
@@ -652,14 +629,14 @@ const f = module.exports = {
             lines: [ closest_line ],
             super_line: closest_line.super_line,
           }
-          var new_line = {
+          const new_line = {
             node_a: new_node,
             node_b: node_b,
             player: caller,
             super_line: closest_line.super_line,
           }
 
-          var line_idx = node_b.lines.indexOf( closest_line )
+          const line_idx = node_b.lines.indexOf( closest_line )
           node_b.lines.splice( line_idx, 1 )
           node_b.lines.push(new_line)
           new_node.lines.push(new_line)

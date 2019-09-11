@@ -1,8 +1,21 @@
 // -----------------------------------------------------------------------------
 // server setup
 
-const games = ['blockade', 'knifeline']
-const servers = {}
+const project_details = {
+  '': {
+    name: 'menu',
+    title: 'Iconium9000 Games Menu',
+  },
+  blockade: {
+    name: 'blockade',
+    title: 'Blockade',
+  },
+  knifeline: {
+    name: 'knifeline',
+    title: 'Knifeline',
+  },
+}
+const projects = {}
 
 const jquery_dir = '/node_modules/jquery/dist/'
 const socket_io_dir = '/node_modules/socket.io-client/dist/'
@@ -20,15 +33,20 @@ const http = require('http')
 const serv = http.Server(app)
 const socket_io = require('socket.io')(serv, {})
 
-app.get('/', (req, res) => res.sendFile(__dirname + '/client/index.html'))
-for ( const i in games ) {
-  const name = games[i]
+for ( const project_path in project_details ) {
+  const project_detail = project_details[project_path]
+  const project_name = project_detail.name
 
-  app.get(`/${name}`, (req, res) => {
-    res.sendFile(__dirname + `/projects/${name}/client/index.html`)
+  app.get(`/${project_path}`, (req, res) => {
+    res.sendFile(__dirname + `/projects/${project_name}/client/index.html`)
   })
-  app.use(`/${name}`, express.static(__dirname + `/projects/${name}/client`))
-  servers[name] = require(`./projects/${name}/server.js`)()
+  app.use(`/${project_path}`,
+     express.static(__dirname + `/projects/${project_name}/client`))
+  const project = require(`./projects/${project_name}/server.js`)()
+  project.name = project_name
+  project.path = project_path
+  project.title = project_detail.title
+  projects[project_name] = project
 }
 
 app.use('/images', express.static(__dirname + '/images'))
@@ -38,11 +56,30 @@ serv.listen(port)
 
 log(`listening on port:${port}`)
 
+// log(projects)
+
 socket_io.on('connection', client_socket => {
-  // log('connection', client_socket.id)
-  const hostname = client_socket.handshake.headers.referer.split('/').pop()
-  const server = servers[hostname]
-  if (typeof server == 'function') {
-    server(client_socket)
+  try {
+    const project_path = client_socket.handshake.headers.referer.split('/').pop()
+    client_socket.project_path = project_path
+
+    const project_name = project_details[project_path].name
+    client_socket.project_name = project_name
+
+    const project = projects[ project_name ]
+
+    log(`proj_name '${proj_name}'`)
+
+    project.add_client_socket(client_socket)
+    projects.menu.added_socket_other_project(projects)
+
+    client_socket.on('client name', ({ name }) => {
+      client_socket.name = name
+      client_socket.full_name = `'${name}' (${client_socket.id})`
+      projects.menu.added_socket_other_project(projects)
+    })
+  }
+  catch (e) {
+    log('ERROR', e)
   }
 })

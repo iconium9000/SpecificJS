@@ -4,15 +4,15 @@ const err = console.error
 
 const functions = require('./client/game.js')
 
-module.exports = server_init
-var client_sockets = {}
+const client_sockets = {}
 
-// ---------------------------------------------------------------------------------------
-
-function server_init() {
+module.exports = () => {
   log('server_init')
 
-  return client_socket_init
+  return {
+    client_sockets: client_sockets,
+    add_client_socket: client_socket_init,
+  }
 }
 
 // ---------------------------------------------------------------------------------------
@@ -78,7 +78,8 @@ function find_idle_game_and_connect_to_it(client_socket) {
 function client_socket_init(client_socket) {
   client_socket.emit('connect')
 
-  client_sockets[client_socket.id] = client_socket
+  client_sockets[ client_socket.id ] = client_socket
+
   client_socket.game = null
   client_socket.player = {
     name: null,

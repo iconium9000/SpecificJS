@@ -2,9 +2,14 @@ const proj_name = 'Blockade:'
 const log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
 const err = console.error
 
+const client_sockets = {}   // map of client sockets in game [client_socket.id]
+
 module.exports = () => {
   log('server_init')
-  return client_socket_init
+  return {
+    client_sockets: client_sockets,
+    add_client_socket: client_socket_init,
+  }
 }
 
 const update_freq = 40      // updates per sec
@@ -16,7 +21,6 @@ const bar_width = 1/8       // bar width variance
 const bar_height = 1/10     // bar height variance
 const bar_freq = 4/1        // bar spawn per sec
 
-const client_sockets = {}   // map of client sockets in game [client_socket.id]
 
 // send a new bar to all client sockets bar_freq times per sec
 setInterval(() => {
@@ -73,8 +77,7 @@ setInterval(() => {
 // manage each client individually
 function client_socket_init(client_socket) {
 
-  // add the client socket to the server's map of sockets
-  client_sockets[client_socket.id] = client_socket
+  client_sockets[ client_socket.id ] = client_socket
 
   // change the name when the client tells you to
   client_socket.on('client name', msg => {

@@ -9,6 +9,7 @@ var proj_name = 'Knifeline:'
 var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
 var err = console.error
 var name = null
+const pi2 = Math.PI * 2
 
 var show_toggle = false
 var show_time = Infinity
@@ -41,28 +42,28 @@ log('Index.js')
 // mouse/touch controls
 {
   $(document).mousemove(e => {
-    client_socket.mouse_x = (e.clientX - 7) / client_socket.scale
-    client_socket.mouse_y = (e.clientY - 7) / client_socket.scale
+    client_socket.mouse_x = (e.clientX - 7) / functions.scale
+    client_socket.mouse_y = (e.clientY - 7) / functions.scale
   })
   $(document).mousedown(e => {
-    client_socket.mouse_x = (e.clientX - 7) / client_socket.scale
-    client_socket.mouse_y = (e.clientY - 7) / client_socket.scale
+    client_socket.mouse_x = (e.clientX - 7) / functions.scale
+    client_socket.mouse_y = (e.clientY - 7) / functions.scale
 
     client_socket.emit('mouse down', client_socket.mouse_x, client_socket.mouse_y)
   })
   $(document).mouseup(e => {
-    client_socket.mouse_x = (e.clientX - 7) / client_socket.scale
-    client_socket.mouse_y = (e.clientY - 7) / client_socket.scale
+    client_socket.mouse_x = (e.clientX - 7) / functions.scale
+    client_socket.mouse_y = (e.clientY - 7) / functions.scale
     client_socket.emit('mouse up', client_socket.mouse_x, client_socket.mouse_y)
   })
   document.addEventListener('touchstart', e => {
-    client_socket.mouse_x = (e.clientX - 7) / client_socket.scale
-    client_socket.mouse_y = (e.clientY - 7) / client_socket.scale
+    client_socket.mouse_x = (e.clientX - 7) / functions.scale
+    client_socket.mouse_y = (e.clientY - 7) / functions.scale
     client_socket.emit('mouse down', client_socket.mouse_x, client_socket.mouse_y)
   }, false)
   document.addEventListener('touchend', e => {
-    client_socket.mouse_x = (e.clientX - 7) / client_socket.scale
-    client_socket.mouse_y = (e.clientY - 7) / client_socket.scale
+    client_socket.mouse_x = (e.clientX - 7) / functions.scale
+    client_socket.mouse_y = (e.clientY - 7) / functions.scale
     client_socket.emit('mouse up', client_socket.mouse_x, client_socket.mouse_y)
   }, false)
 }
@@ -114,26 +115,7 @@ function tick() {
   }
   prev_now = now
 
-  client_socket.scale = canvas.width > canvas.height?canvas.height:canvas.width
-  var line_width = ctx.lineWidth = functions.line_width * client_socket.scale
-
-
-  // var sum = 10
-  // var idx = sum
-  // var pi2 = Math.PI*2
-  // for (var i = 0; i < functions.colors.length; ++i) {
-  //   for (var j = i+1; j < functions.colors.length; ++j) {
-  //     ctx.fillStyle = functions.colors[i]
-  //     ctx.beginPath()
-  //     ctx.arc(100*(1+i),50*(1+j),10,0,pi2)
-  //     ctx.fill()
-  //     ctx.fillStyle = functions.colors[j]
-  //
-  //     ctx.beginPath()
-  //     ctx.arc(100*(1.25 + i),50*(1+j),10,0,pi2)
-  //     ctx.fill()
-  //   }
-  // }
+  functions.scale = canvas.width > canvas.height?canvas.height:canvas.width
 
   if (client_socket && client_socket.game_backup) {
     client_socket.game = functions.solve_game(client_socket.game_backup, 0)
@@ -153,29 +135,34 @@ function tick() {
       show_toggle = false
     }
 
-    var total_length = Math.abs(now - show_time) * functions.line_speed
+    const scale = functions.scale
+    const line_width = functions.line_width * scale
+    const font_size = functions.font_size * scale
+    const node_radius = functions.node_radius * scale
+    const dot_radius = functions.dot_radius * scale
 
-    var game = functions.solve_game(client_socket.game, total_length)
-    client_socket.game = game
+    ctx.lineWidth = line_width
+    ctx.font = `${Math.ceil(font_size)}px sans-serif`
+    ctx.textAlign = 'left'
 
-    // var game = functions.solve_game(client_socket.game, Infinity)
-    var player = game.players[client_socket.id]
+    const total_length = Math.abs(now - show_time) * functions.line_speed
+    client_socket.game = functions.solve_game(client_socket.game, total_length)
+    const game = client_socket.game
+    const player = game.players[client_socket.id]
+
     ctx.strokeStyle = player.color
-    ctx.lineWidth = functions.line_width * client_socket.scale
 
     ctx.beginPath()
-    var lw = functions.line_width*2 * client_socket.scale
-    ctx.rect(lw, lw, client_socket.scale-2*lw, client_socket.scale-2*lw)
+    ctx.rect(line_width, line_width, scale-2*line_width, scale-2*line_width)
     ctx.stroke()
 
+    for ( const line_idx in game.lines) {
+      const line = game.lines[line_idx]
 
-    for (var line_idx in game.lines) {
-      var line = game.lines[line_idx]
-
-      var ax = line.node_a.x, ay = line.node_a.y
-      var bx = line.node_b.x, by = line.node_b.y
-      var bax = bx-ax, bay = by-ay
-      var len = Math.sqrt(bax*bax + bay*bay)
+      const ax = line.node_a.x, ay = line.node_a.y
+      const bx = line.node_b.x, by = line.node_b.y
+      const bax = bx-ax, bay = by-ay
+      const len = Math.sqrt(bax*bax + bay*bay)
 
       var apx = ax, apy = ay, bpx = bx, bpy = by
 
@@ -196,25 +183,25 @@ function tick() {
       }
 
       ctx.beginPath()
-      ctx.moveTo(apx * client_socket.scale, apy * client_socket.scale)
-      ctx.lineTo(bpx * client_socket.scale, bpy * client_socket.scale)
+      ctx.moveTo(apx * scale, apy * scale)
+      ctx.lineTo(bpx * scale, bpy * scale)
       ctx.stroke()
 
       ctx.strokeStyle = line.node_a.player.color
       ctx.beginPath()
-      ctx.moveTo(ax * client_socket.scale, ay * client_socket.scale)
-      ctx.lineTo(apx * client_socket.scale, apy * client_socket.scale)
+      ctx.moveTo(ax * scale, ay * scale)
+      ctx.lineTo(apx * scale, apy * scale)
       ctx.stroke()
 
       ctx.strokeStyle = line.node_b.player.color
       ctx.beginPath()
-      ctx.moveTo(bpx * client_socket.scale, bpy * client_socket.scale)
-      ctx.lineTo(bx * client_socket.scale, by * client_socket.scale)
+      ctx.moveTo(bpx * scale, bpy * scale)
+      ctx.lineTo(bx * scale, by * scale)
       ctx.stroke()
     }
 
-    for ( var node_idx in game.nodes ) {
-      var node = game.nodes[ node_idx ]
+    for ( const node_idx in game.nodes ) {
+      const node = game.nodes[ node_idx ]
 
       if (game.state == 'node') {
         ctx.fillStyle = node.player.color
@@ -233,46 +220,20 @@ function tick() {
       }
 
       ctx.beginPath()
-      ctx.ellipse(
-        node.x * client_socket.scale, node.y * client_socket.scale,
-        functions.node_radius * client_socket.scale,
-        functions.node_radius * client_socket.scale,
-        0, 0, Math.PI*2
-      )
+      ctx.ellipse( node.x * scale, node.y * scale,
+        node_radius,node_radius, 0, 0, Math.PI*2)
       ctx.fill()
 
       ctx.fillStyle = node.dot_color
       ctx.beginPath()
-      ctx.ellipse(
-        node.x * client_socket.scale, node.y * client_socket.scale,
-        functions.dot_radius * client_socket.scale,
-        functions.dot_radius * client_socket.scale,
-        0, 0, Math.PI*2
-      )
+      ctx.ellipse( node.x * scale, node.y * scale,
+        dot_radius, dot_radius, 0, 0, Math.PI*2 )
       ctx.fill()
     }
 
-    // var neg = node.super_line < 0 || super_line < 0
-    // var eql = node.super_line == super_line
-    //
-    // if ( min_dist > dist && (eql || neg)) {
-    //   min_dist = dist
-    //   ret_node = node
-    // }
 
-
-    var lw = functions.line_width * client_socket.scale
     var idx = 0
-
-    var font_size = functions.font_size * client_socket.scale
-    ctx.font = `${Math.ceil(font_size)}px sans-serif`
-    ctx.textAlign = 'left'
-    var pi2 = Math.PI * 2
-
-    var node_radius = functions.node_radius * client_socket.scale
-    var dot_radius = functions.dot_radius * client_socket.scale
-
-    for (var player_id in game.players) {
+    for ( const player_id in game.players) {
       const player = game.players[player_id]
 
       if (game.state == 'line') {
@@ -303,8 +264,8 @@ function tick() {
 
       for (var i = 0; i < n_dots; ++i) {
 
-        var x = client_socket.scale - 2 * (i+1) * node_radius - 2*lw
-        var y = 2 * (idx+1) * node_radius + 2*lw
+        const x = scale - 2 * (i+1) * node_radius - 2*line_width
+        const y = 2 * (idx+1) * node_radius + 2*line_width
 
         ctx.fillStyle = color
         ctx.beginPath()
@@ -319,10 +280,10 @@ function tick() {
 
       ctx.fillStyle = ctx.strokeStyle = player.color
       ctx.beginPath()
-      ctx.moveTo(4*lw, client_socket.scale - 2*(idx+2)*lw)
+      ctx.moveTo(4*line_width, scale - 2*(idx+2)*line_width)
       ctx.lineTo(
-        4*lw + length * (client_socket.scale - 8*lw),
-        client_socket.scale - 2*(idx+2)*lw)
+        4*line_width + length * (scale - 8*line_width),
+        scale - 2*(idx+2)*line_width)
       ctx.stroke()
 
       ctx.fillText(player.name, font_size, 2*font_size * (idx+1))
@@ -338,14 +299,14 @@ function tick() {
     }
     ctx.strokeStyle = functions.default_color
     ctx.beginPath()
-    ctx.moveTo(4*lw, client_socket.scale - 2*lw*(idx+2))
+    ctx.moveTo(4*line_width, scale - 2*line_width*(idx+2))
     ctx.lineTo(
-      4*lw + length * (client_socket.scale - 8*lw),
-      client_socket.scale - 2*lw*(idx+2))
+      4*line_width + length * (scale - 8*line_width),
+      scale - 2*line_width*(idx+2))
     ctx.stroke()
 
 
-    idx = 2*lw
+    idx = 2*line_width
   }
 
 
