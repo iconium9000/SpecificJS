@@ -13,7 +13,10 @@ const f = module.exports = {
   font_size: 1 / 20,
   line_speed: 0.3,
 
+  max_players_per_game: 3,
+
   default_color: '#404040',
+  background_color: '#202020',
   knife_color: 'black',
   colors: [
     '#8800ff','#0088ff','#00ff88',
@@ -25,6 +28,12 @@ const f = module.exports = {
     line: 'n_lines',
     fountain: 'n_fountains',
     knife: 'n_knives',
+  },
+  state_text: {
+    node: 'NODES frame the land',
+    line: 'LINES define land',
+    fountain: 'FOUNTAINES claim land',
+    knife: 'KNIVES cut off FOUNTAINES',
   },
   next_state: {
     idle: 'node',
@@ -172,6 +181,7 @@ const f = module.exports = {
   solve_game: function ( game, total_length ) {
 
     const new_game = {
+      n_players: 0,
       players: {},
       nodes: [],
       lines: [],
@@ -184,7 +194,17 @@ const f = module.exports = {
       n_lines: game.n_lines,
       n_fountains: game.n_fountains,
       n_knives: game.n_knives,
+      top_pad: f.font_size + 3*f.line_width,
     }
+    var max_n = 0
+    for (const state in f.n_state) {
+      const n_state = f.n_state[state]
+      const state_n = new_game[n_state]
+      if (max_n < state_n) {
+        max_n = state_n
+      }
+    }
+    new_game.left_pad = 2*f.line_width + (max_n) * f.node_radius * 2
 
     for ( const node_idx in game.nodes ) {
       const node = game.nodes[ node_idx ]
@@ -201,8 +221,11 @@ const f = module.exports = {
       new_game.nodes.push( new_node )
     }
 
+    var max_name_length = 0
     for ( const player_id in game.players ) {
       const player = game.players[ player_id ]
+      ++new_game.n_players
+
 
       const new_player = {
         id: player_id,
@@ -211,12 +234,24 @@ const f = module.exports = {
         color: player.color,
         total_length: 0,
       }
+
+      if (max_name_length < new_player.name.length) {
+        max_name_length = new_player.name.length
+      }
+
       for ( const state in f.n_state ) {
         const n_state = f.n_state[ state ]
         new_player[ n_state ] = player[ n_state ]
       }
       new_game.players[ player_id ] = new_player
     }
+
+    const name_length = 2*f.line_width+3*f.node_radius + f.font_size*0.61*max_name_length
+    if (new_game.left_pad < name_length) {
+      new_game.left_pad = name_length
+    }
+    new_game.bottom_pad = 6*f.line_width + new_game.n_players * f.line_width * 2
+
 
     for ( const node_idx in new_game.nodes ) {
       const new_node = new_game.nodes[ node_idx ]
@@ -404,6 +439,7 @@ const f = module.exports = {
 
     const new_game = {
       players: {},
+      n_players: 0,
       nodes: [],
       lines: [],
       state: game.state,
@@ -430,6 +466,7 @@ const f = module.exports = {
 
     for ( const player_id in game.players ) {
       const player = game.players[ player_id ]
+      ++new_game.n_players
 
       const new_player = {
         id: player_id,
@@ -505,7 +542,10 @@ const f = module.exports = {
   player_act_at: function ( game, caller, px, py ) {
 
     const min_dist = f.node_radius*2
-    if ( min_dist > px || px > 1-min_dist || min_dist > py || py > 1-min_dist ) {
+    if ( min_dist + game.left_pad > px || px > 1-min_dist-f.line_width) {
+      return
+    }
+    else if (min_dist + game.top_pad > py || py > 1-min_dist-game.bottom_pad ) {
       return
     }
 
@@ -580,10 +620,13 @@ const f = module.exports = {
       case 'fountain':
       case 'knife':
 
-        if ( closest_node && closest_node.state == 'idle' ) {
-          closest_node.state = game.state
-          closest_node.player = caller
-          closest_node.dot_color = caller.color
+        if ( farther_node && farther_node.state == 'idle' ) {
+          farther_node.state = game.state
+          farther_node.player = caller
+          farther_node.dot_color = caller.color
+        }
+        else if ( farther_node && farther_node.player == caller ) {
+          return
         }
         else if (!closest_line) {
           return

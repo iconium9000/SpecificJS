@@ -104,6 +104,20 @@ client_socket.on('update', game_export => {
   client_socket.game_backup = game
 })
 
+function draw_node(ctx, x, y, color, dot_color, node_radius, dot_radius) {
+
+  ctx.fillStyle = color
+  ctx.beginPath()
+  ctx.arc(x,y,node_radius, 0, pi2)
+  ctx.fill()
+
+  ctx.fillStyle = dot_color
+  ctx.beginPath()
+  ctx.arc(x,y,dot_radius, 0, pi2)
+  ctx.fill()
+
+}
+
 function tick() {
   canvas.width = window.innerWidth - 20
   canvas.height = window.innerHeight - 22
@@ -139,10 +153,11 @@ function tick() {
     const line_width = functions.line_width * scale
     const font_size = functions.font_size * scale
     const node_radius = functions.node_radius * scale
+    const node_diameter = 2*node_radius
     const dot_radius = functions.dot_radius * scale
 
     ctx.lineWidth = line_width
-    ctx.font = `${Math.ceil(font_size)}px sans-serif`
+    ctx.font = `${font_size}px courier new`
     ctx.textAlign = 'left'
 
     const total_length = Math.abs(now - show_time) * functions.line_speed
@@ -150,11 +165,21 @@ function tick() {
     const game = client_socket.game
     const player = game.players[client_socket.id]
 
-    ctx.strokeStyle = player.color
 
+    ctx.strokeStyle = player.color
     ctx.beginPath()
-    ctx.rect(line_width, line_width, scale-2*line_width, scale-2*line_width)
+    const left_pad = scale * game.left_pad
+    const bottom_pad = scale * game.bottom_pad
+    const top_pad = scale * game.top_pad
+    ctx.rect(left_pad, top_pad,
+      scale-2*line_width-left_pad, scale-2*line_width-bottom_pad-top_pad)
     ctx.stroke()
+
+    const state_text = functions.state_text[game.state] || 'NEW GAME'
+    ctx.fillStyle = player.color
+    ctx.textAlign = 'center'
+    ctx.fillText(state_text, left_pad/2 + scale / 2, top_pad - 2*line_width)
+
 
     for ( const line_idx in game.lines) {
       const line = game.lines[line_idx]
@@ -204,109 +229,110 @@ function tick() {
       const node = game.nodes[ node_idx ]
 
       if (game.state == 'node') {
-        ctx.fillStyle = node.player.color
+        var color = node.player.color
       }
       else if (game.state == 'line' && player.node == node) {
-        ctx.fillStyle = player.color
+        var color = player.color
       }
       else if (node.state == 'fountain') {
-        ctx.fillStyle = node.player.color
+        var color = node.player.color
       }
       else if (node.state == 'knife') {
-        ctx.fillStyle = functions.knife_color
+        var color = functions.knife_color
       }
       else {
-        ctx.fillStyle = functions.default_color
+        var color = functions.default_color
       }
 
-      ctx.beginPath()
-      ctx.ellipse( node.x * scale, node.y * scale,
-        node_radius,node_radius, 0, 0, Math.PI*2)
-      ctx.fill()
-
-      ctx.fillStyle = node.dot_color
-      ctx.beginPath()
-      ctx.ellipse( node.x * scale, node.y * scale,
-        dot_radius, dot_radius, 0, 0, Math.PI*2 )
-      ctx.fill()
+      draw_node(ctx, node.x * scale, node.y * scale,
+        color, node.dot_color, node_radius, dot_radius)
     }
 
-
-    var idx = 0
-    for ( const player_id in game.players) {
+    const players = []
+    for (const player_id in game.players) {
       const player = game.players[player_id]
+      players.push(player)
+    }
+    players.sort((player_a, player_b) => {
+      return player_a.total_length - player_b.total_length
+    })
 
-      if (game.state == 'line') {
-        var length = player.n_lines / game.n_lines
-      }
-      else {
-        var length = player.total_length / game.full_length
-      }
 
-      if (game.state == 'node') {
-        var n_dots = player.n_nodes
-        var color = player.color
-        var dot_color = functions.default_color
-      }
-      else if (game.state == 'fountain') {
-        var n_dots = player.n_fountains
-        var color = player.color
-        var dot_color =  player.color
-      }
-      else if (game.state == 'knife') {
-        var n_dots = player.n_knives
-        var color = functions.knife_color
-        var dot_color =  player.color
-      }
-      else {
-        var n_dots = 0
-      }
 
-      for (var i = 0; i < n_dots; ++i) {
-
-        const x = scale - 2 * (i+1) * node_radius - 2*line_width
-        const y = 2 * (idx+1) * node_radius + 2*line_width
-
-        ctx.fillStyle = color
-        ctx.beginPath()
-        ctx.arc(x,y,node_radius, 0, pi2)
-        ctx.fill()
-
-        ctx.fillStyle = dot_color
-        ctx.beginPath()
-        ctx.arc(x,y,dot_radius, 0, pi2)
-        ctx.fill()
-      }
+    ctx.textAlign = 'left'
+    for (var player_idx = 0; player_idx < players.length; ++player_idx) {
+      const player = players[player_idx]
+      var y = 2*font_size + (player_idx) * (2*font_size + 4*(node_diameter+line_width))
 
       ctx.fillStyle = ctx.strokeStyle = player.color
+      ctx.fillText(player.name, 0, y)
+
+      const length = player.total_length / game.full_length
       ctx.beginPath()
-      ctx.moveTo(4*line_width, scale - 2*(idx+2)*line_width)
-      ctx.lineTo(
-        4*line_width + length * (scale - 8*line_width),
-        scale - 2*(idx+2)*line_width)
+      ctx.moveTo(4*line_width, scale - 2*(player_idx+2)*line_width)
+      ctx.lineTo(4*line_width + length * (canvas.width - 8*line_width),
+        scale - 2*(player_idx+2)*line_width)
       ctx.stroke()
 
-      ctx.fillText(player.name, font_size, 2*font_size * (idx+1))
+      y += line_width + node_radius
+      for (var n = 0; n < game.n_nodes; ++n) {
+        const x = 2 * (n+1) * node_radius - 2*line_width
 
-      idx += 1
+        if (player.n_nodes > n) {
+          var color = player.color
+          var dot_color = functions.default_color
+        }
+        else {
+          var color = functions.default_color
+          var dot_color = functions.background_color
+        }
+        draw_node(ctx, x, y, color, dot_color, node_radius, dot_radius)
+      }
+
+      y += line_width + node_diameter
+      for (var n = 0; n < game.n_lines; ++n) {
+        const x = 2 * (n+1) * node_radius - 2*line_width
+
+        if (player.n_lines > n) {
+          ctx.strokeStyle = player.color
+        }
+        else {
+          ctx.strokeStyle = functions.default_color
+        }
+        ctx.beginPath()
+        ctx.moveTo(x - node_radius, y - node_radius)
+        ctx.lineTo(x + node_radius, y + node_radius)
+        ctx.stroke()
+      }
+
+      y += line_width + node_diameter
+      for (var n = 0; n < game.n_fountains; ++n) {
+        const x = 2 * (n+1) * node_radius - 2*line_width
+
+        if (player.n_fountains > n) {
+          var color = player.color
+        }
+        else {
+          var color = functions.default_color
+        }
+        draw_node(ctx, x, y, color, color, node_radius, dot_radius)
+      }
+
+      y += line_width + node_diameter
+      for (var n = 0; n < game.n_knives; ++n) {
+        const x = 2 * (n+1) * node_radius - 2*line_width
+
+        var color = functions.knife_color
+        if (player.n_knives > n) {
+          var dot_color = player.color
+        }
+        else {
+          var dot_color = functions.default_color
+        }
+        draw_node(ctx, x, y, color, dot_color, node_radius, dot_radius)
+      }
     }
 
-    if (game.state == 'line') {
-      var length = 0
-    }
-    else {
-      var length = game.empty_length / game.full_length
-    }
-    ctx.strokeStyle = functions.default_color
-    ctx.beginPath()
-    ctx.moveTo(4*line_width, scale - 2*line_width*(idx+2))
-    ctx.lineTo(
-      4*line_width + length * (scale - 8*line_width),
-      scale - 2*line_width*(idx+2))
-    ctx.stroke()
-
-
-    idx = 2*line_width
   }
 
 

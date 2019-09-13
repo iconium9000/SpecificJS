@@ -48,7 +48,7 @@ function find_idle_game_and_connect_to_it(client_socket) {
     if (game) {
       log(soc.id, game.state, game.n_players, functions.colors.length)
     }
-    if (game && game.state == 'idle' && game.n_players < functions.colors.length) {
+    if (game && game.state == 'idle' && game.n_players < functions.max_players_per_game) {
       client_socket.game = soc.game
       soc.game.players[client_socket.id] = client_socket.player
       ++game.n_players
