@@ -3,17 +3,18 @@ var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
 
 log ( 'game.js' )
 
+const f_scale = 1.5
 const f = module.exports = {
 
-  node_radius: 1 / 50,
-  dot_radius: 1 / 100,
-  line_grab_radius: 1 / 50,
-  noise: 1e-9,
-  line_width: 1 / 100,
-  font_size: 1 / 20,
-  line_speed: 0.3,
+  node_radius: 1 / 50 / f_scale,
+  dot_radius: 1 / 100 / f_scale,
+  line_grab_radius: 1 / 50 / f_scale,
+  noise: 1e-9 / f_scale,
+  line_width: 1 / 100 / f_scale,
+  font_size: 1 / 20 / f_scale,
+  line_speed: 0.3 / f_scale,
 
-  max_players_per_game: 3,
+  max_players_per_game: 4,
 
   default_color: '#404040',
   background_color: '#202020',

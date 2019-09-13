@@ -175,7 +175,7 @@ function tick() {
       scale-2*line_width-left_pad, scale-2*line_width-bottom_pad-top_pad)
     ctx.stroke()
 
-    const state_text = functions.state_text[game.state] || 'NEW GAME'
+    const state_text = 'KNIFELINE!' //functions.state_text[game.state] || 'NEW GAME'
     ctx.fillStyle = player.color
     ctx.textAlign = 'center'
     ctx.fillText(state_text, left_pad/2 + scale / 2, top_pad - 2*line_width)
@@ -228,6 +228,8 @@ function tick() {
     for ( const node_idx in game.nodes ) {
       const node = game.nodes[ node_idx ]
 
+      const x = node.x * scale, y = node.y * scale
+
       if (game.state == 'node') {
         var color = node.player.color
       }
@@ -244,8 +246,21 @@ function tick() {
         var color = functions.default_color
       }
 
-      draw_node(ctx, node.x * scale, node.y * scale,
-        color, node.dot_color, node_radius, dot_radius)
+      draw_node(ctx, x, y, color, node.dot_color, node_radius, dot_radius)
+
+      if (node.state == 'knife') {
+        ctx.strokeStyle = node.player.color
+
+        ctx.beginPath()
+        ctx.moveTo(x - dot_radius, y - dot_radius)
+        ctx.lineTo(x + dot_radius, y + dot_radius)
+        ctx.stroke()
+
+        ctx.beginPath()
+        ctx.moveTo(x + dot_radius, y - dot_radius)
+        ctx.lineTo(x - dot_radius, y + dot_radius)
+        ctx.stroke()
+      }
     }
 
     const players = []
@@ -322,14 +337,28 @@ function tick() {
       for (var n = 0; n < game.n_knives; ++n) {
         const x = 2 * (n+1) * node_radius - 2*line_width
 
-        var color = functions.knife_color
+        ctx.fillStyle = functions.knife_color
+
+        ctx.beginPath()
+        ctx.arc(x,y,node_radius, 0, pi2)
+        ctx.fill()
+
         if (player.n_knives > n) {
-          var dot_color = player.color
+          ctx.strokeStyle = player.color
         }
         else {
-          var dot_color = functions.default_color
+          ctx.strokeStyle = functions.default_color
         }
-        draw_node(ctx, x, y, color, dot_color, node_radius, dot_radius)
+
+        ctx.beginPath()
+        ctx.moveTo(x - dot_radius, y - dot_radius)
+        ctx.lineTo(x + dot_radius, y + dot_radius)
+        ctx.stroke()
+
+        ctx.beginPath()
+        ctx.moveTo(x + dot_radius, y - dot_radius)
+        ctx.lineTo(x - dot_radius, y + dot_radius)
+        ctx.stroke()
       }
     }
 
