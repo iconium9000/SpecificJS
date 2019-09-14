@@ -3,7 +3,7 @@ var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
 
 log ( 'game.js' )
 
-const f_scale = 1.5
+const f_scale = 0.8
 const f = module.exports = {
 
   node_radius: 1 / 50 / f_scale,
@@ -14,7 +14,9 @@ const f = module.exports = {
   font_size: 1 / 20 / f_scale,
   line_speed: 0.3 / f_scale,
 
-  max_players_per_game: 4,
+  max_n_players: 4,
+
+  blink_rate: 2, // blinks per sec
 
   default_color: '#404040',
   background_color: '#202020',
@@ -184,6 +186,7 @@ const f = module.exports = {
     const new_game = {
       n_players: 0,
       players: {},
+      other_players: {},
       nodes: [],
       lines: [],
       state: game.state,
@@ -207,6 +210,18 @@ const f = module.exports = {
     }
     new_game.left_pad = 2*f.line_width + (max_n) * f.node_radius * 2
 
+    for ( const player_id in game.other_players ) {
+      const other_player = game.other_players[player_id]
+      if (!game.players[player_id]) {
+
+        new_game.other_players[player_id] = {
+          name: other_player.name,
+          color: other_player.color,
+          state: other_player.state,
+        }
+      }
+    }
+
     for ( const node_idx in game.nodes ) {
       const node = game.nodes[ node_idx ]
       node.idx = node_idx
@@ -214,7 +229,7 @@ const f = module.exports = {
       const new_node = {
         idx: node_idx,
         x: node.x, y: node.y,
-        dot_color: node.dot_color,
+        is_fountain: node.is_fountain,
         state: node.state,
         lines: [],
         super_line: node.super_line,
@@ -375,18 +390,31 @@ const f = module.exports = {
   },
 
   // return a JSONable game object
-  export: function ( game, reason ) {
+  export: function ( game ) {
 
     const new_game = {
       players: {},
+      other_players: {},
       nodes: [],
       lines: [],
       state: game.state,
-      reason: reason,
+      reason: game.reason,
       n_nodes: game.n_nodes,
       n_lines: game.n_lines,
       n_fountains: game.n_fountains,
       n_knives: game.n_knives,
+    }
+
+    for ( const player_id in game.other_players ) {
+      const other_player = game.other_players[player_id]
+      if (!game.players[player_id]) {
+
+        new_game.other_players[player_id] = {
+          name: other_player.name,
+          color: other_player.color,
+          state: other_player.state,
+        }
+      }
     }
 
     for ( const node_idx in game.nodes ) {
@@ -398,7 +426,7 @@ const f = module.exports = {
         state: node.state,
         player_id: node.player.id,
         super_line: node.super_line,
-        dot_color: node.dot_color,
+        is_fountain: node.is_fountain,
       }
       new_game.nodes.push( new_node )
     }
@@ -440,6 +468,7 @@ const f = module.exports = {
 
     const new_game = {
       players: {},
+      other_players: {},
       n_players: 0,
       nodes: [],
       lines: [],
@@ -451,6 +480,18 @@ const f = module.exports = {
       n_knives: game.n_knives,
     }
 
+    for ( const player_id in game.other_players ) {
+      const other_player = game.other_players[player_id]
+      if (!game.players[player_id]) {
+
+        new_game.other_players[player_id] = {
+          name: other_player.name,
+          color: other_player.color,
+          state: other_player.state,
+        }
+      }
+    }
+
     for ( const node_idx in game.nodes ) {
       const node = game.nodes[ node_idx ]
       node.idx = node_idx
@@ -460,7 +501,7 @@ const f = module.exports = {
         state: node.state,
         lines: [],
         super_line: node.super_line,
-        dot_color: node.dot_color,
+        is_fountain: node.is_fountain,
       }
       new_game.nodes.push( new_node )
     }
@@ -532,8 +573,7 @@ const f = module.exports = {
         return count < 1
 
       case 'over':
-
-        // TODO
+        return false
 
       default:
         return false
@@ -576,7 +616,7 @@ const f = module.exports = {
             player: caller,
             lines: [],
             super_line: -1,
-            dot_color: f.default_color,
+            is_fountain: false,
           }
           game.nodes.push( new_node )
 
@@ -624,7 +664,7 @@ const f = module.exports = {
         if ( farther_node && farther_node.state == 'idle' ) {
           farther_node.state = game.state
           farther_node.player = caller
-          farther_node.dot_color = caller.color
+          farther_node.is_fountain = true
         }
         else if ( farther_node && farther_node.player == caller ) {
           return
@@ -668,7 +708,7 @@ const f = module.exports = {
           const new_node = {
             x: q.x, y: q.y,
             state: game.state,
-            dot_color: caller.color,
+            is_fountain: true,
             player: caller,
             lines: [ closest_line ],
             super_line: closest_line.super_line,

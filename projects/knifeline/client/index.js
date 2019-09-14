@@ -18,7 +18,7 @@ var canvas = document.getElementById('canvas')
 var ctx = canvas.getContext('2d')
 var client_socket = io()
 
-var functions = null
+var functions = {}
 module = {
   test: 1,
   set exports(exports) {
@@ -92,16 +92,11 @@ client_socket.on('update', game_export => {
     return
   }
 
-
   var game = functions.import(game_export)
   log( game.reason )
-
-  if (game.state == 'over') {
-    return
-  }
-
   client_socket.game = functions.solve_game(game, Infinity)
   client_socket.game_backup = game
+
 })
 
 function draw_node(ctx, x, y, color, dot_color, node_radius, dot_radius) {
@@ -111,11 +106,12 @@ function draw_node(ctx, x, y, color, dot_color, node_radius, dot_radius) {
   ctx.arc(x,y,node_radius, 0, pi2)
   ctx.fill()
 
-  ctx.fillStyle = dot_color
-  ctx.beginPath()
-  ctx.arc(x,y,dot_radius, 0, pi2)
-  ctx.fill()
-
+  if (dot_color) {
+    ctx.fillStyle = dot_color
+    ctx.beginPath()
+    ctx.arc(x,y,dot_radius, 0, pi2)
+    ctx.fill()
+  }
 }
 
 function tick() {
@@ -232,21 +228,26 @@ function tick() {
 
       if (game.state == 'node') {
         var color = node.player.color
+        var dot_color = functions.default_color
       }
       else if (game.state == 'line' && player.node == node) {
         var color = player.color
+        var dot_color = functions.default_color
       }
       else if (node.state == 'fountain') {
         var color = node.player.color
+        var dot_color = node.is_fountain ? color : functions.default_color
       }
       else if (node.state == 'knife') {
         var color = functions.knife_color
+        var dot_color = null
       }
       else {
         var color = functions.default_color
+        var dot_color = null
       }
 
-      draw_node(ctx, x, y, color, node.dot_color, node_radius, dot_radius)
+      draw_node(ctx, x, y, color, dot_color, node_radius, dot_radius)
 
       if (node.state == 'knife') {
         ctx.strokeStyle = node.player.color
@@ -273,7 +274,6 @@ function tick() {
     })
 
 
-
     ctx.textAlign = 'left'
     for (var player_idx = 0; player_idx < players.length; ++player_idx) {
       const player = players[player_idx]
@@ -284,8 +284,8 @@ function tick() {
 
       const length = player.total_length / game.full_length
       ctx.beginPath()
-      ctx.moveTo(4*line_width, scale - 2*(player_idx+2)*line_width)
-      ctx.lineTo(4*line_width + length * (canvas.width - 8*line_width),
+      ctx.moveTo(left_pad, scale - 2*(player_idx+2)*line_width)
+      ctx.lineTo(left_pad + length * (scale - 8*line_width),
         scale - 2*(player_idx+2)*line_width)
       ctx.stroke()
 
@@ -362,6 +362,20 @@ function tick() {
       }
     }
 
+    if (canvas.width > canvas.height) {
+      var idle_idx = scale - bottom_pad
+      var draw_x = canvas.height
+    }
+    else {
+      var idle_idx = canvas.height
+      var draw_x = 0
+    }
+    for (const player_id in game.other_players) {
+      const other_player = game.other_players[player_id]
+      ctx.fillStyle = other_player.color
+      ctx.fillText(other_player.name, draw_x, idle_idx)
+      idle_idx -= font_size
+    }
   }
 
 
