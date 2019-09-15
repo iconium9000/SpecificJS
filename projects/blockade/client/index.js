@@ -4,6 +4,10 @@ const log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
 const err = console.error
 const is_mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 
+if (window.Touch) {
+  $("#cutCopyPaste").remove()
+}
+
 // -----------------------------------------------------------------------------
 // client setup
 
