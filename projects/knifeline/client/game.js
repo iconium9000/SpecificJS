@@ -6,13 +6,13 @@ log ( 'game.js' )
 const f_scale = 0.8
 const f = module.exports = {
 
-  node_radius: 1 / 50 / f_scale,
-  dot_radius: 1 / 100 / f_scale,
-  line_grab_radius: 1 / 50 / f_scale,
-  noise: 1e-9 / f_scale,
-  line_width: 1 / 100 / f_scale,
-  font_size: 1 / 20 / f_scale,
-  line_speed: 0.3 / f_scale,
+  node_radius: 1 / 50 * f_scale,
+  dot_radius: 1 / 100 * f_scale,
+  line_grab_radius: 1 / 50 * f_scale,
+  noise: 1e-9 * f_scale,
+  line_width: 1 / 100 * f_scale,
+  font_size: 1 / 20 * f_scale,
+  line_speed: 0.3 * f_scale,
 
   max_n_players: 4,
 
@@ -586,7 +586,7 @@ const f = module.exports = {
     if ( min_dist + game.left_pad > px || px > 1-min_dist-f.line_width) {
       return
     }
-    else if (min_dist + game.top_pad > py || py > 1-min_dist-game.bottom_pad ) {
+    if (min_dist + game.top_pad > py || py > 1-min_dist-game.bottom_pad ) {
       return
     }
 
