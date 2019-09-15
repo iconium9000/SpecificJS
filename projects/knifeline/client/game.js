@@ -582,6 +582,8 @@ const f = module.exports = {
 
   player_act_at: function ( game, caller, px, py ) {
 
+    log('player_act_at', caller.full_name, px, py)
+
     const min_dist = f.node_radius*2
     if ( min_dist + game.left_pad > px || px > 1-min_dist-f.line_width) {
       return
