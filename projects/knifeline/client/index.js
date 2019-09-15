@@ -42,28 +42,27 @@ log('Index.js')
 // mouse/touch controls
 {
   $(document).mousemove(e => {
-    client_socket.mouse_x = (e.clientX - 7) / functions.scale
-    client_socket.mouse_y = (e.clientY - 7) / functions.scale
+    client_socket.mouse_x = (e.clientX - 7) / functions.scale || 0
+    client_socket.mouse_y = (e.clientY - 7) / functions.scale || 0
   })
   $(document).mousedown(e => {
-    client_socket.mouse_x = (e.clientX - 7) / functions.scale
-    client_socket.mouse_y = (e.clientY - 7) / functions.scale
-
+    client_socket.mouse_x = (e.clientX - 7) / functions.scale || 0
+    client_socket.mouse_y = (e.clientY - 7) / functions.scale || 0
     client_socket.emit('mouse down', client_socket.mouse_x, client_socket.mouse_y)
   })
   $(document).mouseup(e => {
-    client_socket.mouse_x = (e.clientX - 7) / functions.scale
-    client_socket.mouse_y = (e.clientY - 7) / functions.scale
+    client_socket.mouse_x = (e.clientX - 7) / functions.scale || 0
+    client_socket.mouse_y = (e.clientY - 7) / functions.scale || 0
     client_socket.emit('mouse up', client_socket.mouse_x, client_socket.mouse_y)
   })
   document.addEventListener('touchstart', e => {
-    client_socket.mouse_x = (e.clientX - 7) / functions.scale
-    client_socket.mouse_y = (e.clientY - 7) / functions.scale
+    client_socket.mouse_x = (e.clientX - 7) / functions.scale || 0
+    client_socket.mouse_y = (e.clientY - 7) / functions.scale || 0
     client_socket.emit('mouse down', client_socket.mouse_x, client_socket.mouse_y)
   }, false)
   document.addEventListener('touchend', e => {
-    client_socket.mouse_x = (e.clientX - 7) / functions.scale
-    client_socket.mouse_y = (e.clientY - 7) / functions.scale
+    client_socket.mouse_x = (e.clientX - 7) / functions.scale || 0
+    client_socket.mouse_y = (e.clientY - 7) / functions.scale || 0
     client_socket.emit('mouse up', client_socket.mouse_x, client_socket.mouse_y)
   }, false)
 }
