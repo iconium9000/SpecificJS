@@ -68,8 +68,6 @@ socket_io.on('connection', client_socket => {
 
     const project = projects[ project_name ]
 
-    log(`proj_name '${proj_name}'`)
-
     project.add_client_socket(client_socket)
     projects.menu.added_socket_other_project(projects)
 
