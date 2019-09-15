@@ -3,26 +3,26 @@ var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
 
 log ( 'game.js' )
 
-const f_scale = 0.8
-const f = module.exports = {
+const display_scale = 0.8
+var Knifeline = module.exports = {
 
-  node_radius: 1 / 50 * f_scale,
-  dot_radius: 1 / 100 * f_scale,
-  line_grab_radius: 1 / 50 * f_scale,
-  noise: 1e-9 * f_scale,
-  line_width: 1 / 100 * f_scale,
-  font_size: 1 / 20 * f_scale,
-  line_speed: 0.3 * f_scale,
+  node_radius: 1 / 50 * display_scale,
+  dot_radius: 1 / 100 * display_scale,
+  line_grab_radius: 1 / 50 * display_scale,
+  noise: 1e-9 * display_scale,
+  line_width: 1 / 100 * display_scale,
+  font_size: 1 / 20 * display_scale,
+  line_speed: 0.3 * display_scale,
 
   max_n_players: 4,
 
-  blink_rate: 2, // blinks per sec
+  blink_rate: 1.5, // blinks per sec
 
   default_color: '#404040',
   background_color: '#202020',
   knife_color: 'black',
   colors: [
-    '#8800ff','#0088ff','#00ff88',
+    // '#8800ff','#0088ff','#00ff88',
     '#4444ff','#44aa44','#ff4444',
     '#888800','#880888','#008888',
   ],
@@ -33,10 +33,11 @@ const f = module.exports = {
     knife: 'n_knives',
   },
   state_text: {
+    idle: 'KNIFELINE!',
     node: 'NODES frame the land',
     line: 'LINES define land',
-    fountain: 'FOUNTAINES claim land',
-    knife: 'KNIVES cut off FOUNTAINES',
+    fountain: 'FOUNTAINS claim land',
+    knife: 'KNIVES cut off FOUNTAINS',
   },
   next_state: {
     idle: 'node',
@@ -48,7 +49,7 @@ const f = module.exports = {
   },
 
   set_players: function (game) {
-    f.colors.sort( () => Math.random() - 0.5 )
+    Knifeline.colors.sort( () => Math.random() - 0.5 )
 
     game.n_nodes = 4
     game.n_lines = game.n_players + 3
@@ -58,7 +59,7 @@ const f = module.exports = {
     var idx = 0
     for ( const player_id in game.players ) {
       const player = game.players[ player_id ]
-      player.color = f.colors[ idx++ ]
+      player.color = Knifeline.colors[ idx++ ]
       player.n_nodes = game.n_nodes
       player.n_lines = game.n_lines
       player.n_fountains = game.n_fountains
@@ -111,7 +112,7 @@ const f = module.exports = {
 
   line_dist: function ( line, px, py ) {
 
-    const q = f.point_on_line( line, px, py )
+    const q = Knifeline.point_on_line( line, px, py )
     const qx = px - q.x, qy = py - q.y
 
     return qx*qx + qy*qy
@@ -126,7 +127,7 @@ const f = module.exports = {
     for ( const idx in game.lines ) {
       const line = game.lines[idx]
 
-      const line_dist = f.line_dist( line, px, py )
+      const line_dist = Knifeline.line_dist( line, px, py )
 
       if ( min_dist > line_dist ) {
         min_dist = line_dist
@@ -136,6 +137,32 @@ const f = module.exports = {
 
     return ret_line
 
+  },
+
+  set_game_padding: function (game) {
+    var max_n = 0
+    for (const state in Knifeline.n_state) {
+      const n_state = Knifeline.n_state[state]
+      const state_n = game[n_state]
+      if (max_n < state_n) {
+        max_n = state_n
+      }
+    }
+    game.top_pad = Knifeline.font_size + 3*Knifeline.line_width
+
+    var max_name_length = 0
+    for ( const player_id in game.players ) {
+      const player = game.players[ player_id ]
+      if (max_name_length < player.name.length) {
+        max_name_length = player.name.length
+      }
+    }
+    const line_width = Knifeline.line_width
+    const node_radius = Knifeline.node_radius
+    const state_pad = 2*line_width + (max_n) * node_radius * 2
+    const name_pad = 2*line_width+3*node_radius + Knifeline.font_size*0.61*max_name_length
+    game.left_pad = state_pad > name_pad ? state_pad : name_pad
+    game.bottom_pad = 6*line_width + game.n_players * line_width * 2
   },
 
   check_is_valid_line: function ( game, node_a, node_b ) {
@@ -198,17 +225,7 @@ const f = module.exports = {
       n_lines: game.n_lines,
       n_fountains: game.n_fountains,
       n_knives: game.n_knives,
-      top_pad: f.font_size + 3*f.line_width,
     }
-    var max_n = 0
-    for (const state in f.n_state) {
-      const n_state = f.n_state[state]
-      const state_n = new_game[n_state]
-      if (max_n < state_n) {
-        max_n = state_n
-      }
-    }
-    new_game.left_pad = 2*f.line_width + (max_n) * f.node_radius * 2
 
     for ( const player_id in game.other_players ) {
       const other_player = game.other_players[player_id]
@@ -237,7 +254,6 @@ const f = module.exports = {
       new_game.nodes.push( new_node )
     }
 
-    var max_name_length = 0
     for ( const player_id in game.players ) {
       const player = game.players[ player_id ]
       ++new_game.n_players
@@ -251,22 +267,12 @@ const f = module.exports = {
         total_length: 0,
       }
 
-      if (max_name_length < new_player.name.length) {
-        max_name_length = new_player.name.length
-      }
-
-      for ( const state in f.n_state ) {
-        const n_state = f.n_state[ state ]
+      for ( const state in Knifeline.n_state ) {
+        const n_state = Knifeline.n_state[ state ]
         new_player[ n_state ] = player[ n_state ]
       }
       new_game.players[ player_id ] = new_player
     }
-
-    const name_length = 2*f.line_width+3*f.node_radius + f.font_size*0.61*max_name_length
-    if (new_game.left_pad < name_length) {
-      new_game.left_pad = name_length
-    }
-    new_game.bottom_pad = 6*f.line_width + new_game.n_players * f.line_width * 2
 
 
     for ( const node_idx in new_game.nodes ) {
@@ -336,7 +342,7 @@ const f = module.exports = {
         max_length = total_length - new_game.total_length
       }
 
-      max_length += Math.random() * f.noise
+      max_length += Math.random() * Knifeline.noise
 
       for (const line_idx in new_game.lines) {
         const line = new_game.lines[line_idx]
@@ -439,8 +445,8 @@ const f = module.exports = {
         node_idx: player.node ? player.node.idx : -1,
         color: player.color,
       }
-      for ( const state in f.n_state ) {
-        const n_state = f.n_state[ state ]
+      for ( const state in Knifeline.n_state ) {
+        const n_state = Knifeline.n_state[ state ]
         new_player[ n_state ] = player[ n_state ]
       }
       new_game.players[ player_id ] = new_player
@@ -516,8 +522,8 @@ const f = module.exports = {
         node: new_game.nodes[ player.node_idx ],
         color: player.color,
       }
-      for ( const state in f.n_state ) {
-        const n_state = f.n_state[ state ]
+      for ( const state in Knifeline.n_state ) {
+        const n_state = Knifeline.n_state[ state ]
         new_player[ n_state ] = player[ n_state ]
       }
       new_game.players[ player_id ] = new_player
@@ -554,7 +560,7 @@ const f = module.exports = {
 
     switch ( game.state ) {
       case 'idle':
-        f.set_players(game)
+        Knifeline.set_players(game)
 
         return true
 
@@ -563,7 +569,7 @@ const f = module.exports = {
       case 'fountain':
       case 'knife':
         var count = 0
-        const n_state = f.n_state[ game.state ]
+        const n_state = Knifeline.n_state[ game.state ]
 
         for ( const player_id in game.players ) {
           const player = game.players[ player_id ]
@@ -582,8 +588,10 @@ const f = module.exports = {
 
   player_act_at: function ( game, caller, px, py ) {
 
-    const min_dist = f.node_radius*2
-    if ( min_dist + game.left_pad > px || px > 1-min_dist-f.line_width) {
+    const node_radius = Knifeline.node_radius
+
+    const min_dist = node_radius*2
+    if ( min_dist + game.left_pad > px || px > 1-min_dist-Knifeline.line_width) {
       return
     }
     if (min_dist + game.top_pad > py || py > 1-min_dist-game.bottom_pad ) {
@@ -591,11 +599,12 @@ const f = module.exports = {
     }
 
     const caller_node = caller.node
-    const closest_node = f.get_node( game, px, py, f.node_radius, -1 )
-    const closest_line = f.get_line( game, px, py, f.node_radius )
+    const closest_node = Knifeline.get_node( game, px, py, node_radius, -1 )
+    const closest_line = Knifeline.get_line( game, px, py, node_radius )
     const super_line = closest_line ? closest_line.super_line : -1
-    const farther_node = f.get_node( game, px, py, 2*f.node_radius, super_line )
-    const n_state = f.n_state[ game.state ]
+    const farther_node = Knifeline.get_node( game, px, py, 2*node_radius, super_line )
+    const n_state = Knifeline.n_state[ game.state ]
+
 
     if ( !( caller[ n_state ] > 0 ) ) {
       return
@@ -626,33 +635,37 @@ const f = module.exports = {
 
       case 'line':
 
-        if ( !closest_node ) {
+        if ( !farther_node ) {
           return
         }
         else if ( !caller_node ) {
-          caller.node = closest_node
+          caller.node = farther_node
           return 'selected node'
         }
-        else if ( closest_node == caller_node ) {
+        else if ( farther_node == caller_node ) {
           caller.node = null
           return 'deselected node'
         }
-        else if ( f.check_is_valid_line( game, closest_node, caller_node ) ) {
+        else if ( Knifeline.check_is_valid_line( game, farther_node, caller_node ) ) {
 
           const new_line = {
-            node_a: closest_node,
+            node_a: farther_node,
             node_b: caller_node,
             player: caller,
             super_line: game.lines.length,
           }
 
           game.lines.push( new_line )
-          closest_node.lines.push( new_line )
+          farther_node.lines.push( new_line )
           caller_node.lines.push( new_line )
           caller.node = null
 
           --caller[ n_state ]
           return 'added line'
+        }
+        else if (farther_node) {
+          caller.node = farther_node
+          return 'selected node'
         }
         else {
           return
@@ -674,7 +687,7 @@ const f = module.exports = {
         }
         else {
 
-          const r = 2 * f.node_radius
+          const r = 2 * node_radius
 
           if ( farther_node ) {
             if ( farther_node == closest_line.node_b ) {
@@ -688,18 +701,18 @@ const f = module.exports = {
             const ax = closest_line.node_a.x, ay = closest_line.node_a.y
             const bx = closest_line.node_b.x, by = closest_line.node_b.y
             const bax = bx - ax, bay = by - ay
-            const len = ( r + f.noise ) / Math.sqrt( bax*bax + bay*bay )
+            const len = ( r + Knifeline.noise ) / Math.sqrt( bax*bax + bay*bay )
             var q = {
               x: ax + bax * len,
               y: ay + bay * len,
             }
           }
           else {
-            var q = f.point_on_line( closest_line, px, py )
+            var q = Knifeline.point_on_line( closest_line, px, py )
           }
 
 
-          if ( f.get_node( game, q.x, q.y, r, closest_line.super_line ) ) {
+          if ( Knifeline.get_node( game, q.x, q.y, r, closest_line.super_line ) ) {
             return
           }
 
