@@ -14,6 +14,10 @@ const project_details = {
     name: 'knifeline',
     title: 'Knifeline',
   },
+  mazegame: {
+    name: 'mazegame',
+    title: 'MazeGame',
+  },
 }
 const projects = {}
 

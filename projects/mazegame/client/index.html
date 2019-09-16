@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+
+<head>
+  <style>
+		body
+		{
+			background: black;
+		}
+    	div#loadingMsg
+    	{
+    		visibility: visible;
+    	}
+        canvas
+		{
+            position: absolute;
+            background: black
+            border: black 1px solid;
+            visibility: hidden;
+        }
+        div#backCanvas
+		{
+            position: absolute;
+			z-index: 0;
+            top: 0px;
+            left: 0px;
+            padding-left: 0px;
+        }
+		div#overlay
+		{
+			opacity: 0.99;
+			display: none;
+			background: #000;
+			z-index: 1;
+            position: absolute;
+            top: 0px; left: 0px;
+			width: 100%; height: 100%;
+		}
+		div#box
+		{
+            display: none;
+            position: absolute;
+            z-index: 2;
+            width: 500px;
+            height: 500px;
+            background: #FFF;
+            color: #000;
+		}
+        .noselect {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+  </style>
+  <script src="jquery/jquery.slim.min.js"> </script>
+  <script src="socket_io/socket.io.js"></script>
+  <script src = "mazegame/mazeGame.js"></script>
+	<noscript>This site requires JavaScript!</noscript>
+</head>
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<div id = "loadingMsg">Loading...</div>
+<div id = "backCanvas"><canvas id = "canvas">
+Your browser does not support canvas element.
+</canvas></div>
+<body onLoad = "init()" background='black'>
+</body>
+</html>>
