@@ -18,9 +18,9 @@ if (window.Touch) {
 var show_toggle = false
 var show_time = Infinity
 
-var canvas = document.getElementById('canvas')
-var ctx = canvas.getContext('2d')
-var client_socket = io()
+const canvas = document.getElementById('canvas')
+const ctx = canvas.getContext('2d')
+const client_socket = io()
 
 var Knifeline = {}
 module = {
