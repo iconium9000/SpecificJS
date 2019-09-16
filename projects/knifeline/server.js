@@ -19,7 +19,6 @@ module.exports = () => {
 function check_game(client_socket) {
   const player = client_socket.player
 
-
   if (client_socket.game) {
     return
   }
@@ -28,9 +27,12 @@ function check_game(client_socket) {
     const other_client_socket = client_sockets[other_client_socket_id]
     const game = other_client_socket && other_client_socket.game
 
-    if (game && game.state == 'idle' && game.n_players < Knifeline.max_n_players) {
-      client_socket.game = game
-      break
+
+    if (game && game.n_players < Knifeline.max_n_players) {
+      if (game.state == 'idle' || game.state == 'node') {
+        client_socket.game = game
+        break
+      }
     }
   }
 
@@ -44,8 +46,11 @@ function check_game(client_socket) {
     }
   }
 
-  ++client_socket.game.n_players
-  client_socket.game.players[client_socket.id] = player
+  const game = client_socket.game
+  ++game.n_players
+  game.players[player.id] = player
+  player.n_players = 0
+  Knifeline.set_players(game)
 }
 
 function update_socket(client_socket, reason, optional_client_name) {
@@ -156,6 +161,13 @@ function client_socket_init(client_socket) {
     }
     if (Knifeline.update_game_state(game)) {
       game.state = Knifeline.next_state[game.state]
+      if (game.state == 'over') {
+        const new_game = Knifeline.solve_game(game, Infinity)
+        for (const player_id in game.players) {
+          const player = game.players[player_id]
+          player.game = new_game
+        }
+      }
       update_socket(client_socket, `changed state to ${game.state}`)
     }
     else if (game.state == 'over') {

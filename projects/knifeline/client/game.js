@@ -48,8 +48,11 @@ var Knifeline = module.exports = {
     over: 'idle',
   },
 
-  set_players: function (game) {
-    Knifeline.colors.sort( () => Math.random() - 0.5 )
+  set_players: function (game, ) {
+
+    if (!game.colors) {
+      game.colors = Knifeline.colors.slice(0).sort(() => Math.random() - 0.5)
+    }
 
     game.n_nodes = 4
     game.n_lines = game.n_players + 3
@@ -59,11 +62,16 @@ var Knifeline = module.exports = {
     var idx = 0
     for ( const player_id in game.players ) {
       const player = game.players[ player_id ]
-      player.color = Knifeline.colors[ idx++ ]
-      player.n_nodes = game.n_nodes
-      player.n_lines = game.n_lines
-      player.n_fountains = game.n_fountains
-      player.n_knives = game.n_knives
+      if (player.n_players) {
+        player.n_lines = game.n_lines
+      }
+      else {
+        player.color = game.colors[ idx++ ]
+        player.n_nodes = game.n_nodes
+        player.n_lines = game.n_lines
+        player.n_fountains = game.n_fountains
+        player.n_knives = game.n_knives
+      }
     }
   },
 
@@ -560,6 +568,10 @@ var Knifeline = module.exports = {
 
     switch ( game.state ) {
       case 'idle':
+        for (const player_id in game.players) {
+          const player = game.players[player_id]
+          player.n_players = 0
+        }
         Knifeline.set_players(game)
 
         return true
