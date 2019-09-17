@@ -1,54 +1,56 @@
-var proj_name = 'Knifeline:'
-var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
 
-log ( 'game.js' )
+const Knifeline = (module.exports = () => {
 
-const display_scale = 0.8
-var Knifeline = module.exports = {
+  const Knifeline = {}
+  const project_name = 'Knifeline:'
+  const log = (...msg) => console.log(project_name, ...msg)
 
-  node_radius: 1 / 50 * display_scale,
-  dot_radius: 1 / 100 * display_scale,
-  line_grab_radius: 1 / 50 * display_scale,
-  noise: 1e-9 * display_scale,
-  line_width: 1 / 100 * display_scale,
-  font_size: 1 / 20 * display_scale,
-  line_speed: 0.3 * display_scale,
+  log ( 'game.js' )
 
-  max_n_players: 4,
+  const display_scale = 0.8
+  Knifeline.node_radius = 1 / 50 * display_scale
+  Knifeline.dot_radius = 1 / 100 * display_scale
+  Knifeline.line_grab_radius = 1 / 50 * display_scale
+  Knifeline.noise = 1e-9 * display_scale
+  Knifeline.line_width = 1 / 100 * display_scale
+  Knifeline.font_size = 1 / 20 * display_scale
+  Knifeline.line_speed = 0.3 * display_scale
 
-  blink_rate: 1.5, // blinks per sec
+  Knifeline.max_n_players = 4
 
-  default_color: '#404040',
-  background_color: '#202020',
-  knife_color: 'black',
-  colors: [
+  Knifeline.blink_rate = 1.5 // blinks per sec
+
+  Knifeline.default_color = '#404040'
+  Knifeline.background_color = '#202020'
+  Knifeline.knife_color = 'black'
+  Knifeline.colors = [
     // '#8800ff','#0088ff','#00ff88',
     '#4444ff','#44aa44','#ff4444',
     '#888800','#880888','#008888',
-  ],
-  n_state: {
+  ]
+  Knifeline.n_state = {
     node: 'n_nodes',
     line: 'n_lines',
     fountain: 'n_fountains',
     knife: 'n_knives',
-  },
-  state_text: {
+  }
+  Knifeline.state_text = {
     idle: 'KNIFELINE!',
     node: 'NODES frame the land',
     line: 'LINES define land',
     fountain: 'FOUNTAINS claim land',
     knife: 'KNIVES cut off FOUNTAINS',
-  },
-  next_state: {
+  }
+  Knifeline.next_state = {
     idle: 'node',
     node: 'line',
     line: 'fountain',
     fountain: 'knife',
     knife: 'over',
     over: 'idle',
-  },
+  }
 
-  set_players: function (game, ) {
+  Knifeline.set_players = (game, added_player) => {
 
     if (!game.colors) {
       game.colors = Knifeline.colors.slice(0).sort(() => Math.random() - 0.5)
@@ -62,20 +64,17 @@ var Knifeline = module.exports = {
     var idx = 0
     for ( const player_id in game.players ) {
       const player = game.players[ player_id ]
-      if (player.n_players) {
-        player.n_lines = game.n_lines
-      }
-      else {
-        player.color = game.colors[ idx++ ]
+      player.color = game.colors[ idx++ ]
+      if (!added_player || player == added_player) {
         player.n_nodes = game.n_nodes
-        player.n_lines = game.n_lines
-        player.n_fountains = game.n_fountains
-        player.n_knives = game.n_knives
       }
+      player.n_lines = game.n_lines
+      player.n_fountains = game.n_fountains
+      player.n_knives = game.n_knives
     }
-  },
+  }
 
-  get_node: function ( game, px, py, min_dist, super_line ) {
+  Knifeline.get_node = ( game, px, py, min_dist, super_line ) => {
 
     min_dist *= min_dist
     var ret_node = null
@@ -97,9 +96,9 @@ var Knifeline = module.exports = {
 
     return ret_node
 
-  },
+  }
 
-  point_on_line: function ( line, px, py ) {
+  Knifeline.point_on_line = ( line, px, py ) => {
 
     const ax = line.node_a.x, ay = line.node_a.y
     const bx = line.node_b.x, by = line.node_b.y
@@ -116,18 +115,18 @@ var Knifeline = module.exports = {
     const qy = ay + bay*p
 
     return { x: qx, y: qy }
-  },
+  }
 
-  line_dist: function ( line, px, py ) {
+  Knifeline.line_dist = ( line, px, py ) => {
 
     const q = Knifeline.point_on_line( line, px, py )
     const qx = px - q.x, qy = py - q.y
 
     return qx*qx + qy*qy
 
-  },
+  }
 
-  get_line: function ( game, px, py, min_dist ) {
+  Knifeline.get_line = ( game, px, py, min_dist ) => {
 
     min_dist *= min_dist
     var ret_line = null
@@ -145,9 +144,9 @@ var Knifeline = module.exports = {
 
     return ret_line
 
-  },
+  }
 
-  set_game_padding: function (game) {
+  Knifeline.set_game_padding = (game) => {
     var max_n = 0
     for (const state in Knifeline.n_state) {
       const n_state = Knifeline.n_state[state]
@@ -171,11 +170,10 @@ var Knifeline = module.exports = {
     const name_pad = 2*line_width+3*node_radius + Knifeline.font_size*0.61*max_name_length
     game.left_pad = state_pad > name_pad ? state_pad : name_pad
     game.bottom_pad = 6*line_width + game.n_players * line_width * 2
-  },
+  }
 
-  check_is_valid_line: function ( game, node_a, node_b ) {
+  Knifeline.check_is_valid_line = ( game, node_a, node_b ) => {
     if ( !node_a || !node_b || node_a == node_b ) {
-      // log('!node_a || !node_b || node_a == node_b', !node_a, !node_b, node_a == node_b)
       return false
     }
 
@@ -214,9 +212,9 @@ var Knifeline = module.exports = {
     }
 
     return true
-  },
+  }
 
-  solve_game: function ( game, total_length ) {
+  Knifeline.solve_game = ( game, total_length ) => {
 
     const new_game = {
       n_players: 0,
@@ -401,10 +399,10 @@ var Knifeline = module.exports = {
     }
 
     return new_game
-  },
+  }
 
   // return a JSONable game object
-  export: function ( game ) {
+  Knifeline.export = ( game ) => {
 
     const new_game = {
       players: {},
@@ -476,9 +474,9 @@ var Knifeline = module.exports = {
 
     return new_game
 
-  },
+  }
 
-  import: function ( game ) {
+  Knifeline.import = ( game ) => {
 
     const new_game = {
       players: {},
@@ -561,10 +559,10 @@ var Knifeline = module.exports = {
 
     return new_game
 
-  },
+  }
 
   // return true if state needs to be changed
-  update_game_state: function ( game ) {
+  Knifeline.update_game_state = ( game ) => {
 
     switch ( game.state ) {
       case 'idle':
@@ -596,9 +594,9 @@ var Knifeline = module.exports = {
       default:
         return false
     }
-  },
+  }
 
-  player_act_at: function ( game, caller, px, py ) {
+  Knifeline.player_act_at = ( game, caller, px, py ) => {
 
     const node_radius = Knifeline.node_radius
 
@@ -764,6 +762,7 @@ var Knifeline = module.exports = {
         return
     }
 
-  },
+  }
 
-}
+  return Knifeline
+})()

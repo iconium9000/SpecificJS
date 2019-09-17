@@ -1,12 +1,12 @@
 // -----------------------------------------------------------------------------
 // client setup
 
-var is_mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
-var max_deltaT = 0.1
+const is_mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
+const max_deltaT = 0.1
 var start_time = (new Date()).getTime() * 1e-3
 var prev_now = start_time - max_deltaT
-var proj_name = 'Knifeline:'
-var log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
+const project_name = 'Knifeline:'
+const log = (...msg) => console.log(project_name, ...msg)
 var err = console.error
 var name = null
 const pi2 = Math.PI * 2
@@ -22,15 +22,6 @@ const canvas = document.getElementById('canvas')
 const ctx = canvas.getContext('2d')
 const client_socket = io()
 
-var Knifeline = {}
-module = {
-  test: 1,
-  set exports(exports) {
-    Knifeline = exports
-    tick()
-  }
-}
-
 function get_cookie(name) {
   return document.cookie.
     replace(
@@ -40,9 +31,6 @@ function get_cookie(name) {
 
 log('Index.js')
 
-// -----------------------------------------------------------------------------
-// Game Manip
-
 // mouse/touch controls
 {
   $(document).mousemove(e => {
@@ -51,9 +39,6 @@ log('Index.js')
     }
     client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale || 0
     client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale || 0
-    if (is_mobile) {
-      do_action()
-    }
   })
   $(document).mousedown(e => {
     if (e.clientX == null || e.clientY == null) {
@@ -61,9 +46,6 @@ log('Index.js')
     }
     client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale || 0
     client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale || 0
-    if (is_mobile) {
-      do_action()
-    }
     client_socket.emit('mouse down', client_socket.mouse_x, client_socket.mouse_y)
   })
   $(document).mouseup(e => {
@@ -72,9 +54,7 @@ log('Index.js')
     }
     client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale || 0
     client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale || 0
-    if (is_mobile) {
-      do_action()
-    }
+    do_action()
     client_socket.emit('mouse up', client_socket.mouse_x, client_socket.mouse_y)
   })
   document.addEventListener('touchstart', e => {
@@ -83,9 +63,6 @@ log('Index.js')
     }
     client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale || 0
     client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale || 0
-    if (is_mobile) {
-      do_action()
-    }
     client_socket.emit('mouse down', client_socket.mouse_x, client_socket.mouse_y)
   }, false)
   document.addEventListener('touchend', e => {
@@ -94,15 +71,9 @@ log('Index.js')
     }
     client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale || 0
     client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale || 0
-    if (is_mobile) {
-      do_action()
-    }
     client_socket.emit('mouse up', client_socket.mouse_x, client_socket.mouse_y)
   }, false)
 }
-
-// -----------------------------------------------------------------------------
-// Knifeline
 
 client_socket.on('connect', () => {
   name = null
@@ -118,9 +89,11 @@ client_socket.on('connect', () => {
 
   // reply to server with name
   client_socket.emit('client name', {name: name})
-})
 
-client_socket.on('check active', () => client_socket.emit('still active'))
+  log('connect')
+
+  tick()
+})
 
 client_socket.on('update', game_export => {
   if (!game_export) {
@@ -170,6 +143,7 @@ function draw_node(ctx, x, y, color, dot_color, node_radius, dot_radius) {
 }
 
 function tick() {
+
   canvas.width = window.innerWidth - 20
   canvas.height = window.innerHeight - 22
 
@@ -193,6 +167,7 @@ function tick() {
       do_action()
     }
 
+
     const scale = Knifeline.scale
     const line_width = Knifeline.line_width * scale
     const font_size = Knifeline.font_size * scale
@@ -209,7 +184,6 @@ function tick() {
     const game = client_socket.game
     Knifeline.set_game_padding(game)
     const player = game.players[client_socket.id]
-
 
     ctx.strokeStyle = player.color
     ctx.beginPath()
@@ -478,7 +452,6 @@ function tick() {
       idle_idx -= font_size
     }
   }
-
 
   window.requestAnimationFrame(tick)
 }
