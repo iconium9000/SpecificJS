@@ -1,4 +1,4 @@
-module.exports = () => {
+module.exports = (socket_io) => {
   const proj_name = 'Knifeline:'
   const client_sockets = {}
   const log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
@@ -11,14 +11,12 @@ module.exports = () => {
   log('server_init')
 
   function check_game(client_socket) {
-    const player = client_socket.player
 
     if (client_socket.game) {
       return
     }
 
-
-    log(all_players)
+    const player = client_socket.player
 
     for (const other_client_socket_id in client_sockets) {
       const other_client_socket = client_sockets[other_client_socket_id]
@@ -37,6 +35,7 @@ module.exports = () => {
       client_socket.game = {
         n_players: 0,
         players: {},
+        player_colors: {},
         other_players: all_players,
         nodes: [], lines: [],
         state: 'idle',
@@ -67,7 +66,7 @@ module.exports = () => {
         if (!game.export) {
           game.reason = reason
           Knifeline.set_game_padding(game)
-          game.export = Knifeline.export(game)
+          game.export = Knifeline.export_game(game)
           games.push(game)
         }
         client_socket.emit('update', game.export)
@@ -88,8 +87,8 @@ module.exports = () => {
 
     const player = client_socket.player
 
-    for (const state in Knifeline.n_state) {
-      const n_state = Knifeline.n_state[state]
+    for (const state in Knifeline.n_states) {
+      const n_state = Knifeline.n_states[state]
       player[n_state] = 0
     }
 

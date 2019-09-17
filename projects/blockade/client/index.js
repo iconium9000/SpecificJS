@@ -67,7 +67,7 @@ var thrust_time = 0
 var bar_timer = start_time + 1/max_bar_freq
 
 const canvas = document.getElementById('canvas')
-const client_socket = io()
+const client_socket = io('/blockade')
 
 log('Index.js')
 

@@ -18,15 +18,17 @@ if (window.Touch) {
 var show_toggle = false
 var show_time = Infinity
 
-const canvas = document.getElementById('canvas')
-const ctx = canvas.getContext('2d')
-const client_socket = io()
+const client_socket = io('/knifeline')
 
 function get_cookie(name) {
   return document.cookie.
     replace(
       new RegExp(`(?:(?:^|.*;\\s*)${name}\\s*\\=\\s*([^;]*).*$)|^.*$`
     ), '$1')
+}
+
+function nowonline() {
+  log('noew online')
 }
 
 log('Index.js')
@@ -37,42 +39,20 @@ log('Index.js')
     if (e.clientX == null || e.clientY == null) {
       return
     }
+    const canvas = document.getElementById('canvas')
     client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale || 0
     client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale || 0
-  })
-  $(document).mousedown(e => {
-    if (e.clientX == null || e.clientY == null) {
-      return
-    }
-    client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale || 0
-    client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale || 0
-    client_socket.emit('mouse down', client_socket.mouse_x, client_socket.mouse_y)
   })
   $(document).mouseup(e => {
     if (e.clientX == null || e.clientY == null) {
       return
     }
+    const canvas = document.getElementById('canvas')
     client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale || 0
     client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale || 0
     do_action()
     client_socket.emit('mouse up', client_socket.mouse_x, client_socket.mouse_y)
   })
-  document.addEventListener('touchstart', e => {
-    if (e.clientX == null || e.clientY == null) {
-      return
-    }
-    client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale || 0
-    client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale || 0
-    client_socket.emit('mouse down', client_socket.mouse_x, client_socket.mouse_y)
-  }, false)
-  document.addEventListener('touchend', e => {
-    if (e.clientX == null || e.clientY == null) {
-      return
-    }
-    client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale || 0
-    client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale || 0
-    client_socket.emit('mouse up', client_socket.mouse_x, client_socket.mouse_y)
-  }, false)
 }
 
 client_socket.on('connect', () => {
@@ -101,7 +81,7 @@ client_socket.on('update', game_export => {
   }
 
   show_time = (new Date()).getTime() * 1e-3
-  var game = Knifeline.import(game_export)
+  var game = Knifeline.import_game(game_export)
   log( game.reason )
   client_socket.game = Knifeline.solve_game(game, Infinity)
   client_socket.game_backup = game
@@ -127,25 +107,14 @@ function do_action() {
   }
 }
 
-function draw_node(ctx, x, y, color, dot_color, node_radius, dot_radius) {
-
-  ctx.fillStyle = color
-  ctx.beginPath()
-  ctx.arc(x,y,node_radius, 0, pi2)
-  ctx.fill()
-
-  if (dot_color) {
-    ctx.fillStyle = dot_color
-    ctx.beginPath()
-    ctx.arc(x,y,dot_radius, 0, pi2)
-    ctx.fill()
-  }
-}
-
+var tick_flag = 0
 function tick() {
 
+  const canvas = document.getElementById('canvas')
+  const ctx = canvas.getContext('2d')
   canvas.width = window.innerWidth - 20
   canvas.height = window.innerHeight - 22
+  window.requestAnimationFrame(tick)
 
   const now = (new Date()).getTime() * 1e-3
   var deltaT = now - prev_now
@@ -288,28 +257,50 @@ function tick() {
 
       const x = node.x * scale, y = node.y * scale
 
+      var color = null
+      var dot_color = null
       if (game.state == 'node') {
-        var color = node.player.color
-        var dot_color = Knifeline.default_color
+        color = node.player.color
+        dot_color = Knifeline.default_color
       }
       else if (game.state == 'line' && player.node == node) {
-        var color = player.color
-        var dot_color = Knifeline.default_color
+        color = player.color
+        dot_color = Knifeline.default_color
       }
       else if (node.state == 'fountain') {
-        var color = node.player.color
-        var dot_color = node.is_fountain ? color : Knifeline.default_color
+        if (node.is_fountain) {
+          color = node.player.color
+        }
+        else {
+          dot_color = node.player.color
+        }
       }
       else if (node.state == 'knife') {
-        var color = Knifeline.knife_color
-        var dot_color = null
+        color = Knifeline.knife_color
+        dot_color = null
+      }
+      else if (game.state == 'fountain' || game.state == 'knife') {
+        color = null
+        dot_color = Knifeline.default_color
       }
       else {
-        var color = Knifeline.default_color
+        color = Knifeline.default_color
         var dot_color = null
       }
 
-      draw_node(ctx, x, y, color, dot_color, node_radius, dot_radius)
+      if (color) {
+        ctx.fillStyle = color
+        ctx.beginPath()
+        ctx.arc(x,y,node_radius, 0, pi2)
+        ctx.fill()
+      }
+
+      if (dot_color) {
+        ctx.fillStyle = dot_color
+        ctx.beginPath()
+        ctx.arc(x,y,dot_radius, 0, pi2)
+        ctx.fill()
+      }
 
       if (node.state == 'knife') {
         ctx.strokeStyle = node.player.color
@@ -370,7 +361,16 @@ function tick() {
           var color = Knifeline.default_color
           var dot_color = Knifeline.background_color
         }
-        draw_node(ctx, x, y, color, dot_color, node_radius, dot_radius)
+
+        ctx.fillStyle = color
+        ctx.beginPath()
+        ctx.arc(x,y,node_radius, 0, pi2)
+        ctx.fill()
+
+        ctx.fillStyle = dot_color
+        ctx.beginPath()
+        ctx.arc(x,y,dot_radius, 0, pi2)
+        ctx.fill()
       }
 
       y += line_width + node_diameter
@@ -399,7 +399,11 @@ function tick() {
         else {
           var color = Knifeline.default_color
         }
-        draw_node(ctx, x, y, color, color, node_radius, dot_radius)
+
+        ctx.fillStyle = color
+        ctx.beginPath()
+        ctx.arc(x,y,node_radius, 0, pi2)
+        ctx.fill()
       }
 
       y += line_width + node_diameter
@@ -453,5 +457,4 @@ function tick() {
     }
   }
 
-  window.requestAnimationFrame(tick)
 }

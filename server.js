@@ -46,11 +46,22 @@ for ( const project_path in project_details ) {
   })
   app.use(`/${project_path}`,
      express.static(__dirname + `/projects/${project_name}/client`))
-  const project = require(`./projects/${project_name}/server.js`)()
+  const project = require(`./projects/${project_name}/server.js`)(socket_io)
   project.name = project_name
   project.path = project_path
   project.title = project_detail.title
   projects[project_name] = project
+
+  socket_io.of(`/${project_path}`).on('connection', client_socket => {
+    project.add_client_socket(client_socket)
+    projects.menu.added_socket_other_project(projects)
+
+    client_socket.on('client name', ({ name }) => {
+      client_socket.name = name
+      client_socket.full_name = `'${name}' (${client_socket.id})`
+      projects.menu.added_socket_other_project(projects)
+    })
+  })
 }
 
 app.use('/images', express.static(__dirname + '/images'))
@@ -62,26 +73,26 @@ log(`listening on port:${port}`)
 
 // log(projects)
 
-socket_io.on('connection', client_socket => {
-  try {
-    const project_path = client_socket.handshake.headers.referer.split('/').pop()
-    client_socket.project_path = project_path
-
-    const project_name = project_details[project_path].name
-    client_socket.project_name = project_name
-
-    const project = projects[ project_name ]
-
-    project.add_client_socket(client_socket)
-    projects.menu.added_socket_other_project(projects)
-
-    client_socket.on('client name', ({ name }) => {
-      client_socket.name = name
-      client_socket.full_name = `'${name}' (${client_socket.id})`
-      projects.menu.added_socket_other_project(projects)
-    })
-  }
-  catch (e) {
-    log('ERROR', e)
-  }
-})
+// socket_io.on('connection', client_socket => {
+//   try {
+//     const project_path = client_socket.handshake.headers.referer.split('/').pop()
+//     client_socket.project_path = project_path
+//
+//     const project_name = project_details[project_path].name
+//     client_socket.project_name = project_name
+//
+//     const project = projects[ project_name ]
+//
+//     project.add_client_socket(client_socket)
+//     projects.menu.added_socket_other_project(projects)
+//
+//     client_socket.on('client name', ({ name }) => {
+//       client_socket.name = name
+//       client_socket.full_name = `'${name}' (${client_socket.id})`
+//       projects.menu.added_socket_other_project(projects)
+//     })
+//   }
+//   catch (e) {
+//     log('ERROR', e)
+//   }
+// })

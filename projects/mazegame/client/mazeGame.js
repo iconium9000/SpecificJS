@@ -1289,7 +1289,7 @@ function init() {
 	x.open("GET", Game.src, true)
 	x.send()
 
-	const client_socket = io()
+	const client_socket = io('/mazegame')
 
 	client_socket.on('connect', () => {
 	  name = null
