@@ -16,8 +16,6 @@ module.exports = (socket_io) => {
       return
     }
 
-    const player = client_socket.player
-
     for (const other_client_socket_id in client_sockets) {
       const other_client_socket = client_sockets[other_client_socket_id]
       const game = other_client_socket && other_client_socket.game
@@ -25,7 +23,7 @@ module.exports = (socket_io) => {
       if (game && game.n_players < Knifeline.max_n_players) {
         if (game.state == 'idle' || game.state == 'node') {
           client_socket.game = game
-          log(player.name + ' joined game')
+          log(client_socket.name + ' joined game')
           break
         }
       }
@@ -35,19 +33,38 @@ module.exports = (socket_io) => {
       client_socket.game = {
         n_players: 0,
         players: {},
-        player_colors: {},
         other_players: all_players,
         nodes: [], lines: [],
         state: 'idle',
+        n_nodes: 4,
+        n_fountains: 3,
+        n_knives: 2,
       }
       log(player.name + ' created new game')
 
     }
 
     const game = client_socket.game
+    const player = {
+      client_socket: client_socket,
+    }
     ++game.n_players
     game.players[player.id] = player
-    Knifeline.set_players(game, player)
+
+    if (!game.color_array) {
+      game.color_array = colors.slice(0).sort(() => Math.random() - 0.5)
+    }
+
+    game.n_lines = game.n_players + 3
+    player.color = game.color_array.pop()
+    player.n_nodes = game.n_nodes
+    player.n_fountains = game.n_fountains
+    player.n_knives = game.n_knives
+
+    for ( const player_id in game.players ) {
+      const player = game.players[ player_id ]
+      player.n_lines = game.n_lines
+    }
   }
 
   function update_socket(client_socket, reason, optional_client_name) {
@@ -85,7 +102,7 @@ module.exports = (socket_io) => {
     delete all_players[client_socket.id]
     const game = client_socket.game
 
-    const player = client_socket.player
+    const player = game.players[client_socket.id]
 
     for (const state in Knifeline.n_states) {
       const n_state = Knifeline.n_states[state]

@@ -50,31 +50,6 @@ const Knifeline = (module.exports = () => {
     over: 'idle',
   }
 
-  Knifeline.set_players = set_players
-  function set_players (game, added_player) {
-
-    if (!game.color_array) {
-      game.color_array = colors.slice(0).sort(() => Math.random() - 0.5)
-    }
-
-    game.n_nodes = 4
-    game.n_lines = game.n_players + 3
-    game.n_fountains = 3
-    game.n_knives = 2
-
-    for ( const player_id in game.players ) {
-      const player = game.players[ player_id ]
-      if (!added_player || player == added_player) {
-        player.color = game.color_array.pop()
-        player.n_nodes = game.n_nodes
-        game.player_colors[player_id] = player.color
-      }
-      player.n_lines = game.n_lines
-      player.n_fountains = game.n_fountains
-      player.n_knives = game.n_knives
-    }
-  }
-
   Knifeline.get_node = get_node
   function get_node ( game, px, py, min_dist, super_line ) {
 
@@ -571,7 +546,6 @@ const Knifeline = (module.exports = () => {
 
     switch ( game.state ) {
       case 'idle':
-        set_players(game)
 
         return true
 
