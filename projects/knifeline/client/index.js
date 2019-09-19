@@ -33,33 +33,31 @@ function nowonline() {
 
 log('Index.js')
 
-// mouse/touch controls
-{
-  $(document).mousemove(e => {
-    if (e.clientX == null || e.clientY == null) {
-      return
-    }
-    const canvas = document.getElementById('canvas')
-    client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale || 0
-    client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale || 0
-  })
-  $(document).mouseup(e => {
-    if (e.clientX == null || e.clientY == null) {
-      return
-    }
-    const canvas = document.getElementById('canvas')
-    client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale || 0
-    client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale || 0
-    do_action()
-    client_socket.emit('mouse up', client_socket.mouse_x, client_socket.mouse_y)
-  })
-}
+
+$(document).mousemove(e => {
+  if (e.clientX == null || e.clientY == null) {
+    return
+  }
+  client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale
+  client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale
+})
+
+$(document).mouseup(e => {
+  if (e.clientX == null || e.clientY == null) {
+    return
+  }
+  client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale
+  client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale
+  do_action(client_socket.game_backup)
+  client_socket.emit('mouse up', client_socket.mouse_x, client_socket.mouse_y)
+})
 
 client_socket.on('connect', () => {
   name = null
   if (typeof document.cookie == 'string') {
     name = get_cookie('name')
   }
+  log('name', name)
 
   // if no name is found in cookies, get one from the user
   while (!name || name == 'null') {
@@ -75,26 +73,33 @@ client_socket.on('connect', () => {
   tick()
 })
 
+client_socket.on('disconnect', () => {
+  log('server disconnected')
+  client_socket.game = null
+  client_socket.game_backup = null
+})
+
 client_socket.on('update', game_export => {
   if (!game_export) {
     return
   }
 
   show_time = (new Date()).getTime() * 1e-3
-  var game = Knifeline.import_game(game_export)
+  const game = Knifeline.import_game(game_export)
   log( game.reason )
-  client_socket.game = Knifeline.solve_game(game, Infinity)
+  client_socket.game = game
   client_socket.game_backup = game
 
 })
 
-function do_action() {
-  const caller = client_socket.game.players[client_socket.id]
-  if (!caller) {
+function do_action(game) {
+  const player = game && game.players[ client_socket.id ]
+
+  if (!player) {
     return
   }
 
-  var action = Knifeline.player_act_at(client_socket.game, caller,
+  var action = Knifeline.player_act_at(game, player,
     client_socket.mouse_x, client_socket.mouse_y)
 
   if (action) {
@@ -125,6 +130,17 @@ function tick() {
 
   Knifeline.scale = canvas.width > canvas.height?canvas.height:canvas.width
 
+  const scale = Knifeline.scale
+  const line_width = Knifeline.line_width * scale
+  const font_size = Knifeline.font_size * scale
+  const node_radius = Knifeline.node_radius * scale
+  const node_diameter = 2*node_radius
+  const dot_radius = Knifeline.dot_radius * scale
+
+  ctx.lineWidth = line_width
+  ctx.font = `${font_size}px courier new`
+  ctx.textAlign = 'left'
+
   if (client_socket && client_socket.game_backup) {
     client_socket.game = Knifeline.solve_game(client_socket.game_backup, 0)
     const caller = client_socket.game.players[client_socket.id]
@@ -133,20 +149,8 @@ function tick() {
     }
 
     if (!is_mobile) {
-      do_action()
+      do_action(client_socket.game)
     }
-
-
-    const scale = Knifeline.scale
-    const line_width = Knifeline.line_width * scale
-    const font_size = Knifeline.font_size * scale
-    const node_radius = Knifeline.node_radius * scale
-    const node_diameter = 2*node_radius
-    const dot_radius = Knifeline.dot_radius * scale
-
-    ctx.lineWidth = line_width
-    ctx.font = `${font_size}px courier new`
-    ctx.textAlign = 'left'
 
     const total_length = Math.abs(now - show_time) * Knifeline.line_speed
     client_socket.game = Knifeline.solve_game(client_socket.game, total_length)
@@ -455,6 +459,11 @@ function tick() {
       ctx.fillText(other_player.name, draw_x, idle_idx)
       idle_idx -= font_size
     }
+  }
+  else {
+    ctx.fillStyle = Knifeline.default_color
+    ctx.fillText(`KNIFELINE!`, 0, font_size)
+    ctx.fillText(`SERVER IS NOT CONNECTED!`, 0, 2*font_size)
   }
 
 }

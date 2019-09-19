@@ -322,7 +322,7 @@ const Knifeline = (module.exports = () => {
       }
 
 
-      if (max_length == Infinity) {
+      if (!isFinite(max_length)) {
         return new_game
       }
       else if (max_length + new_game.total_length > total_length) {
@@ -431,7 +431,7 @@ const Knifeline = (module.exports = () => {
       const new_player = {
         name: player.name,
         node_idx: player.node ? player.node.idx : -1,
-        color: game.player_colors[player_id],
+        color: player.color,
       }
       for ( const state in n_states ) {
         const n_state = n_states[ state ]
