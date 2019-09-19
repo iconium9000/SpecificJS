@@ -1,72 +1,71 @@
-const project_name = 'Menu:'
-const log = (...msg) => console.log.apply(null, [project_name].concat(msg))
-const err = console.error
+module.exports = (project, projects) => {
 
-log('server.js')
+  const project_name = 'Menu:'
+  const log = (...msg) => console.log(project_name, ...msg)
+  const err = console.error
 
-const client_sockets = {}
-const menu = {
-  projects: {},
-}
+  log('server.js')
 
+  // set up projects
+  for (const name in projects) {
+    const project = projects[name]
+    project.clients = {}
 
-module.exports = () => {
-  log('server_init')
+    log('setup', project.name, !!project.socket)
+    project.socket.on('connection', (socket) => {
 
-  return {
-    added_socket_other_project: added_socket_other_project,
-    client_sockets: client_sockets,
-    add_client_socket: client_socket_init,
-  }
-}
-
-function update_clients() {
-
-  const new_projects = {}
-
-  for (const project_name in menu.projects) {
-    const project = menu.projects[project_name]
-    const new_project = {
-      clients: {},
-      title: project.title,
-      path: project.path,
-      n_clients: 0,
-    }
-
-    for (const client_id in project.client_sockets) {
-      const client_socket = project.client_sockets[client_id]
-
-      const new_client = {
-        name: client_socket.name,
+      const client = {
+        socket: socket,
+        name: null,
+        full_name: null,
       }
-      new_project.clients[client_id] = new_client
-      ++new_project.n_clients
+
+      socket.on('client name', ({name}) => {
+        project.clients[ socket.id ] = client
+
+        client.name = name
+        client.full_name = `'${name}' (${socket.id})`
+        update_clients()
+      })
+
+      socket.on('disconnect', () => {
+        delete project.clients[ socket.id ]
+        if (client.name) {
+          update_clients()
+        }
+      })
+    })
+  }
+
+  function update_clients() {
+
+    log('update_clients', project.title)
+
+    const new_projects = {}
+
+    for (const project_name in projects) {
+      const project = projects[ project_name ]
+      const new_project = {
+        clients: {},
+        title: project.title,
+        path: project.path,
+        n_clients: 0,
+      }
+
+      for (const client_id in project.clients) {
+        const client = project.clients[ client_id ]
+
+        const new_client = {
+          name: client.name,
+        }
+        new_project.clients[client_id] = new_client
+        ++new_project.n_clients
+      }
+
+      new_projects[ project_name ] = new_project
     }
 
-    new_projects[project_name] = new_project
+    project.socket.emit('update', { projects: new_projects })
   }
 
-  for ( const client_id in client_sockets ) {
-    const client_socket = client_sockets[ client_id ]
-
-    client_socket.emit('update', { projects: new_projects })
-  }
-
-}
-
-function client_socket_init(client_socket) {
-
-  client_sockets[ client_socket.id ] = client_socket
-
-  client_socket.on('disconnect', () => {
-    delete client_sockets[client_socket.id]
-    log(`${client_socket.full_name} disconnected`)
-  })
-
-}
-
-function added_socket_other_project(projects) {
-  // log('added_socket_other_project', projects)
-  menu.projects = projects
-  update_clients()
 }

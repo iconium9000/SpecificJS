@@ -1,5 +1,5 @@
 
-const Knifeline = (module.exports = () => {
+module.exports = () => {
 
   const Knifeline = {}
   const project_name = 'Knifeline:'
@@ -739,4 +739,4 @@ const Knifeline = (module.exports = () => {
   }
 
   return Knifeline
-})()
+}

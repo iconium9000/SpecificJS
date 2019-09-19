@@ -1,37 +1,37 @@
-module.exports = (socket_io) => {
-  const proj_name = 'Knifeline:'
-  const client_sockets = {}
-  const log = (...msg) => console.log.apply(null, [proj_name].concat(msg))
+module.exports = (project) => {
+  const project_name = `Knifeline:`
+  const log = (...msg) => console.log(project_name, ...msg)
   const err = console.error
+  const clients = {}
 
   const Knifeline = require('./client/game.js')()
 
-  log('server_init')
+  log('server.js')
 
-  function check_game(client_socket) {
+  function check_game(client) {
 
-    if (client_socket.game) {
+    if (client.game) {
       return
     }
 
-    for (const other_client_socket_id in client_sockets) {
-      const other_client_socket = client_sockets[other_client_socket_id]
-      const game = other_client_socket && other_client_socket.game
+    for (const other_client_id in clients) {
+      const other_client = clients[other_client_id]
+      const game = other_client && other_client.game
 
       if (game && game.n_players < Knifeline.max_n_players) {
         if (game.state == 'idle' || game.state == 'node') {
-          client_socket.game = game
-          // log(client_socket.name + ' joined game')
+          client.game = game
+          log(client.name + ' joined game')
           break
         }
       }
     }
 
-    if (!client_socket.game) {
-      client_socket.game = {
+    if (!client.game) {
+      client.game = {
         n_players: 0,
         players: {},
-        other_players: client_sockets,
+        other_players: clients,
         nodes: [], lines: [],
         state: 'idle',
         n_nodes: 4,
@@ -40,7 +40,7 @@ module.exports = (socket_io) => {
       }
     }
 
-    const game = client_socket.game
+    const game = client.game
     ++game.n_players
     game.n_lines = game.n_players + 3
 
@@ -49,20 +49,20 @@ module.exports = (socket_io) => {
     }
 
     const player = {
-      id: client_socket.id,
-      client_socket: client_socket,
+      id: client.socket.id,
+      client: client,
       get name() {
-        return client_socket.name
+        return client.name
       },
       get full_name() {
-        return client_socket.full_name
+        return client.full_name
       },
       color: game.colors.pop(),
       n_nodes: game.n_nodes,
       n_fountains: game.n_fountains,
       n_knives: game.n_knives,
     }
-    client_socket.color = player.color
+    client.color = player.color
     game.players[player.id] = player
 
     for ( const player_id in game.players ) {
@@ -71,21 +71,21 @@ module.exports = (socket_io) => {
     }
   }
 
-  function update_socket(client_socket, reason, optional_client_name) {
-    if (!client_socket) {
+  function update_game(client, reason, optional_client_name) {
+    if (!client) {
       return
     }
 
-    check_game(client_socket)
+    check_game(client)
 
-    const client_socket_game = client_socket.game
-    reason = `${optional_client_name || client_socket.name} ${reason}`
-    // log(reason)
+    const client_game = client.game
+    reason = `${optional_client_name || client.name} ${reason}`
+    log(reason)
 
     const games = []
-    for (const client_socket_id in client_sockets) {
-      const client_socket = client_sockets[client_socket_id]
-      const game = client_socket && client_socket.game
+    for (const client_id in clients) {
+      const client = clients[client_id]
+      const game = client && client.game
       if (game) {
         if (!game.export) {
           game.reason = reason
@@ -93,7 +93,7 @@ module.exports = (socket_io) => {
           game.export = Knifeline.export_game(game)
           games.push(game)
         }
-        client_socket.emit('update', game.export, game == client_socket_game)
+        client.socket.emit('update', game.export, game == client_game)
       }
     }
     for (const game_idx in games) {
@@ -102,17 +102,17 @@ module.exports = (socket_io) => {
     }
   }
 
-  function disconnect_client_socket(client_socket) {
-    // log(`${client_socket.full_name} disconnected`)
+  function disconnect_client(client) {
+    log(`${client.full_name} disconnected`)
 
-    delete client_sockets[client_socket.id]
-    const game = client_socket.game
+    delete clients[client.socket.id]
+    const game = client.game
 
     if (!game) {
       return
     }
 
-    const player = game.players[client_socket.id]
+    const player = game.players[client.socket.id]
     for (const state in Knifeline.n_states) {
       const n_state = Knifeline.n_states[state]
       player[n_state] = 0
@@ -130,60 +130,62 @@ module.exports = (socket_io) => {
       }
     }
 
-    update_socket(client_socket, `disconnected`)
-    client_socket.game = null
+    update_game(client, `disconnected`)
+    client.game = null
   }
 
-  function client_socket_init(client_socket) {
+  project.socket.on('connection', (socket) => {
 
-    // log('connect', client_socket.id)
-    client_socket.emit('connect')
-    client_sockets[ client_socket.id ] = client_socket
+    const client = {
+      socket: socket,
+      game: null,
+      name: null,
+      full_name: null,
+    }
+    client.socket.emit('connect')
 
-    client_socket.game = null
+    log('connect', socket.id)
+    clients[ client.socket.id ] = client
 
-    client_socket.on('client name', ({name}) => {
 
-      client_socket.name = name
-      client_socket.full_name = `'${name}' (${client_socket.id})`
+    client.socket.on('client name', ({name}) => {
 
-      // log(name + ' was renamed')
+      client.game = null
+      client.name = name
+      client.full_name = `'${name}' (${client.socket.id})`
 
-      update_socket(client_socket, `was renamed`)
+      log(name + ' was renamed')
+
+      update_game(client, `was renamed`)
     })
 
-    client_socket.on('mouse up', (x,y) => {
+    client.socket.on('mouse up', (x,y) => {
 
-      const game = client_socket.game
+      const game = client.game
       if (!game) {
-        update_socket(client_socket, `clicked`)
+        update_game(client, `clicked`)
         return
       }
 
-      const player = game.players[ client_socket.id ]
+      const player = game.players[ client.socket.id ]
       const action = Knifeline.player_act_at(game, player, x, y)
       if (action) {
-        update_socket(client_socket, action)
+        update_game(client, action)
       }
       if (Knifeline.update_game_state(game)) {
         game.state = Knifeline.next_state[game.state]
-        update_socket(client_socket, `changed state to ${game.state}`)
+        update_game(client, `changed state to ${game.state}`)
       }
       else if (game.state == 'over') {
-        client_socket.game = null
-        client_socket.color = Knifeline.default_color
-        update_socket(client_socket, `restarted game`)
+        client.game = null
+        client.color = Knifeline.default_color
+        update_game(client, `restarted game`)
       }
     })
 
-    client_socket.on(`disconnect`, () => {
-      disconnect_client_socket(client_socket)
+    client.socket.on(`disconnect`, () => {
+      disconnect_client(client)
     })
 
-  }
-
-  return {
-    client_sockets: client_sockets,
-    add_client_socket: client_socket_init,
-  }
+  })
 }

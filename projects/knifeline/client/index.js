@@ -3,116 +3,121 @@
 
 const is_mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 const max_deltaT = 0.1
-var start_time = (new Date()).getTime() * 1e-3
-var prev_now = start_time - max_deltaT
+const start_time = (new Date()).getTime() * 1e-3
 const project_name = 'Knifeline:'
 const log = (...msg) => console.log(project_name, ...msg)
-var err = console.error
-var name = null
+const err = console.error
 const pi2 = Math.PI * 2
+
+const Knifeline = module.exports()
 
 if (window.Touch) {
   $("#cutCopyPaste").remove()
 }
 
-var show_toggle = false
-var show_time = Infinity
-
-const client_socket = io('/knifeline')
-
-function get_cookie(name) {
-  return document.cookie.
-    replace(
-      new RegExp(`(?:(?:^|.*;\\s*)${name}\\s*\\=\\s*([^;]*).*$)|^.*$`
-    ), '$1')
+const client = {
+  socket: io('/knifeline'),
+  toggle: false,
+  time: Infinity,
+  prev_now: start_time - max_deltaT,
 }
 
-function nowonline() {
-  log('noew online')
+function get_cookie(cookie_name) {
+  return document.cookie.
+    replace(
+      new RegExp(`(?:(?:^|.*;\\s*)${cookie_name}\\s*\\=\\s*([^;]*).*$)|^.*$`
+    ), '$1')
 }
 
 log('Index.js')
 
-
-$(document).mousemove(e => {
-  if (e.clientX == null || e.clientY == null) {
-    return
-  }
-  client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale
-  client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale
-})
-
-$(document).mouseup(e => {
-  if (e.clientX == null || e.clientY == null) {
-    return
-  }
-  client_socket.mouse_x = (e.clientX - 7) / Knifeline.scale
-  client_socket.mouse_y = (e.clientY - 7) / Knifeline.scale
-  do_action(client_socket.game_backup)
-  client_socket.emit('mouse up', client_socket.mouse_x, client_socket.mouse_y)
-})
-
-client_socket.on('connect', () => {
-  name = null
-  if (typeof document.cookie == 'string') {
-    name = get_cookie('name')
-  }
-  log('name', name)
-
-  // if no name is found in cookies, get one from the user
-  while (!name || name == 'null') {
-    name = prompt('Choose a name:', name)
-    document.cookie = `name=${name}`
-  }
-
-  // reply to server with name
-  client_socket.emit('client name', {name: name})
-
-  log('connect')
-
-  tick()
-})
-
-client_socket.on('disconnect', () => {
-  log('server disconnected')
-  client_socket.game = null
-  client_socket.game_backup = null
-})
-
-client_socket.on('update', game_export => {
-  if (!game_export) {
-    return
-  }
-
-  show_time = (new Date()).getTime() * 1e-3
-  const game = Knifeline.import_game(game_export)
-  log( game.reason )
-  client_socket.game = game
-  client_socket.game_backup = game
-
-})
-
+// do action
 function do_action(game) {
-  const player = game && game.players[ client_socket.id ]
+  const player = game && game.players[ client.socket.id ]
 
   if (!player) {
     return
   }
 
   var action = Knifeline.player_act_at(game, player,
-    client_socket.mouse_x, client_socket.mouse_y)
+    client.mouse_x, client.mouse_y)
 
-  if (action) {
-    show_time = Infinity
-    show_toggle = true
+    if (action) {
+      client.time = Infinity
+      client.toggle = true
+    }
+    else if (client.toggle) {
+      client.time = (new Date()).getTime() * 1e-3
+      client.toggle = false
+    }
   }
-  else if (show_toggle) {
-    show_time = (new Date()).getTime() * 1e-3
-    show_toggle = false
-  }
-}
 
-var tick_flag = 0
+// on mouse movement
+$(document).mousemove(e => {
+  if (e.clientX == null || e.clientY == null) {
+    return
+  }
+  client.mouse_x = (e.clientX - 7) / client.scale
+  client.mouse_y = (e.clientY - 7) / client.scale
+})
+
+// on mouse up
+$(document).mouseup(e => {
+  if (e.clientX == null || e.clientY == null) {
+    return
+  }
+  client.mouse_x = (e.clientX - 7) / client.scale
+  client.mouse_y = (e.clientY - 7) / client.scale
+
+  if (!client.game) {
+    return
+  }
+
+  do_action(client.game)
+  client.socket.emit('mouse up', client.mouse_x, client.mouse_y)
+})
+
+// on socket connect
+client.socket.on('connect', () => {
+  client.name = null
+  if (typeof document.cookie == 'string') {
+    client.name = get_cookie('name')
+  }
+  log('name', client.name)
+
+  // if no name is found in cookies, get one from the user
+  while (!client.name || client.name == 'null') {
+    client.name = prompt('Choose a name:', client.name)
+    document.cookie = `name=${client.name}`
+  }
+
+  // reply to server with name
+  client.socket.emit('client name', {name: client.name})
+
+  log('connected to server')
+
+  tick()
+})
+
+// on socket disconnect
+client.socket.on('disconnect', () => {
+  log('server disconnected')
+  client.game = null
+  client.game = null
+})
+
+// on socket update
+client.socket.on('update', (game_export, update_time) => {
+  if (update_time) {
+    client.time = (new Date()).getTime() * 1e-3
+  }
+  
+  const game = Knifeline.import_game(game_export)
+  log( game.reason )
+  client.game = game
+})
+
+// on window animation
 function tick() {
 
   const canvas = document.getElementById('canvas')
@@ -122,15 +127,13 @@ function tick() {
   window.requestAnimationFrame(tick)
 
   const now = (new Date()).getTime() * 1e-3
-  var deltaT = now - prev_now
-  if (deltaT > max_deltaT) {
-    deltaT = max_deltaT
-  }
-  prev_now = now
+  const prev_now = client.prev_now
+  const deltaT = now - prev_now > max_deltaT ? max_deltaT : now - prev_now
+  client.prev_now = now
 
-  Knifeline.scale = canvas.width > canvas.height?canvas.height:canvas.width
+  client.scale = canvas.width > canvas.height?canvas.height:canvas.width
 
-  const scale = Knifeline.scale
+  const scale = client.scale
   const line_width = Knifeline.line_width * scale
   const font_size = Knifeline.font_size * scale
   const node_radius = Knifeline.node_radius * scale
@@ -141,77 +144,80 @@ function tick() {
   ctx.font = `${font_size}px courier new`
   ctx.textAlign = 'left'
 
-  if (client_socket && client_socket.game_backup) {
-    client_socket.game = Knifeline.solve_game(client_socket.game_backup, 0)
-    const caller = client_socket.game.players[client_socket.id]
-    if (!caller) {
-      return
-    }
+  if (client.game && client.game.players[client.socket.id]) {
+
+    const temp_game = Knifeline.solve_game(client.game, 0)
 
     if (!is_mobile) {
-      do_action(client_socket.game)
+      do_action(temp_game)
     }
 
-    const total_length = Math.abs(now - show_time) * Knifeline.line_speed
-    client_socket.game = Knifeline.solve_game(client_socket.game, total_length)
-    const game = client_socket.game
+    const total_length = Math.abs(now - client.time) * Knifeline.line_speed
+    const game = Knifeline.solve_game(temp_game, total_length)
     Knifeline.set_game_padding(game)
-    const player = game.players[client_socket.id]
+    const player = game.players[client.socket.id]
 
-    ctx.strokeStyle = player.color
-    ctx.beginPath()
     const left_pad = scale * game.left_pad
     const bottom_pad = scale * game.bottom_pad
     const top_pad = scale * game.top_pad
-    ctx.rect(left_pad, top_pad,
-      scale-2*line_width-left_pad, scale-2*line_width-bottom_pad-top_pad)
-    ctx.stroke()
 
-
-    ctx.textAlign = 'center'
-    ctx.fillStyle = player.color
-    var state_text = ''
-    const blink = Math.floor(now * Knifeline.blink_rate % 4)
-    if (game.state == 'idle') {
-      if (blink == 0) {
-        state_text = 'KNIFELINE!'
-      }
-      if (blink == 2) {
-        state_text = 'CLICK TO START!'
-      }
+    // draw colored boarder
+    {
+      ctx.strokeStyle = player.color
+      ctx.beginPath()
+      ctx.rect(left_pad, top_pad,
+        scale - 2*line_width - left_pad,
+        scale - 2*line_width - bottom_pad - top_pad)
+        ctx.stroke()
     }
-    else if (game.state == 'over') {
-      if (blink == 0) {
-        var winning_score = 0
-        var winning_player = null
-        for (const player_id in game.players) {
-          const player = game.players[player_id]
-          if (winning_score < player.total_length) {
-            winning_score = player.total_length
-            winning_player = player
+
+    // draw top text
+    {
+      ctx.textAlign = 'center'
+      ctx.fillStyle = player.color
+      var state_text = ''
+      const blink = Math.floor(now * Knifeline.blink_rate % 4)
+      if (game.state == 'idle') {
+        if (blink == 0) {
+          state_text = 'KNIFELINE!'
+        }
+        if (blink == 2) {
+          state_text = 'CLICK TO START!'
+        }
+      }
+      else if (game.state == 'over') {
+        if (blink == 0) {
+          var winning_score = 0
+          var winning_player = null
+          for (const player_id in game.players) {
+            const player = game.players[player_id]
+            if (winning_score < player.total_length) {
+              winning_score = player.total_length
+              winning_player = player
+            }
+          }
+          if (winning_player == player) {
+            state_text = `YOU WON!`
+          }
+          else if (winning_player) {
+            state_text = `${winning_player.name} WON, YOU LOST`
+            ctx.fillStyle = winning_player.color
+          }
+          else {
+            state_text = 'GAME OVER!'
           }
         }
-        if (winning_player == player) {
-          state_text = `YOU WON!`
-        }
-        else if (winning_player) {
-          state_text = `${winning_player.name} WON, YOU LOST`
-          ctx.fillStyle = winning_player.color
-        }
-        else {
-          state_text = 'GAME OVER!'
+        if (blink == 2) {
+          state_text = 'CLICK TO RESTART!'
         }
       }
-      if (blink == 2) {
-        state_text = 'CLICK TO RESTART!'
+      else {
+        state_text = Knifeline.state_text[game.state]
       }
+      ctx.fillText(state_text, left_pad/2 + scale / 2, top_pad - 2*line_width)
     }
-    else {
-      state_text = Knifeline.state_text[game.state]
-    }
-    ctx.fillText(state_text, left_pad/2 + scale / 2, top_pad - 2*line_width)
 
-
+    // draw lines
     for ( const line_idx in game.lines) {
       const line = game.lines[line_idx]
 
@@ -256,6 +262,7 @@ function tick() {
       ctx.stroke()
     }
 
+    // draw nodes
     for ( const node_idx in game.nodes ) {
       const node = game.nodes[ node_idx ]
 
@@ -321,143 +328,150 @@ function tick() {
       }
     }
 
-    const players = []
-    for (const player_id in game.players) {
-      const player = game.players[player_id]
-      players.push(player)
-    }
-    players.sort((player_a, player_b) => {
-      return player_a.total_length - player_b.total_length
-    })
-
-
-    ctx.textAlign = 'left'
-    for (var player_idx = 0; player_idx < players.length; ++player_idx) {
-      const player = players[player_idx]
-      var y = 2*font_size + (player_idx) * (2*font_size + 4*(node_diameter+line_width))
-
-      if (game.state == 'over') {
-        const do_blink = !Math.floor(now * Knifeline.blink_rate % 2)
-        ctx.fillStyle = do_blink ? player.color : Knifeline.default_color
+    // draw player info
+    {
+      // set up sorted player array
+      const players = []
+      for (const player_id in game.players) {
+        const player = game.players[player_id]
+        players.push(player)
       }
-      else {
-        ctx.fillStyle = player.color
-      }
-      ctx.fillText(player.name, 0, y)
+      players.sort((player_a, player_b) => {
+        return player_a.total_length - player_b.total_length
+      })
 
-      const length = player.total_length / game.full_length
-      ctx.strokeStyle = player.color
-      ctx.beginPath()
-      ctx.moveTo(left_pad, scale - 2*(player_idx+2)*line_width)
-      ctx.lineTo(left_pad + length * (scale - 8*line_width),
+
+      ctx.textAlign = 'left'
+      for (var player_idx = 0; player_idx < players.length; ++player_idx) {
+        const player = players[player_idx]
+        var y = 2*font_size + (player_idx) * (2*font_size + 4*(node_diameter+line_width))
+
+        if (game.state == 'over') {
+          const do_blink = !Math.floor(now * Knifeline.blink_rate % 2)
+          ctx.fillStyle = do_blink ? player.color : Knifeline.default_color
+        }
+        else {
+          ctx.fillStyle = player.color
+        }
+        ctx.fillText(player.name, 0, y)
+
+        const length = player.total_length / game.full_length
+        ctx.strokeStyle = player.color
+        ctx.beginPath()
+        ctx.moveTo(left_pad, scale - 2*(player_idx+2)*line_width)
+        ctx.lineTo(left_pad + length * (scale - 8*line_width),
         scale - 2*(player_idx+2)*line_width)
-      ctx.stroke()
-
-      y += line_width + node_radius
-      for (var n = 0; n < game.n_nodes; ++n) {
-        const x = 2 * (n+1) * node_radius - 2*line_width
-
-        if (player.n_nodes > n) {
-          var color = player.color
-          var dot_color = Knifeline.default_color
-        }
-        else {
-          var color = Knifeline.default_color
-          var dot_color = Knifeline.background_color
-        }
-
-        ctx.fillStyle = color
-        ctx.beginPath()
-        ctx.arc(x,y,node_radius, 0, pi2)
-        ctx.fill()
-
-        ctx.fillStyle = dot_color
-        ctx.beginPath()
-        ctx.arc(x,y,dot_radius, 0, pi2)
-        ctx.fill()
-      }
-
-      y += line_width + node_diameter
-      for (var n = 0; n < game.n_lines; ++n) {
-        const x = 2 * (n+1) * node_radius - 2*line_width
-
-        if (player.n_lines > n) {
-          ctx.strokeStyle = player.color
-        }
-        else {
-          ctx.strokeStyle = Knifeline.default_color
-        }
-        ctx.beginPath()
-        ctx.moveTo(x - node_radius, y - node_radius)
-        ctx.lineTo(x + node_radius, y + node_radius)
-        ctx.stroke()
-      }
-
-      y += line_width + node_diameter
-      for (var n = 0; n < game.n_fountains; ++n) {
-        const x = 2 * (n+1) * node_radius - 2*line_width
-
-        if (player.n_fountains > n) {
-          var color = player.color
-        }
-        else {
-          var color = Knifeline.default_color
-        }
-
-        ctx.fillStyle = color
-        ctx.beginPath()
-        ctx.arc(x,y,node_radius, 0, pi2)
-        ctx.fill()
-      }
-
-      y += line_width + node_diameter
-      for (var n = 0; n < game.n_knives; ++n) {
-        const x = 2 * (n+1) * node_radius - 2*line_width
-
-        ctx.fillStyle = Knifeline.knife_color
-
-        ctx.beginPath()
-        ctx.arc(x,y,node_radius, 0, pi2)
-        ctx.fill()
-
-        if (player.n_knives > n) {
-          ctx.strokeStyle = player.color
-        }
-        else {
-          ctx.strokeStyle = Knifeline.default_color
-        }
-
-        ctx.beginPath()
-        ctx.moveTo(x - dot_radius, y - dot_radius)
-        ctx.lineTo(x + dot_radius, y + dot_radius)
         ctx.stroke()
 
-        ctx.beginPath()
-        ctx.moveTo(x + dot_radius, y - dot_radius)
-        ctx.lineTo(x - dot_radius, y + dot_radius)
-        ctx.stroke()
+        y += line_width + node_radius
+        for (var n = 0; n < game.n_nodes; ++n) {
+          const x = 2 * (n+1) * node_radius - 2*line_width
+
+          if (player.n_nodes > n) {
+            var color = player.color
+            var dot_color = Knifeline.default_color
+          }
+          else {
+            var color = Knifeline.default_color
+            var dot_color = Knifeline.background_color
+          }
+
+          ctx.fillStyle = color
+          ctx.beginPath()
+          ctx.arc(x,y,node_radius, 0, pi2)
+          ctx.fill()
+
+          ctx.fillStyle = dot_color
+          ctx.beginPath()
+          ctx.arc(x,y,dot_radius, 0, pi2)
+          ctx.fill()
+        }
+
+        y += line_width + node_diameter
+        for (var n = 0; n < game.n_lines; ++n) {
+          const x = 2 * (n+1) * node_radius - 2*line_width
+
+          if (player.n_lines > n) {
+            ctx.strokeStyle = player.color
+          }
+          else {
+            ctx.strokeStyle = Knifeline.default_color
+          }
+          ctx.beginPath()
+          ctx.moveTo(x - node_radius, y - node_radius)
+          ctx.lineTo(x + node_radius, y + node_radius)
+          ctx.stroke()
+        }
+
+        y += line_width + node_diameter
+        for (var n = 0; n < game.n_fountains; ++n) {
+          const x = 2 * (n+1) * node_radius - 2*line_width
+
+          if (player.n_fountains > n) {
+            var color = player.color
+          }
+          else {
+            var color = Knifeline.default_color
+          }
+
+          ctx.fillStyle = color
+          ctx.beginPath()
+          ctx.arc(x,y,node_radius, 0, pi2)
+          ctx.fill()
+        }
+
+        y += line_width + node_diameter
+        for (var n = 0; n < game.n_knives; ++n) {
+          const x = 2 * (n+1) * node_radius - 2*line_width
+
+          ctx.fillStyle = Knifeline.knife_color
+
+          ctx.beginPath()
+          ctx.arc(x,y,node_radius, 0, pi2)
+          ctx.fill()
+
+          if (player.n_knives > n) {
+            ctx.strokeStyle = player.color
+          }
+          else {
+            ctx.strokeStyle = Knifeline.default_color
+          }
+
+          ctx.beginPath()
+          ctx.moveTo(x - dot_radius, y - dot_radius)
+          ctx.lineTo(x + dot_radius, y + dot_radius)
+          ctx.stroke()
+
+          ctx.beginPath()
+          ctx.moveTo(x + dot_radius, y - dot_radius)
+          ctx.lineTo(x - dot_radius, y + dot_radius)
+          ctx.stroke()
+        }
       }
     }
 
-    if (canvas.width > canvas.height) {
-      var idle_idx = scale - bottom_pad
-      var draw_x = canvas.height
-    }
-    else {
-      var idle_idx = scale - bottom_pad
-      var draw_x = 0
-    }
-    for (const player_id in game.other_players) {
-      const other_player = game.other_players[player_id]
-      if (other_player.state == 'over') {
-        const do_blink = !Math.floor(now * Knifeline.blink_rate % 2)
-        ctx.fillStyle = do_blink ? other_player.color : Knifeline.default_color
+    // draw other players
+    {
+      if (canvas.width > canvas.height) {
+        var idle_idx = scale - bottom_pad
+        var draw_x = canvas.height
       }
       else {
-        ctx.fillStyle = other_player.color
+        var idle_idx = scale - bottom_pad
+        var draw_x = 0
       }
-      ctx.fillText(other_player.name, draw_x, idle_idx)
-      idle_idx -= font_size
+      for (const player_id in game.other_players) {
+        const other_player = game.other_players[player_id]
+        if (other_player.state == 'over') {
+          const do_blink = !Math.floor(now * Knifeline.blink_rate % 2)
+          ctx.fillStyle = do_blink ? other_player.color : Knifeline.default_color
+        }
+        else {
+          ctx.fillStyle = other_player.color
+        }
+        ctx.fillText(other_player.name, draw_x, idle_idx)
+        idle_idx -= font_size
+      }
     }
   }
   else {

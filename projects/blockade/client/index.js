@@ -44,8 +44,9 @@ const max_bar_freq = 7/1
 const bar_freq = 4/1
 const bar_speed = 2/3     // w per sec
 
+const font_size_scale = 1/20
+
 const line_width = 6
-const font_size = 20
 
 const msgs = []
 const num_msgs = 5
@@ -60,11 +61,14 @@ var plr_y = 1/2
 
 var score = 0
 var my_deaths = 0
-var player_high_score = 0
+const default_high_score = 10
+var player_high_score = default_high_score
 var dead = true
 
 var thrust_time = 0
 var bar_timer = start_time + 1/max_bar_freq
+
+const min_width_to_height_ratio = 1/1.5
 
 const canvas = document.getElementById('canvas')
 const client_socket = io('/blockade')
@@ -85,7 +89,7 @@ while (!name) {
 var temp = 0
 var player_high_score = parseInt(get_cookie('blockade_high_score'))
 if (!player_high_score) {
-  player_high_score = 0
+  player_high_score = default_high_score
   document.cookie = `blockade_high_score=${player_high_score}`
 }
 
@@ -173,8 +177,17 @@ client_socket.on('update', ({plrs}) => {
 
 function tick() {
 
-  const width = canvas.width = window.innerWidth - 20
-  const height = canvas.height = window.innerHeight - 22
+  canvas.width = window.innerWidth - 20
+  canvas.height = window.innerHeight - 22
+
+  if (canvas.width / canvas.height > min_width_to_height_ratio) {
+    canvas.width = canvas.height * min_width_to_height_ratio
+  }
+
+  const width = canvas.width
+  const height = canvas.height
+  // const length = Math.sqrt(width*width + height*height)
+  const font_size = width * font_size_scale
 
   const now = (new Date()).getTime() * 1e-3
 

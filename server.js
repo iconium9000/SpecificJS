@@ -1,25 +1,24 @@
 // -----------------------------------------------------------------------------
 // server setup
 
-const project_details = {
-  '': {
-    name: 'menu',
+const projects = {
+  menu: {
+    path: '',
     title: 'Iconium9000 Games Menu',
   },
   blockade: {
-    name: 'blockade',
+    path: 'blockade',
     title: 'Blockade',
   },
   knifeline: {
-    name: 'knifeline',
+    path: 'knifeline',
     title: 'Knifeline',
   },
   mazegame: {
-    name: 'mazegame',
+    path: 'mazegame',
     title: 'MazeGame',
   },
 }
-const projects = {}
 
 const jquery_dir = '/node_modules/jquery/dist/'
 const socket_io_dir = '/node_modules/socket.io-client/dist/'
@@ -37,31 +36,20 @@ const http = require('http')
 const serv = http.Server(app)
 const socket_io = require('socket.io')(serv, {})
 
-for ( const project_path in project_details ) {
-  const project_detail = project_details[project_path]
-  const project_name = project_detail.name
+for ( const name in projects ) {
+  const project = projects[name]
+  project.name = name
+  project.socket = socket_io.of(`/${project.path}`)
 
-  app.get(`/${project_path}`, (req, res) => {
-    res.sendFile(__dirname + `/projects/${project_name}/client/index.html`)
+  app.get(`/${project.path}`, (req, res) => {
+    res.sendFile(__dirname + `/projects/${name}/client/index.html`)
   })
-  app.use(`/${project_path}`,
-     express.static(__dirname + `/projects/${project_name}/client`))
-  const project = require(`./projects/${project_name}/server.js`)(socket_io)
-  project.name = project_name
-  project.path = project_path
-  project.title = project_detail.title
-  projects[project_name] = project
+  app.use(`/${project.path}`, express.static(__dirname + `/projects/${name}/client`))
+}
 
-  socket_io.of(`/${project_path}`).on('connection', client_socket => {
-    project.add_client_socket(client_socket)
-    projects.menu.added_socket_other_project(projects)
-
-    client_socket.on('client name', ({ name }) => {
-      client_socket.name = name
-      client_socket.full_name = `'${name}' (${client_socket.id})`
-      projects.menu.added_socket_other_project(projects)
-    })
-  })
+for ( const name in projects ) {
+  const project = projects[name]
+  require(`./projects/${project.name}/server.js`)(project, projects)
 }
 
 app.use('/images', express.static(__dirname + '/images'))
@@ -70,29 +58,3 @@ app.use('/socket_io', express.static(__dirname + socket_io_dir))
 serv.listen(port)
 
 log(`listening on port:${port}`)
-
-// log(projects)
-
-// socket_io.on('connection', client_socket => {
-//   try {
-//     const project_path = client_socket.handshake.headers.referer.split('/').pop()
-//     client_socket.project_path = project_path
-//
-//     const project_name = project_details[project_path].name
-//     client_socket.project_name = project_name
-//
-//     const project = projects[ project_name ]
-//
-//     project.add_client_socket(client_socket)
-//     projects.menu.added_socket_other_project(projects)
-//
-//     client_socket.on('client name', ({ name }) => {
-//       client_socket.name = name
-//       client_socket.full_name = `'${name}' (${client_socket.id})`
-//       projects.menu.added_socket_other_project(projects)
-//     })
-//   }
-//   catch (e) {
-//     log('ERROR', e)
-//   }
-// })
