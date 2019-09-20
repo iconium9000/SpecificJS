@@ -147,7 +147,7 @@ function MazeGame() {
 
 		const scale = mouse.scale
 		const half_scale = scale / 2
-		const shift_x = 1/2 - client.x, shift_y = 1/2 - client.y
+		const shift_x = 1/2 -client.x, shift_y = 1/2 - client.y
 		const node_radius = mg.node_radius * mouse.scale
 		const node_diameter = mg.node_diameter * mouse.scale
 		const line_width = mg.line_width * mouse.scale
@@ -161,27 +161,103 @@ function MazeGame() {
 
 		ctx.lineWidth = line_width
 
-		// draw lines
-		for (const line_idx in game.lines) {
-			const line = game.lines[line_idx]
+		// // draw layer 1
+		// {
+		// 	const scale = mouse.scale
+		// 	const shift_x = half_scale - client.x * scale
+		// 	const shift_y = half_scale - client.y * scale
+		//
+		// 	// draw lines
+		// 	for (const line_idx in game.lines) {
+		// 		const line = game.lines[line_idx]
+		//
+		// 		ctx.strokeStyle = mg.node_color
+		// 		ctx.beginPath()
+		// 		ctx.moveTo(line.node_a.x * scale + shift_x, line.node_a.y * scale + shift_y)
+		// 		ctx.lineTo(line.node_b.x * scale + shift_x, line.node_b.y * scale + shift_y)
+		// 		ctx.stroke()
+		// 	}
+		//
+		// 	// draw nodes
+		// 	for (const node_idx in game.nodes) {
+		// 		const node = game.nodes[ node_idx ]
+		//
+		// 		const x = node.x * scale + shift_x
+		// 		const y = node.y * scale + shift_y
+		//
+		// 		ctx.fillStyle = mg.node_color
+		// 		ctx.beginPath()
+		// 		ctx.arc(x, y, node_radius, 0, pi2)
+		// 		ctx.fill()
+		// 	}
+		// }
+		//
+		// // draw layer 2
+		// {
+		// 	const scale = mouse.scale * mg.hight_scale
+		// 	const shift_x = half_scale - client.x * scale
+		// 	const shift_y = half_scale - client.y * scale
+		//
+		// 	// draw lines
+		// 	for (const line_idx in game.lines) {
+		// 		const line = game.lines[line_idx]
+		//
+		// 		ctx.strokeStyle = mg.node_color
+		// 		ctx.beginPath()
+		// 		ctx.moveTo(line.node_a.x * scale + shift_x, line.node_a.y * scale + shift_y)
+		// 		ctx.lineTo(line.node_b.x * scale + shift_x, line.node_b.y * scale + shift_y)
+		// 		ctx.stroke()
+		// 	}
+		//
+		// 	// draw nodes
+		// 	for (const node_idx in game.nodes) {
+		// 		const node = game.nodes[ node_idx ]
+		//
+		// 		const x = node.x * scale + shift_x
+		// 		const y = node.y * scale + shift_y
+		//
+		// 		ctx.fillStyle = mg.node_color
+		// 		ctx.beginPath()
+		// 		ctx.arc(x, y, node_radius, 0, pi2)
+		// 		ctx.fill()
+		// 	}
+		// }
 
-			ctx.strokeStyle = mg.node_color
-			ctx.moveTo((line.node_a.x+shift_x)*scale, (line.node_a.y+shift_y)*scale)
-			ctx.lineTo((line.node_b.x+shift_x)*scale, (line.node_b.y+shift_y)*scale)
-			ctx.stroke()
-		}
 
-		// draw nodes
-		for (const node_idx in game.nodes) {
-			const node = game.nodes[ node_idx ]
+		{
+			const scale_a = mouse.scale
+			const shift_a_x = half_scale - client.x * scale_a
+			const shift_a_y = half_scale - client.y * scale_a
 
-			const x = (node.x + shift_x) * mouse.scale
-			const y = (node.y + shift_y) * mouse.scale
+			const scale_b = mouse.scale * mg.hight_scale
+			const shift_b_x = half_scale - client.x * scale_b
+			const shift_b_y = half_scale - client.y * scale_b
 
-			ctx.fillStyle = mg.node_color
-			ctx.beginPath()
-			ctx.arc(x, y, node_radius, 0, pi2)
-			ctx.fill()
+			// draw lines
+			for (const line_idx in game.lines) {
+				const line = game.lines[line_idx]
+
+				ctx.fillStyle = mg.node_color
+				ctx.beginPath()
+				ctx.moveTo(line.node_a.x*scale_a + shift_a_x, line.node_a.y*scale_a + shift_a_y)
+				ctx.lineTo(line.node_b.x*scale_a + shift_a_x, line.node_b.y*scale_a + shift_a_y)
+				ctx.lineTo(line.node_b.x*scale_b + shift_b_x, line.node_b.y*scale_b + shift_b_y)
+				ctx.lineTo(line.node_a.x*scale_b + shift_b_x, line.node_a.y*scale_b + shift_b_y)
+				ctx.fill()
+			}
+
+			// draw nodes
+			for (const node_idx in game.nodes) {
+				const node = game.nodes[ node_idx ]
+
+				const x = node.x * scale_a + shift_a_x
+				const y = node.y * scale_a + shift_a_y
+
+				ctx.fillStyle = mg.node_color
+				ctx.beginPath()
+				ctx.arc(x, y, node_radius, 0, pi2)
+				ctx.fill()
+			}
 		}
 
 	}

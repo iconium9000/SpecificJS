@@ -11,7 +11,6 @@ module.exports = (project, projects) => {
     const project = projects[name]
     project.clients = {}
 
-    log('setup', project.name, !!project.socket)
     project.socket.on('connection', (socket) => {
 
       const client = {

@@ -5,17 +5,19 @@ module.exports = (project_name) => {
   const pi2 = Math.PI * 2
 
   const node_color = `#808080`
-  const node_radius = 1 / 40
-  const line_width = node_radius / 2
+  const node_radius = 1 / 60
+  const line_width = node_radius / 3
   const node_diameter = 2*node_radius
 
   const portal_radius = 3*node_radius
+  const hight_scale = 1.1
 
   MazeGame.node_color = node_color
   MazeGame.node_radius = node_radius
   MazeGame.line_width = line_width
   MazeGame.node_diameter = node_diameter
   MazeGame.portal_radius = portal_radius
+  MazeGame.hight_scale = hight_scale
 
   const states = {
     node: {
