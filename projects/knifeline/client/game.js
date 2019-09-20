@@ -126,30 +126,6 @@ module.exports = () => {
 
   }
 
-  Knifeline.set_game_padding = set_game_padding
-  function set_game_padding (game) {
-    var max_n = 0
-    for (const state in n_states) {
-      const n_state = n_states[state]
-      const state_n = game[n_state]
-      if (max_n < state_n) {
-        max_n = state_n
-      }
-    }
-    game.top_pad = font_size + 3*line_width
-
-    var max_name_length = 0
-    for ( const player_id in game.players ) {
-      const player = game.players[ player_id ]
-      if (max_name_length < player.name.length) {
-        max_name_length = player.name.length
-      }
-    }
-    const state_pad = 2*line_width + (max_n) * node_radius * 2
-    const name_pad = 2*line_width+3*node_radius + font_size*0.61*max_name_length
-    game.left_pad = state_pad > name_pad ? state_pad : name_pad
-    game.bottom_pad = 6*line_width + game.n_players * line_width * 2
-  }
 
   Knifeline.check_is_valid_line = check_is_valid_line
   function check_is_valid_line ( game, node_a, node_b ) {
@@ -192,6 +168,31 @@ module.exports = () => {
     }
 
     return true
+  }
+
+  Knifeline.set_game_padding = set_game_padding
+  function set_game_padding (game) {
+    var max_n = 0
+    for (const state in n_states) {
+      const n_state = n_states[state]
+      const state_n = game[n_state]
+      if (max_n < state_n) {
+        max_n = state_n
+      }
+    }
+    game.top_pad = font_size + 3*line_width
+
+    var max_name_length = 0
+    for ( const player_id in game.players ) {
+      const player = game.players[ player_id ]
+      if (max_name_length < player.name.length) {
+        max_name_length = player.name.length
+      }
+    }
+    const state_pad = 2*line_width + (max_n) * node_radius * 2
+    const name_pad = 2*line_width+3*node_radius + font_size*0.61*max_name_length
+    game.left_pad = state_pad > name_pad ? state_pad : name_pad
+    game.bottom_pad = 6*line_width + game.n_players * line_width * 2
   }
 
   Knifeline.solve_game = solve_game

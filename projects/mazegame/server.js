@@ -1,26 +1,37 @@
 module.exports = (project) => {
   const project_name = 'MazeGame:'
-  const client_sockets = {}
   const log = (...msg) => console.log(project_name, ...msg)
-  const err = console.error
+  const pi2 = Math.PI * 2
+  const MazeGame = require('./client/game.js')(project_name)
 
-  log('server.js')
+  const clients = {}
 
-  project.socket.on('connection', (client_socket) => {
-    client_sockets[client_socket.id] = client_socket
+  project.socket.on('connection', (socket) => {
 
-    client_socket.emit('connect')
+    const client = {
+      socket: socket,
+      name: null,
+      full_name: null,
+    }
 
-    client_socket.on('client name', ({name}) => {
+    client.socket.emit('connect')
 
-      client_socket.name = name
-      client_socket.full_name = `'${name}' (${client_socket.id})`
+    client.socket.on('client name', ({name}) => {
+
+      clients[client.socket.id] = client
+
+      client.name = name
+      client.full_name = `'${name}' (${client.socket.id})`
 
     })
 
-    client_socket.on(`disconnect`, () => {
-      delete client_sockets[client_socket.id]
-      log(client_socket.id + ` disconnected`)
+    client.socket.on(`disconnect`, () => {
+      delete client[client.socket.id]
+      if (client.name) {
+        log(client.socket.id + ` disconnected`)
+      }
     })
   })
+
+  log('server.js')
 }
