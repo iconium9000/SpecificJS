@@ -156,7 +156,7 @@ function MazeGame() {
 		const game = is_mobile ? client.game : mg.solve_game(client.game)
 		if (!is_mobile) {
 			mg.act_at(game, client.socket.id,
-				mouse.x - 1/2 + client.x, mouse.y - 1/2 + client.y)
+				mouse.x + client.x, mouse.y + client.y)
 		}
 
 		ctx.lineWidth = line_width
