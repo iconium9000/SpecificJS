@@ -64,7 +64,7 @@ function MazeGame() {
 
 		if (mouse.left_down) {
 			const action = mg.act_at(client.game, client.socket.id,
-				mouse.x + client.x, mouse.y + client.y)
+				mouse.x+client.x, mouse.y+client.y)
 			if (action) {
 				log('action', action)
 			}
@@ -104,7 +104,7 @@ function MazeGame() {
 				}
 			}
 			else if (c == ' ') {
-				const game = mg.solve_game(client.game)
+				const game = mg.solve_game(client.game, log)
 				log('SPACEBAR', game)
 
 			}
@@ -164,12 +164,12 @@ function MazeGame() {
 		const line_width = mg.line_width * mouse.scale
 		const portal_radius = mg.portal_radius * mouse.scale
 
-		const temp_game = is_mobile ? client.game : mg.solve_game(client.game)
+		const temp_game = is_mobile ? client.game : mg.solve_game(client.game, ()=>{})
 		if (!is_mobile) {
 			mg.act_at(temp_game, client.socket.id,
-				mouse.x + client.x, mouse.y + client.y)
+				mouse.x+client.x, mouse.y+client.y)
 		}
-		const game = mg.solve_game(temp_game)
+		const game = mg.solve_game(temp_game, ()=>{})
 
 		ctx.lineWidth = line_width
 
@@ -190,11 +190,11 @@ function MazeGame() {
 
 				ctx.fillStyle = `#40404040`
 				ctx.beginPath()
-				const node = room.links[0].node
-				ctx.moveTo(node.x * scale_a + shift_ax, node.y * scale_a + shift_ay)
+				const node = room.links[0].spot_node
+				ctx.moveTo(node.x * scale_a+shift_ax, node.y * scale_a+shift_ay)
 				for (var link_idx = 1; link_idx < room.links.length; ++link_idx) {
-					const node = room.links[link_idx].node
-					ctx.lineTo(node.x * scale_a + shift_ax, node.y * scale_a + shift_ay)
+					const node = room.links[link_idx].spot_node
+					ctx.lineTo(node.x * scale_a+shift_ax, node.y * scale_a+shift_ay)
 				}
 				ctx.fill()
 
@@ -204,8 +204,8 @@ function MazeGame() {
 
 					ctx.strokeStyle = '#80808040'
 					ctx.beginPath()
-					ctx.moveTo(cord.node_a.x*scale_a + shift_ax, cord.node_a.y*scale_a + shift_ay)
-					ctx.lineTo(cord.node_b.x*scale_a + shift_ax, cord.node_b.y*scale_a + shift_ay)
+					ctx.moveTo(cord.root_node.x*scale_a+shift_ax, cord.root_node.y*scale_a+shift_ay)
+					ctx.lineTo(cord.spot_node.x*scale_a+shift_ax, cord.spot_node.y*scale_a+shift_ay)
 					ctx.stroke()
 				}
 			}
@@ -216,8 +216,8 @@ function MazeGame() {
 			for (const node_idx in game.nodes) {
 				const node = game.nodes[ node_idx ]
 
-				const x = node.x * scale_a + shift_ax
-				const y = node.y * scale_a + shift_ay
+				const x = node.x * scale_a+shift_ax
+				const y = node.y * scale_a+shift_ay
 
 				ctx.fillStyle = mg.node_color
 				ctx.beginPath()
@@ -235,8 +235,8 @@ function MazeGame() {
 
 				ctx.strokeStyle = mg.line_color
 				ctx.beginPath()
-				ctx.moveTo(line.node_a.x*scale_a + shift_ax, line.node_a.y*scale_a + shift_ay)
-				ctx.lineTo(line.node_b.x*scale_a + shift_ax, line.node_b.y*scale_a + shift_ay)
+				ctx.moveTo(line.root_node.x*scale_a+shift_ax, line.root_node.y*scale_a+shift_ay)
+				ctx.lineTo(line.spot_node.x*scale_a+shift_ax, line.spot_node.y*scale_a+shift_ay)
 				ctx.stroke()
 			}
 
@@ -246,10 +246,10 @@ function MazeGame() {
 
 				ctx.fillStyle = mg.node_color
 				ctx.beginPath()
-				ctx.moveTo(line.node_a.x*scale_a + shift_ax, line.node_a.y*scale_a + shift_ay)
-				ctx.lineTo(line.node_b.x*scale_a + shift_ax, line.node_b.y*scale_a + shift_ay)
-				ctx.lineTo(line.node_b.x*scale_b + shift_bx, line.node_b.y*scale_b + shift_by)
-				ctx.lineTo(line.node_a.x*scale_b + shift_bx, line.node_a.y*scale_b + shift_by)
+				ctx.moveTo(line.root_node.x*scale_a+shift_ax, line.root_node.y*scale_a+shift_ay)
+				ctx.lineTo(line.spot_node.x*scale_a+shift_ax, line.spot_node.y*scale_a+shift_ay)
+				ctx.lineTo(line.spot_node.x*scale_b+shift_bx, line.spot_node.y*scale_b+shift_by)
+				ctx.lineTo(line.root_node.x*scale_b+shift_bx, line.root_node.y*scale_b+shift_by)
 				ctx.fill()
 			}
 
@@ -259,18 +259,18 @@ function MazeGame() {
 
 				ctx.strokeStyle = mg.line_color
 				ctx.beginPath()
-				ctx.moveTo(line.node_a.x*scale_b + shift_bx, line.node_a.y*scale_b + shift_by)
-				ctx.lineTo(line.node_b.x*scale_b + shift_bx, line.node_b.y*scale_b + shift_by)
+				ctx.moveTo(line.root_node.x*scale_b+shift_bx, line.root_node.y*scale_b+shift_by)
+				ctx.lineTo(line.spot_node.x*scale_b+shift_bx, line.spot_node.y*scale_b+shift_by)
 				ctx.stroke()
 
 				ctx.beginPath()
-				ctx.moveTo(line.node_a.x*scale_a + shift_ax, line.node_a.y*scale_a + shift_ay)
-				ctx.lineTo(line.node_a.x*scale_b + shift_bx, line.node_a.y*scale_b + shift_by)
+				ctx.moveTo(line.root_node.x*scale_a+shift_ax, line.root_node.y*scale_a+shift_ay)
+				ctx.lineTo(line.root_node.x*scale_b+shift_bx, line.root_node.y*scale_b+shift_by)
 				ctx.stroke()
 
 				ctx.beginPath()
-				ctx.moveTo(line.node_b.x*scale_a + shift_ax, line.node_b.y*scale_a + shift_ay)
-				ctx.lineTo(line.node_b.x*scale_b + shift_bx, line.node_b.y*scale_b + shift_by)
+				ctx.moveTo(line.spot_node.x*scale_a+shift_ax, line.spot_node.y*scale_a+shift_ay)
+				ctx.lineTo(line.spot_node.x*scale_b+shift_bx, line.spot_node.y*scale_b+shift_by)
 				ctx.stroke()
 			}
 
@@ -278,8 +278,8 @@ function MazeGame() {
 			for (const node_idx in game.nodes) {
 				const node = game.nodes[ node_idx ]
 
-				const x = node.x * scale_b + shift_bx
-				const y = node.y * scale_b + shift_by
+				const x = node.x * scale_b+shift_bx
+				const y = node.y * scale_b+shift_by
 
 				ctx.fillStyle = mg.node_color
 				ctx.beginPath()
