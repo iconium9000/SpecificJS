@@ -34,15 +34,15 @@ module.exports = (project) => {
         other_players: clients,
         nodes: [], lines: [],
         state: 'idle',
-        n_nodes: 4,
-        n_fountains: 3,
-        n_knives: 2,
+        n_nodes: 6,
+        n_fountains: 4,
+        n_knives: 3,
       }
     }
 
     const game = client.game
     ++game.n_players
-    game.n_lines = game.n_players + 3
+    game.n_lines = game.n_players * 2 + 4
 
     if (!game.colors) {
       game.colors = Knifeline.colors.slice(0).sort(() => Math.random() - 0.5)
