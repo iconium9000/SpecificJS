@@ -64,9 +64,10 @@ function MazeGame() {
 
 		if (mouse.left_down) {
 			const action = mg.act_at(client.game, client.socket.id,
-				mouse.x+client.x, mouse.y+client.y)
+				mouse.x+client.x, mouse.y+client.y, log)
 			if (action) {
 				log('action', action)
+				client.game = mg.solve_game(client.game, log)
 			}
 			else {
 				log('no action')
@@ -188,15 +189,25 @@ function MazeGame() {
 			for (const room_idx in game.rooms) {
 				const room = game.rooms[room_idx]
 
-				ctx.fillStyle = `#40404040`
-				ctx.beginPath()
-				const node = room.links[0].spot_node
-				ctx.moveTo(node.x * scale_a+shift_ax, node.y * scale_a+shift_ay)
-				for (var link_idx = 1; link_idx < room.links.length; ++link_idx) {
-					const node = room.links[link_idx].spot_node
-					ctx.lineTo(node.x * scale_a+shift_ax, node.y * scale_a+shift_ay)
+				// ctx.beginPath()
+				// const node = room.links[0].spot_node
+				// ctx.moveTo(node.x * scale_a+shift_ax, node.y * scale_a+shift_ay)
+				// for (var link_idx = 1; link_idx < room.links.length; ++link_idx) {
+				// 	const node = room.links[link_idx].spot_node
+				// 	ctx.lineTo(node.x * scale_a+shift_ax, node.y * scale_a+shift_ay)
+				// }
+				// ctx.fill()
+
+				ctx.fillStyle = `#ffffff20`
+				for (const cell_idx in room.cells) {
+					const cell = room.cells[cell_idx]
+
+					ctx.beginPath()
+					ctx.moveTo(cell.nodes[0].x*scale_a + shift_ax, cell.nodes[0].y*scale_a + shift_ay)
+					ctx.lineTo(cell.nodes[1].x*scale_a + shift_ax, cell.nodes[1].y*scale_a + shift_ay)
+					ctx.lineTo(cell.nodes[2].x*scale_a + shift_ax, cell.nodes[2].y*scale_a + shift_ay)
+					ctx.fill()
 				}
-				ctx.fill()
 
 				// draw cords
 				for (const cord_idx in room.cords) {

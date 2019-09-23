@@ -165,13 +165,13 @@ module.exports = (project_name) => {
   }
 
   MazeGame.line_cross = line_cross
-  function line_cross( line_a, line_b, check_dup ) {
+  function line_cross( line_a, line_b, check_dup) {
 
     if (check_dup) {
-      if (line_a.root_node == line_b.root_node && line_a.root_node == line_b.spot_node) {
+      if (line_a.root_node == line_b.root_node && line_a.spot_node == line_b.spot_node) {
         return true
       }
-      if (line_a.spot_node == line_b.root_node && line_a.spot_node == line_b.spot_node) {
+      if (line_a.spot_node == line_b.root_node && line_a.root_node == line_b.spot_node) {
         return true
       }
     }
@@ -200,15 +200,21 @@ module.exports = (project_name) => {
   }
 
   MazeGame.check_is_valid_line = check_is_valid_line
-  function check_is_valid_line ( game, root_node, spot_node, check_dup ) {
+  function check_is_valid_line ( game, root_node, spot_node, check_dup) {
+
     if ( !root_node || !spot_node || root_node == spot_node ) {
       return false
+    }
+
+    const temp_line = {
+      root_node: root_node,
+      spot_node: spot_node
     }
 
     for ( const idx in game.lines ) {
       const line = game.lines[ idx ]
 
-      if (line_cross(line, {root_node: root_node, spot_node: spot_node}, check_dup)) {
+      if (line_cross(line, temp_line, check_dup)) {
         return false
       }
     }
@@ -285,8 +291,10 @@ module.exports = (project_name) => {
       node.idx = node_idx
 
       const new_node = {
+        idx: node_idx,
         x: node.x, y: node.y,
         links: [],
+        cord_map: {},
       }
       new_game.nodes.push(new_node)
     }
@@ -300,6 +308,7 @@ module.exports = (project_name) => {
       const bay = line.spot_node.y - line.root_node.y
 
       const new_line = {
+        idx: line_idx,
         root_node: new_game.nodes[line.root_node.idx],
         spot_node: new_game.nodes[line.spot_node.idx],
         length2: bax*bax + bay*bay
@@ -347,10 +356,11 @@ module.exports = (project_name) => {
         new_node.links.sort(({angle:angle_a},{angle:angle_b}) => angle_b-angle_a)
 
         for (var link_idx = 0; link_idx < new_node.links.length; ++link_idx) {
-          const link_a = new_node.links[link_idx].other_link
-          const link_b = new_node.links[(link_idx+1)%new_node.links.length]
+          const link = new_node.links[link_idx].other_link
+          const next_link = new_node.links[(link_idx+1)%new_node.links.length]
 
-          link_a.next_link = link_b
+          link.next_link = next_link
+          next_link.prev_link = link
         }
       }
 
@@ -367,6 +377,8 @@ module.exports = (project_name) => {
           idx: new_game.rooms.length,
           links: [],
           cords: [],
+
+          cells: [],
         }
         new_game.rooms.push(new_room)
 
@@ -375,88 +387,163 @@ module.exports = (project_name) => {
           link_hash[link.idx] = link
           link.room = new_room
           new_room.links.push(link)
+
+          const cord = {
+            root_node: link.root_node,
+            spot_node: link.spot_node,
+            link: link,
+            length2: -1,
+            angle_rank: 1,
+            other_cord: null,
+          }
+          link.cord = cord
+          cord.root_node.cord_map[cord.spot_node.idx] = cord
+          new_room.cords.push(cord)
+
           link = link.next_link
         }
+
+        log('rm', new_room.idx)
 
         // make cords
         const n_links = new_room.links.length
         for (var root_idx = 0; root_idx < n_links; ++root_idx) {
           const root_link = new_room.links[root_idx]
+          const root_node = root_link.spot_node
           const root_next_link = root_link.next_link
 
-          const cord = {
-            root_node: root_link.spot_node,
-            spot_node: root_next_link.spot_node,
-            link: root_next_link,
-            length2: -1,
-            angle_rank: 1,
-            other_cord: null,
-          }
-          new_room.cords.push(cord)
-          root_next_link.cords.push(cord)
-
-          const root_angle = inverse_angle(root_link.angle)
-          const root_next_angle = root_next_link.angle
+          const root_link_angle = root_link.other_link.angle
+          const root_node_link_angle = root_next_link.angle
 
           for (var spot_idx = root_idx + 2; spot_idx < n_links; ++spot_idx) {
-
-            const spot_link = new_room.links[root_idx]
+            const spot_link = new_room.links[spot_idx]
+            const spot_node = spot_link.spot_node
             const spot_next_link = spot_link.next_link
 
-            log(root_idx, spot_idx, spot_link.spot_node == root_link.spot_node)
-
-
-            if (spot_link.spot_node == root_link.spot_node) {
+            if (root_node.cord_map[spot_node.idx] || root_node == spot_node) {
               continue
             }
 
-            const bax = spot_link.spot_node.x - root_link.spot_node.x
-            const bay = spot_link.spot_node.y - root_link.spot_node.y
+            const bax = spot_node.x - root_node.x
+            const bay = spot_node.y - root_node.y
 
-            const root_cord_angle_rank = get_angle_rank(
-              root_angle,
+            const root_angle_rank = get_angle_rank(
+              root_next_link.angle,
               Math.atan2(bay, bax),
-              root_next_angle)
+              root_link.other_link.angle)
 
-            if (1 < root_cord_angle_rank || root_cord_angle_rank < 0) {
+            if (0 >= root_angle_rank || root_angle_rank >= 1) {
               continue
             }
 
-            const spot_cord_angle_rank = get_angle_rank(
-              inverse_angle(spot_link.angle),
+            const spot_angle_rank = get_angle_rank(
+              spot_next_link.angle,
               Math.atan2(-bay, -bax),
-              spot_next_link.angle)
+              spot_link.other_link.angle)
 
-            if (1 < spot_cord_angle_rank || spot_cord_angle_rank < 0) {
+            if (0 >= spot_angle_rank || spot_angle_rank >= 1) {
               continue
             }
 
             const length2 = bax*bax + bay*bay
-
-            const root_cord = {
-              root_node: root_link.spot_node,
-              spot_node: spot_link.spot_node,
+            const root_spot_cord = {
+              root_node: root_node,
+              spot_node: spot_node,
               link: root_next_link,
               length2: length2,
-              angle_rank: root_cord_angle_rank,
+              angle_rank: root_angle_rank,
             }
-            new_room.cords.push(root_cord)
-            root_next_link.cords.push(root_cord)
+            root_node.cord_map[spot_node.idx] = root_spot_cord
+            new_room.cords.push(root_spot_cord)
 
-            const spot_cord = {
-              root_node: spot_link.spot_node,
-              spot_node: root_link.spot_node,
+            const spot_root_cord = {
+              root_node: spot_node,
+              spot_node: root_node,
               link: spot_next_link,
               length2: length2,
-              angle_rank: spot_cord_angle_rank,
+              angle_rank: spot_angle_rank,
             }
-            new_room.cords.push(spot_cord)
-            spot_next_link.cords.push(spot_cord)
+            spot_node.cord_map[root_node.idx] = spot_root_cord
+            new_room.cords.push(spot_root_cord)
 
-            root_cord.other_cord = spot_cord
-            spot_cord.other_cord = root_cord
+            spot_root_cord.other_cord = root_spot_cord
+            root_spot_cord.other_cord = spot_root_cord
           }
 
+        }
+
+        new_room.cords.sort(({length2:a}, {length2:b}) => a-b)
+
+        // remove excess cords
+        for (var root_idx = 0; root_idx < new_room.cords.length; ++root_idx) {
+          const root_cord = new_room.cords[root_idx]
+          const start_idx = root_idx + 1 > n_links ? root_idx + 1 : n_links
+
+          for (var spot_idx = start_idx; spot_idx < new_room.cords.length; ++spot_idx) {
+            const spot_cord = new_room.cords[spot_idx]
+
+            if (line_cross(root_cord, spot_cord, false)) {
+              new_room.cords.splice(spot_idx--, 1)
+              delete spot_cord.root_node.cord_map[spot_cord.spot_node.idx]
+              delete spot_cord.spot_node.cord_map[spot_cord.root_node.idx]
+            }
+          }
+        }
+
+        // assign cords to their link
+        for (const cord_idx in new_room.cords) {
+          const cord = new_room.cords[cord_idx]
+          cord.idx = cord_idx
+          cord.link.cords.push(cord)
+        }
+
+        // arrange cords
+        for (const link_idx in new_room.links) {
+          const link = new_room.links[link_idx]
+
+
+          link.cords.sort(({angle_rank:a}, {angle_rank:b}) => a-b)
+
+          const prev_cord = link.prev_link.cord
+          const first_cord = link.cords[0]
+
+          prev_cord.next_cord = first_cord
+          first_cord.prev_cord = prev_cord
+
+          for (var cord_idx = 0; cord_idx < link.cords.length-1; ++cord_idx) {
+            const cord = link.cords[cord_idx].other_cord
+            const next_cord = link.cords[cord_idx + 1]
+
+            cord.next_cord = next_cord
+            next_cord.prev_cord = cord
+          }
+
+          if (link.other_link.cord) {
+            link.cord.other_cord = link.other_link.cord
+            link.other_link.cord.other_cord = link.cord
+          }
+        }
+
+        for (const cord_idx in new_room.cords) {
+          const first_cord = new_room.cords[cord_idx]
+
+          if (first_cord.cell) {
+            continue
+          }
+
+          const secnd_cord = first_cord.next_cord
+          const third_cord = secnd_cord && secnd_cord.next_cord
+
+          if (third_cord && first_cord != third_cord && third_cord.next_cord == first_cord) {
+            const cell = {
+              cords: [first_cord, secnd_cord, third_cord],
+              nodes: [first_cord.root_node, secnd_cord.root_node, third_cord.root_node],
+            }
+            first_cord.cell = cell
+            secnd_cord.cell = cell
+            third_cord.cell = cell
+            new_room.cells.push(cell)
+          }
         }
       }
     }
@@ -480,7 +567,11 @@ module.exports = (project_name) => {
   }
 
   MazeGame.act_at = act_at
-  function act_at(game, player_id, px, py) {
+  function act_at(game, player_id, px, py, log) {
+
+    if (!log) {
+      log = ()=>{}
+    }
 
     const player = game.players[player_id]
 
@@ -497,7 +588,9 @@ module.exports = (project_name) => {
 
         if (!diameter_node || diameter_node == player.node) {
 
+
           if (player.node) {
+
             const tx = player.node.x, ty = player.node.y
 
             player.node.x = px
@@ -507,7 +600,6 @@ module.exports = (project_name) => {
               const line = player.node.links[link_idx].line
 
               if (!check_is_valid_line(game, line.root_node, line.spot_node, false)) {
-                // log('bad move')
                 player.node.x = tx
                 player.node.y = ty
 
@@ -586,6 +678,7 @@ module.exports = (project_name) => {
               spot_node: spot_node,
             }
             game.lines.push(new_line)
+
           }
           else {
             other_node = {
@@ -595,10 +688,11 @@ module.exports = (project_name) => {
           }
         }
 
+        log('check_is_valid_line?')
         if (check_is_valid_line(game, other_node, player.node, true)) {
           const new_line = {
-            root_node: other_node,
-            spot_node: player.node,
+            root_node: player.node,
+            spot_node: other_node,
           }
           game.lines.push(new_line)
           player.node = other_node
