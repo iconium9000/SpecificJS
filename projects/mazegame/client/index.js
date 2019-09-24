@@ -32,8 +32,8 @@ function MazeGame() {
 	}
 
 	$(document).mousemove(e => {
-		mouse.x = (e.clientX - 7) / mouse.scale - 1/2
-    mouse.y = (e.clientY - 7) / mouse.scale - 1/2
+		mouse.x = (e.clientX - 7 - mouse.width / 2) / mouse.scale
+    mouse.y = (e.clientY - 7 - mouse.height / 2) / mouse.scale
 
 		if (mouse.right_down) {
 			client.x += mouse.prev_x - mouse.x
@@ -45,8 +45,8 @@ function MazeGame() {
 	})
 
 	$(document).mousedown(e => {
-		mouse.x = (e.clientX - 7) / mouse.scale - 1/2
-    mouse.y = (e.clientY - 7) / mouse.scale - 1/2
+		mouse.x = (e.clientX - 7 - mouse.width / 2) / mouse.scale
+    mouse.y = (e.clientY - 7 - mouse.height / 2) / mouse.scale
 		if (e.button == 2) {
 			mouse.right_down = true
 		}
@@ -59,8 +59,8 @@ function MazeGame() {
 	})
 
 	$(document).mouseup(e => {
-		mouse.x = (e.clientX - 7) / mouse.scale - 1/2
-    mouse.y = (e.clientY - 7) / mouse.scale - 1/2
+		mouse.x = (e.clientX - 7 - mouse.width / 2) / mouse.scale
+    mouse.y = (e.clientY - 7 - mouse.height / 2) / mouse.scale
 
 		if (mouse.left_down) {
 			const action = mg.act_at(client.game, client.socket.id,
@@ -159,7 +159,8 @@ function MazeGame() {
 
 		const scale = mouse.scale
 		const half_scale = scale / 2
-		const shift_x = 1/2 -client.x, shift_y = 1/2 - client.y
+
+		const shift_x = 1/2 - client.x, shift_y = 1/2 - client.y
 		const node_radius = mg.node_radius * mouse.scale
 		const node_diameter = mg.node_diameter * mouse.scale
 		const line_width = mg.line_width * mouse.scale
@@ -178,12 +179,12 @@ function MazeGame() {
 		// draw level
 		{
 			const scale_a = mouse.scale
-			const shift_ax = half_scale - client.x * scale_a
-			const shift_ay = half_scale - client.y * scale_a
+			const shift_ax = mouse.width / 2 - client.x * scale_a
+			const shift_ay = mouse.height / 2 - client.y * scale_a
 
 			const scale_b = mouse.scale * mg.hight_scale
-			const shift_bx = half_scale - client.x * scale_b
-			const shift_by = half_scale - client.y * scale_b
+			const shift_bx = mouse.width / 2 - client.x * scale_b
+			const shift_by = mouse.height / 2 - client.y * scale_b
 
 			// draw rooms
 			for (const room_idx in game.rooms) {

@@ -226,9 +226,21 @@ module.exports = (project_name) => {
     return angle + pi > pi ? angle - pi : angle + pi
   }
 
-  function get_angle_rank(a, b, c) {
-    return a < c ? (b - c) / (a - c) :
-      a < b ? (b - c - pi2) / (a - c - pi2) : b < c ? (b - c) / (a - c - pi2) : -1
+  /*
+    given three angles a,f,t such that {-pi < a,f,t < pi}
+      find the angle scaler (r) of t such that (f - a)r + a ~ t
+      the purpose of this function is
+        1st: determine whether t is a member of the set of angles spanning from a to f
+        2nd: produce a value that can be used to sort angles between a and f
+    if t == a -> r == 0
+    if t == f -> r == 1
+
+    angle rank of t is 0 < r < 1 iff
+      t is a member of the set of angles spanning from a to f
+  */
+  function get_angle_rank(a, f, t) {
+    return f < a ? (t - a) / (f - a) :
+      f < t ? (t - a - pi2) / (f - a - pi2) : t < a ? (t - a) / (f - a - pi2) : -1
   }
 
   // broken
@@ -304,65 +316,106 @@ module.exports = (project_name) => {
       const line = game.lines[line_idx]
       line.idx = line_idx
 
-      const bax = line.spot_node.x - line.root_node.x
-      const bay = line.spot_node.y - line.root_node.y
+      const root_node = new_game.nodes[line.root_node.idx]
+      const spot_node = new_game.nodes[line.spot_node.idx]
+
+      const bax = spot_node.x - root_node.x
+      const bay = spot_node.y - root_node.y
+
+      const root_angle = Math.atan2(bay, bax)
+      const spot_angle = Math.atan2(-bay, -bax)
 
       const new_line = {
         idx: line_idx,
-        root_node: new_game.nodes[line.root_node.idx],
-        spot_node: new_game.nodes[line.spot_node.idx],
+        root_node: root_node,
+        spot_node: spot_node,
         length2: bax*bax + bay*bay
       }
       new_game.lines.push(new_line)
 
-      const link_a = {
+      const root_link = {
         idx: new_game.links.length,
         line: new_line,
-        root_node: new_line.root_node,
-        spot_node: new_line.spot_node,
+
+        root_node: root_node,
+        spot_node: spot_node,
+
         bax: bax, bay: bay,
-        angle: Math.atan2(bay, bax),
-        side: true,
+
+        angle: root_angle,
+        flip_angle: spot_angle,
+
         cords: [],
       }
-      new_game.links.push(link_a)
-      new_line.root_node.links.push(link_a)
-      new_line.link_a = link_a
+      new_game.links.push(root_link)
+      new_line.root_node.links.push(root_link)
+      new_line.root_link = root_link
 
-      const link_b = {
+      const root_cord = {
+        root_node: root_node,
+        spot_node: spot_node,
+        link: root_link,
+        length2: -1,
+        angle_rank: 1,
+
+        angle: root_angle,
+        flip_angle: spot_angle,
+      }
+      root_link.cord = root_cord
+
+      const spot_link = {
         idx: new_game.links.length,
         line: new_line,
-        root_node: new_line.spot_node,
-        spot_node: new_line.root_node,
+
+        root_node: spot_node,
+        spot_node: root_node,
+
         bax: -bax, bay: -bay,
-        angle: Math.atan2(-bay, -bax),
-        side: false,
+
+        angle: spot_angle,
+        flip_angle: root_angle,
+
         cords: [],
       }
-      new_game.links.push(link_b)
-      new_line.spot_node.links.push(link_b)
-      new_line.link_b = link_b
+      new_game.links.push(spot_link)
+      new_line.spot_node.links.push(spot_link)
+      new_line.spot_link = spot_link
 
-      link_a.other_link = link_b
-      link_b.other_link = link_a
+      const spot_cord = {
+        root_node: spot_node,
+        spot_node: root_node,
+        link: spot_link,
+        length2: -1,
+        angle_rank: 1,
+
+        angle: spot_angle,
+        flip_angle: root_angle,
+      }
+      spot_link.cord = spot_cord
+
+      root_link.flip_link = spot_link
+      spot_link.flip_link = root_link
+
+      root_cord.flip_cord = spot_cord
+      spot_cord.flip_cord = root_cord
+    }
+
+    // assign next_links
+    for (const node_idx in new_game.nodes) {
+      const new_node = new_game.nodes[node_idx]
+      new_node.links.sort(({angle:angle_a},{angle:angle_b}) => angle_b-angle_a)
+
+      for (var link_idx = 0; link_idx < new_node.links.length; ++link_idx) {
+        const link = new_node.links[link_idx].flip_link
+        const next_link = new_node.links[(link_idx+1)%new_node.links.length]
+
+        link.next_link = next_link
+        next_link.prev_link = link
+      }
     }
 
     // setup rooms
     {
-
-      // assign next_links
-      for (const node_idx in new_game.nodes) {
-        const new_node = new_game.nodes[node_idx]
-        new_node.links.sort(({angle:angle_a},{angle:angle_b}) => angle_b-angle_a)
-
-        for (var link_idx = 0; link_idx < new_node.links.length; ++link_idx) {
-          const link = new_node.links[link_idx].other_link
-          const next_link = new_node.links[(link_idx+1)%new_node.links.length]
-
-          link.next_link = next_link
-          next_link.prev_link = link
-        }
-      }
 
       // create rooms
       for (const link_idx in new_game.links) {
@@ -388,15 +441,7 @@ module.exports = (project_name) => {
           link.room = new_room
           new_room.links.push(link)
 
-          const cord = {
-            root_node: link.root_node,
-            spot_node: link.spot_node,
-            link: link,
-            length2: -1,
-            angle_rank: 1,
-            other_cord: null,
-          }
-          link.cord = cord
+          const cord = link.cord
           cord.root_node.cord_map[cord.spot_node.idx] = cord
           new_room.cords.push(cord)
 
@@ -412,7 +457,7 @@ module.exports = (project_name) => {
           const root_node = root_link.spot_node
           const root_next_link = root_link.next_link
 
-          const root_link_angle = root_link.other_link.angle
+          const root_link_angle = root_link.flip_link.angle
           const root_node_link_angle = root_next_link.angle
 
           for (var spot_idx = root_idx + 2; spot_idx < n_links; ++spot_idx) {
@@ -427,47 +472,57 @@ module.exports = (project_name) => {
             const bax = spot_node.x - root_node.x
             const bay = spot_node.y - root_node.y
 
+            const root_angle = Math.atan2(bay, bax)
             const root_angle_rank = get_angle_rank(
+              root_link.flip_link.angle,
               root_next_link.angle,
-              Math.atan2(bay, bax),
-              root_link.other_link.angle)
+              root_angle,
+            )
 
             if (0 >= root_angle_rank || root_angle_rank >= 1) {
               continue
             }
 
+            const spot_angle = Math.atan2(-bay, -bax)
             const spot_angle_rank = get_angle_rank(
+              spot_link.flip_link.angle,
               spot_next_link.angle,
-              Math.atan2(-bay, -bax),
-              spot_link.other_link.angle)
+              spot_angle,
+            )
 
             if (0 >= spot_angle_rank || spot_angle_rank >= 1) {
               continue
             }
 
             const length2 = bax*bax + bay*bay
-            const root_spot_cord = {
+            const root_cord = {
               root_node: root_node,
               spot_node: spot_node,
               link: root_next_link,
               length2: length2,
               angle_rank: root_angle_rank,
-            }
-            root_node.cord_map[spot_node.idx] = root_spot_cord
-            new_room.cords.push(root_spot_cord)
 
-            const spot_root_cord = {
+              angle: root_angle,
+              flip_angle: spot_angle,
+            }
+            root_node.cord_map[spot_node.idx] = root_cord
+            new_room.cords.push(root_cord)
+
+            const spot_cord = {
               root_node: spot_node,
               spot_node: root_node,
               link: spot_next_link,
               length2: length2,
               angle_rank: spot_angle_rank,
-            }
-            spot_node.cord_map[root_node.idx] = spot_root_cord
-            new_room.cords.push(spot_root_cord)
 
-            spot_root_cord.other_cord = root_spot_cord
-            root_spot_cord.other_cord = spot_root_cord
+              angle: spot_angle,
+              flip_angle: root_angle,
+            }
+            spot_node.cord_map[root_node.idx] = spot_cord
+            new_room.cords.push(spot_cord)
+
+            spot_cord.flip_cord = root_cord
+            root_cord.flip_cord = spot_cord
           }
 
         }
@@ -501,7 +556,6 @@ module.exports = (project_name) => {
         for (const link_idx in new_room.links) {
           const link = new_room.links[link_idx]
 
-
           link.cords.sort(({angle_rank:a}, {angle_rank:b}) => a-b)
 
           const prev_cord = link.prev_link.cord
@@ -510,17 +564,21 @@ module.exports = (project_name) => {
           prev_cord.next_cord = first_cord
           first_cord.prev_cord = prev_cord
 
+          first_cord.coangle = prev_cord.flip_angle
+
           for (var cord_idx = 0; cord_idx < link.cords.length-1; ++cord_idx) {
-            const cord = link.cords[cord_idx].other_cord
+            const cord = link.cords[cord_idx].flip_cord
             const next_cord = link.cords[cord_idx + 1]
+
+            next_cord.coangle = cord.flip_angle
 
             cord.next_cord = next_cord
             next_cord.prev_cord = cord
           }
 
-          if (link.other_link.cord) {
-            link.cord.other_cord = link.other_link.cord
-            link.other_link.cord.other_cord = link.cord
+          if (link.flip_link.cord) {
+            link.cord.flip_cord = link.flip_link.cord
+            link.flip_link.cord.flip_cord = link.cord
           }
         }
 
@@ -652,9 +710,6 @@ module.exports = (project_name) => {
           player.node = diameter_node
           return `selected node`
         }
-
-      case 'door':
-      case 'laser':
       case 'wall':
 
         var other_node = diameter_node
