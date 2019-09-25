@@ -106,7 +106,8 @@ function MazeGame() {
 			}
 			else if (c == ' ') {
 				const game = mg.solve_game(client.game, log)
-				log('SPACEBAR', game)
+				const room = mg.get_room(game, mouse.x+client.x, mouse.y+client.y, log)
+				log('SPACEBAR', game, room)
 
 			}
 		}
@@ -168,10 +169,10 @@ function MazeGame() {
 
 		const temp_game = is_mobile ? client.game : mg.solve_game(client.game, ()=>{})
 		if (!is_mobile) {
-			mg.act_at(temp_game, client.socket.id,
-				mouse.x+client.x, mouse.y+client.y)
+			mg.act_at(temp_game, client.socket.id, mouse.x+client.x, mouse.y+client.y)
 		}
 		const game = mg.solve_game(temp_game, ()=>{})
+		const sel_room = mg.get_room(game, mouse.x+client.x, mouse.y+client.y)
 
 		ctx.lineWidth = line_width
 
@@ -190,16 +191,7 @@ function MazeGame() {
 			for (const room_idx in game.rooms) {
 				const room = game.rooms[room_idx]
 
-				// ctx.beginPath()
-				// const node = room.links[0].spot_node
-				// ctx.moveTo(node.x * scale_a+shift_ax, node.y * scale_a+shift_ay)
-				// for (var link_idx = 1; link_idx < room.links.length; ++link_idx) {
-				// 	const node = room.links[link_idx].spot_node
-				// 	ctx.lineTo(node.x * scale_a+shift_ax, node.y * scale_a+shift_ay)
-				// }
-				// ctx.fill()
-
-				ctx.fillStyle = `#ffffff20`
+				ctx.fillStyle = sel_room == room ? `#80ff8020` : `#ffffff20`
 				for (const cell_idx in room.cells) {
 					const cell = room.cells[cell_idx]
 
@@ -214,7 +206,7 @@ function MazeGame() {
 				for (const cord_idx in room.cords) {
 					const cord = room.cords[cord_idx]
 
-					ctx.strokeStyle = '#80808040'
+					ctx.strokeStyle = '#80808020'
 					ctx.beginPath()
 					ctx.moveTo(cord.root_node.x*scale_a+shift_ax, cord.root_node.y*scale_a+shift_ay)
 					ctx.lineTo(cord.spot_node.x*scale_a+shift_ax, cord.spot_node.y*scale_a+shift_ay)
