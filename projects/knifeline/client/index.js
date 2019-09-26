@@ -22,13 +22,6 @@ const client = {
   prev_now: start_time - max_deltaT,
 }
 
-function get_cookie(cookie_name) {
-  return document.cookie.
-    replace(
-      new RegExp(`(?:(?:^|.*;\\s*)${cookie_name}\\s*\\=\\s*([^;]*).*$)|^.*$`
-    ), '$1')
-}
-
 log('Index.js')
 
 // do action
@@ -111,7 +104,7 @@ client.socket.on('update', (game_export, update_time) => {
   if (update_time) {
     client.time = (new Date()).getTime() * 1e-3
   }
-  
+
   const game = Knifeline.import_game(game_export)
   log( game.reason )
   client.game = game

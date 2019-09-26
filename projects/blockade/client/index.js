@@ -11,13 +11,6 @@ if (window.Touch) {
 // -----------------------------------------------------------------------------
 // client setup
 
-function get_cookie(name) {
-  return document.cookie.
-    replace(
-      new RegExp(`(?:(?:^|.*;\\s*)${name}\\s*\\=\\s*([^;]*).*$)|^.*$`
-    ), '$1')
-}
-
 const colors = [
   'green','yellow','orange','red',
   'purple','magenta','lightblue','blue'
