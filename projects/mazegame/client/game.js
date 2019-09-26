@@ -8,17 +8,13 @@ module.exports = (project_name) => {
   const noise = 1e-10
   MazeGame.noise = noise
 
-  const node_color = `#808080`
-  const line_color = `#ffffff`
   const node_radius = 1 / 60
-  const line_width = node_radius / 4
+  const line_width = node_radius / 2
   const node_diameter = 2*node_radius
 
   const portal_radius = 3*node_radius
   const hight_scale = 1.1
 
-  MazeGame.node_color = node_color
-  MazeGame.line_color = line_color
   MazeGame.node_radius = node_radius
   MazeGame.line_width = line_width
   MazeGame.node_diameter = node_diameter
@@ -28,9 +24,23 @@ module.exports = (project_name) => {
   const states = {
     node: {
       key: 'n',
+      stroke_color: gate => '#ffffff80',
+      fill_color: gate => '#ffffff',
     },
     wall: {
       key: 'w',
+      stroke_color: gate => '#ffffff80',
+      fill_color: gate => '#00000080',
+    },
+    door: {
+      key: 'd',
+      stroke_color: gate => '#00ff0080',
+      fill_color: gate => '#00800080',
+    },
+    handle: {
+      key: 'h',
+      stroke_color: gate => '#ffffff80',
+      fill_color: gate => '#00800080',
     },
   }
   const state_keys = {}
@@ -45,12 +55,12 @@ module.exports = (project_name) => {
   MazeGame.get_game = get_game
   function get_game(client) {
     const new_game = {
-      players: {},
+      editors: {},
       nodes: [],
       lines: [],
     }
 
-    const new_player = {
+    const new_editor = {
       get name() {
         return client.name
       },
@@ -60,7 +70,7 @@ module.exports = (project_name) => {
       node: null,
       state: 'node',
     }
-    new_game.players[new_player.id] = new_player
+    new_game.editors[new_editor.id] = new_editor
 
     return new_game
   }
@@ -69,7 +79,7 @@ module.exports = (project_name) => {
   function get_node( game, px, py, min_dist ) {
 
     const min_dist2 = min_dist*min_dist
-    var ret_node = null
+    let ret_node = null
 
     for ( const node_idx in game.nodes ) {
       const node = game.nodes[ node_idx ]
@@ -108,11 +118,11 @@ module.exports = (project_name) => {
     const node_idx = game.nodes.indexOf(node)
     game.nodes.splice(node_idx, 1)
 
-    for (const player_id in game.players) {
-      const player = game.players[player_id]
+    for (const editor_id in game.editors) {
+      const editor = game.editors[editor_id]
 
-      if (player.node == node) {
-        player.node = null
+      if (editor.node == node) {
+        editor.node = null
       }
     }
   }
@@ -121,14 +131,14 @@ module.exports = (project_name) => {
   function point_on_line ( line, px, py ) {
 
     const vx = px - line.root_node.x, vy = py - line.root_node.y
-    const p = ( vx * line.vx + vy * line.vy ) / line.length2
+    const dot = ( vx * line.vx + vy * line.vy ) / line.length2
 
-    if ( p > 1 || 0 > p ) {
+    if ( dot > 1 || 0 > dot ) {
       return { x: Infinity, y: Infinity }
     }
 
-    const qx = line.root_node.x + line.vx * p
-    const qy = line.root_node.y + line.vy * p
+    const qx = line.root_node.x + line.vx * dot
+    const qy = line.root_node.y + line.vy * dot
 
     return { x: qx, y: qy }
   }
@@ -140,14 +150,13 @@ module.exports = (project_name) => {
     const qx = px - q.x, qy = py - q.y
 
     return qx*qx + qy*qy
-
   }
 
   MazeGame.get_line = get_line
   function get_line ( game, px, py, min_dist ) {
 
-    var min_dist2 = min_dist*min_dist
-    var ret_line = null
+    let min_dist2 = min_dist*min_dist
+    let ret_line = null
 
     for ( const idx in game.lines ) {
       const line = game.lines[idx]
@@ -168,8 +177,8 @@ module.exports = (project_name) => {
 
     log = log || (()=>{})
 
-    var ret_room = null
-    var min_dist2 = Infinity
+    let ret_room = null
+    let min_dist2 = Infinity
 
     for ( const node_idx in game.nodes ) {
       const node = game.nodes[node_idx]
@@ -312,8 +321,8 @@ module.exports = (project_name) => {
   function insert_sort(sorted_array, spot_element, sort_by) {
 
     const sorted_array_length = sorted_array.length
-    var mult = Math.floor( sorted_array_length / 2 )
-    var root_idx = mult
+    let mult = Math.floor( sorted_array_length / 2 )
+    let root_idx = mult
     const spot_value = spot_element[sort_by]
 
     while (true) {
@@ -355,7 +364,7 @@ module.exports = (project_name) => {
   MazeGame.solve_game = solve_game
   function solve_game(game, log) {
     const new_game = {
-      players: [],
+      editors: [],
       nodes: [],
       lines: [],
       links: [],
@@ -371,7 +380,9 @@ module.exports = (project_name) => {
         idx: node_idx,
         x: node.x, y: node.y,
         links: [],
+        link_map: {},
         cord_map: {},
+        state: 'node',
       }
       new_game.nodes.push(new_node)
     }
@@ -393,8 +404,11 @@ module.exports = (project_name) => {
       const length2 = vx*vx + vy*vy
 
       const new_line = {
+        idx: new_game.links.length,
+
         root_node: root_node,
         spot_node: spot_node,
+        state: line.state,
 
         vx: vx, vy: vy,
 
@@ -409,21 +423,20 @@ module.exports = (project_name) => {
       new_game.lines.push(new_line)
 
       const root_link = new_line
-      root_link.line = new_line
-      root_link.idx = new_game.links.length
 
       new_game.links.push(root_link)
-      new_line.root_node.links.push(root_link)
+      root_node.links.push(root_link)
+      root_node.link_map[spot_node.idx] = new_line
 
       const root_cord = root_link
       root_cord.link = root_link
 
       const spot_link = {
         idx: new_game.links.length,
-        line: new_line,
 
         root_node: spot_node,
         spot_node: root_node,
+        state: line.state,
 
         vx: -vx, vy: -vy,
 
@@ -436,7 +449,9 @@ module.exports = (project_name) => {
         cords: [],
       }
       new_game.links.push(spot_link)
-      new_line.spot_node.links.push(spot_link)
+      spot_node.links.push(spot_link)
+      spot_node.link_map[root_node.idx] = spot_link
+
 
       const spot_cord = spot_link
       spot_cord.link = spot_link
@@ -461,7 +476,7 @@ module.exports = (project_name) => {
 
     // setup rooms
     for (const link_idx in new_game.links) {
-      var link = new_game.links[link_idx]
+      let link = new_game.links[link_idx]
 
       if (link.room) {
         continue
@@ -478,9 +493,9 @@ module.exports = (project_name) => {
       new_game.rooms.push(new_room)
 
       // trace links
-      const link_hash = {}
-      while (!link_hash[link.idx]) {
-        link_hash[link.idx] = link
+      const link_map = {}
+      while (!link_map[link.idx]) {
+        link_map[link.idx] = link
         link.room = new_room
         new_room.links.push(link)
 
@@ -489,8 +504,6 @@ module.exports = (project_name) => {
 
         link = link.next_link
       }
-
-      // log('rm', new_room.idx)
 
       // make cords
       const n_links = new_room.links.length
@@ -568,7 +581,7 @@ module.exports = (project_name) => {
       for ( let root_idx = 0; root_idx < new_room.cords.length; ++root_idx) {
         const root_cord = new_room.cords[root_idx]
 
-        var spot_idx = root_idx + 1 > n_links ? root_idx + 1 : n_links
+        let spot_idx = root_idx + 1 > n_links ? root_idx + 1 : n_links
         while (spot_idx < new_room.cords.length) {
           const spot_cord = new_room.cords[spot_idx++]
 
@@ -581,9 +594,10 @@ module.exports = (project_name) => {
 
         // assign cord to its link
         root_cord.link.cords.push(root_cord)
+        root_cord.idx = root_idx
       }
 
-      // sort cords
+      // trace cords
       for (const link_idx in new_room.links) {
         const prev_link = new_room.links[link_idx]
         const link = prev_link.next_link
@@ -607,92 +621,129 @@ module.exports = (project_name) => {
 
       // make cells
       for (const cord_idx in new_room.cords) {
-        const first_cord = new_room.cords[cord_idx]
+        let cord = new_room.cords[cord_idx]
 
-        if (first_cord.cell) {
+        if (cord.cell) {
           continue
         }
 
-        const secnd_cord = first_cord.next_cord
-        const third_cord = secnd_cord && secnd_cord.next_cord
+        const new_cell = {
+          root_cord: cord,
+          room: new_room,
+          cords: [],
+          is_acute: true,
+        }
 
-        if (third_cord && first_cord != third_cord && third_cord.next_cord == first_cord) {
-          const cell = {
-            cords: [first_cord, secnd_cord, third_cord],
-            nodes: [first_cord.root_node, secnd_cord.root_node, third_cord.root_node],
+        const cord_map = {}
+        while (!cord_map[cord.idx]) {
+          cord_map[cord.idx] = cord
+          cord.cell = new_cell
+          new_cell.cords.push(cord)
+
+          if (!cord.next_cord) {
+            new_cell.is_acute = false
+            break
           }
-          first_cord.cell = cell
-          secnd_cord.cell = cell
-          third_cord.cell = cell
-          new_room.cells.push(cell)
+
+          const angle_dif = (pi2 + cord.flip.angle - cord.next_cord.angle) % pi2
+          if (angle_dif > pi) {
+            new_cell.is_acute = false
+          }
+
+          cord = cord.next_cord
+        }
+
+        if (new_cell.is_acute && new_cell.cords.length > 2) {
+          new_room.cells.push(new_cell)
+        }
+        else {
+          new_cell.is_acute = false
         }
       }
     }
 
-    // export players
-    for (const player_id in game.players) {
-      const player = game.players[player_id]
+    // export editors
+    for (const editor_id in game.editors) {
+      const editor = game.editors[editor_id]
 
-      const new_player = {
-        id: player.id,
-        name: player.name,
-        state: player.state,
-        node: player.node && new_game.nodes[player.node.idx],
+      const new_editor = {
+        id: editor.id,
+        name: editor.name,
+        state: editor.state,
+        node: editor.node && new_game.nodes[editor.node.idx],
       }
-      new_game.players[new_player.id] = new_player
+      new_game.editors[new_editor.id] = new_editor
 
     }
 
-    // log('solve_game', new_game)
+
+    // color links and nodes
+    {
+      // color links
+      for (const link_id in new_game.links) {
+        const link = new_game.links[link_id]
+
+        link.fill_color = states[link.state].fill_color(link.gate)
+        link.stroke_color = states[link.state].stroke_color(link.gate)
+      }
+
+      // color nodes
+      for (const node_id in new_game.nodes) {
+        const node = new_game.nodes[node_id]
+
+        node.fill_color = states[node.state].fill_color(node.gate)
+        node.stroke_color = states[node.state].stroke_color(node.gate)
+      }
+
+    }
+
     return new_game
   }
 
   MazeGame.act_at = act_at
-  function act_at(game, player_id, px, py, log) {
+  function act_at(game, editor_id, px, py, log) {
 
     if (!log) {
       log = ()=>{}
     }
 
-    const player = game.players[player_id]
+    const editor = game.editors[editor_id]
 
-    if (!player) {
+    if (!editor) {
       return
     }
 
-    const radius_node = get_node(game, px, py, node_radius)
     const diameter_node = get_node(game, px, py, node_diameter)
     const diameter_line = get_line(game, px, py, node_diameter)
 
-    switch (player.state) {
+    switch (editor.state) {
       case 'node':
 
-        if (!diameter_node || diameter_node == player.node) {
+        if (!diameter_node || diameter_node == editor.node) {
 
+          if (editor.node) {
 
-          if (player.node) {
+            const tx = editor.node.x, ty = editor.node.y
 
-            const tx = player.node.x, ty = player.node.y
+            editor.node.x = px
+            editor.node.y = py
 
-            player.node.x = px
-            player.node.y = py
+            for (const link_idx in editor.node.links) {
+              const link = editor.node.links[link_idx]
 
-            for (const link_idx in player.node.links) {
-              const line = player.node.links[link_idx].line
-
-              if (!check_is_valid_line(game, line.root_node, line.spot_node, false)) {
-                player.node.x = tx
-                player.node.y = ty
+              if (!check_is_valid_line(game, link.root_node, link.spot_node, false)) {
+                editor.node.x = tx
+                editor.node.y = ty
 
                 return
               }
             }
 
-            player.node = null
+            editor.node = null
             return `moved and deselected node`
           }
           else if (diameter_line) {
-            var q = point_on_line( diameter_line, px, py )
+            let q = point_on_line( diameter_line, px, py )
 
             if ( !get_node( game, q.x, q.y, node_diameter) ) {
 
@@ -708,6 +759,7 @@ module.exports = (project_name) => {
               const new_line = {
                 root_node: new_node,
                 spot_node: spot_node,
+                state: diameter_line.state,
               }
               game.lines.push(new_line)
 
@@ -725,27 +777,31 @@ module.exports = (project_name) => {
             return `added new node`
           }
         }
-        else if (player.node == diameter_node){
-          player.node = null
+        else if (editor.node == diameter_node){
+          editor.node = null
           return `deselected node`
         }
         else {
-          player.node = diameter_node
+          editor.node = diameter_node
           return `selected node`
         }
+      case 'door':
       case 'wall':
 
-        var other_node = diameter_node
+        let other_node = diameter_node
+        let action = ''
 
         if (!other_node) {
 
-          var q = diameter_line && point_on_line( diameter_line, px, py )
+          let q = diameter_line && point_on_line( diameter_line, px, py )
+
           if ( q && !get_node( game, q.x, q.y, node_diameter) ) {
 
             const root_node = diameter_line.root_node
             const spot_node = diameter_line.spot_node
 
             other_node = {
+              idx: game.nodes.length,
               x: q.x, y: q.y,
             }
             diameter_line.spot_node = other_node
@@ -754,36 +810,56 @@ module.exports = (project_name) => {
             const new_line = {
               root_node: other_node,
               spot_node: spot_node,
+              state: editor.state,
             }
             game.lines.push(new_line)
+
+            action = 'split line and '
 
           }
           else {
             other_node = {
+              idx: game.nodes.length,
               x: px, y: py,
             }
             game.nodes.push(other_node)
+
+            action  = 'added new node and '
           }
         }
 
-        log('check_is_valid_line?')
-        if (check_is_valid_line(game, other_node, player.node, true)) {
+        const sel_link = other_node && editor.node && editor.node.link_map[other_node.idx]
+
+        if (sel_link && sel_link.state != editor.state) {
+          sel_link.state = editor.state
+          sel_link.flip.state = editor.state
+          editor.node = other_node
+          return `${action}changed line state to ${editor.state}`
+        }
+        else if (check_is_valid_line(game, other_node, editor.node, true)) {
           const new_line = {
-            root_node: player.node,
+            root_node: editor.node,
             spot_node: other_node,
+            state: editor.state,
           }
           game.lines.push(new_line)
-          player.node = other_node
-          return `created line`
+          editor.node = other_node
+          return `${action}created ${editor.state}`
         }
-        else if (player.node == other_node) {
-          player.node = null
-          return `deselected node`
+        else if (editor.node == other_node) {
+          editor.node = null
+          return `${action}deselected node`
         }
         else {
-          player.node = other_node
-          return `selected node`
+          editor.node = other_node
+          return `${action}selected node`
         }
+
+      case 'handle':
+
+
+        return
+
     }
 
   }

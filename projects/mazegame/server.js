@@ -27,9 +27,9 @@ module.exports = (project) => {
 
     client.socket.on(`disconnect`, () => {
       delete client[client.socket.id]
-      if (client.name) {
-        log(client.socket.id + ` disconnected`)
-      }
+      // if (client.name) {
+      //   log(client.socket.id + ` disconnected`)
+      // }
     })
   })
 
