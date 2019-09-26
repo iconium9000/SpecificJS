@@ -38,7 +38,7 @@ module.exports = (project, projects) => {
 
   function update_clients() {
 
-    log('update_clients', project.title)
+    // log('update_clients', project.title)
 
     const new_projects = {}
 
