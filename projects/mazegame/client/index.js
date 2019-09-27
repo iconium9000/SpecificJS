@@ -63,16 +63,15 @@ function MazeGame() {
     mouse.y = (e.clientY - 7 - mouse.height / 2) / mouse.scale
 
 		if (mouse.left_down) {
-			const action = mg.act_at(client.game, client.socket.id,
-				mouse.x+client.x, mouse.y+client.y, log)
-			if (action) {
-				log('ACTION', action)
-				client.game = mg.solve_game(client.game, log)
-			}
-			else {
-				log('no action')
-			}
+			// TODO
+			// mouse.x+client.x, mouse.y+client.y
 
+			mg.act_at(
+				client.game,
+				client.socket.id,
+				mouse.x+client.x, mouse.y+client.y,
+				log,
+			)
 		}
 
 		if (e.button == 2) {
@@ -169,11 +168,13 @@ function MazeGame() {
 		const bottom_node_radius = node_radius + half_line_width
 		const portal_radius = mg.portal_radius * mouse.scale
 
-		const temp_game = is_mobile ? client.game : mg.solve_game(client.game, ()=>{})
-		if (!is_mobile) {
-			mg.act_at(temp_game, client.socket.id, mouse.x+client.x, mouse.y+client.y)
-		}
-		const game = mg.solve_game(temp_game, ()=>{})
+		// TODO
+		// action: mouse.x+client.x, mouse.y+client.y
+		let game = is_mobile ?
+			mg.act_at(client.game, client.socket.id, x, y, ()=>{}) :
+			mg.copy_game(client.game)
+
+		mg.set_colors(client.game)
 
 		ctx.lineWidth = line_width
 
@@ -229,37 +230,37 @@ function MazeGame() {
 		// draw level
 		{
 
-			// draw rooms
-			for (const room_idx in game.rooms) {
-				const room = game.rooms[room_idx]
-
-				ctx.fillStyle = sel_room == room ? `#80ff8020` : `#ffffff20`
-				for (const cell_idx in room.cells) {
-					const cell = room.cells[cell_idx]
-
-					ctx.beginPath()
-
-					const node = cell.cords[0].root_node
-					ctx.moveTo(node.x*scale_bot + shift_bot_x, node.y*scale_bot + shift_bot_y)
-
-					for (let node_idx = 1; node_idx < cell.cords.length; ++node_idx) {
-						const node = cell.cords[node_idx].root_node
-						ctx.lineTo(node.x*scale_bot + shift_bot_x, node.y*scale_bot + shift_bot_y)
-					}
-					ctx.fill()
-				}
-
-				// draw cords
-				for (const cord_idx in room.cords) {
-					const cord = room.cords[cord_idx]
-
-					ctx.strokeStyle = '#80808020'
-					ctx.beginPath()
-					ctx.moveTo(cord.root_node.bot_x, cord.root_node.bot_y)
-					ctx.lineTo(cord.spot_node.bot_x, cord.spot_node.bot_y)
-					ctx.stroke()
-				}
-			}
+			// // draw rooms
+			// for (const room_idx in game.rooms) {
+			// 	const room = game.rooms[room_idx]
+			//
+			// 	ctx.fillStyle = sel_room == room ? `#80ff8020` : `#ffffff20`
+			// 	for (const cell_idx in room.cells) {
+			// 		const cell = room.cells[cell_idx]
+			//
+			// 		ctx.beginPath()
+			//
+			// 		const node = cell.cords[0].root_node
+			// 		ctx.moveTo(node.x*scale_bot + shift_bot_x, node.y*scale_bot + shift_bot_y)
+			//
+			// 		for (let node_idx = 1; node_idx < cell.cords.length; ++node_idx) {
+			// 			const node = cell.cords[node_idx].root_node
+			// 			ctx.lineTo(node.x*scale_bot + shift_bot_x, node.y*scale_bot + shift_bot_y)
+			// 		}
+			// 		ctx.fill()
+			// 	}
+			//
+			// 	// draw cords
+			// 	for (const cord_idx in room.cords) {
+			// 		const cord = room.cords[cord_idx]
+			//
+			// 		ctx.strokeStyle = '#80808020'
+			// 		ctx.beginPath()
+			// 		ctx.moveTo(cord.root_node.bot_x, cord.root_node.bot_y)
+			// 		ctx.lineTo(cord.spot_node.bot_x, cord.spot_node.bot_y)
+			// 		ctx.stroke()
+			// 	}
+			// }
 
 			// draw bottom nodes
 			for (const node_idx in game.nodes) {

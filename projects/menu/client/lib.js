@@ -73,3 +73,16 @@ function insert_sort(sorted_array, spot_element, sort_by) {
     }
   }
 }
+
+function line_cross(p111, p112, p121, p122, p211, p212, p221, p222) {
+
+  const p222_212 = p222 - p212, p221_211 = p221 - p211
+  const p122_112 = p122 - p112, p121_111 = p121 - p111
+
+  const p11 = ( p111 - p211 ) * p222_212 > ( p112 - p212 ) * p221_211
+  const p12 = ( p121 - p211 ) * p222_212 > ( p122 - p212 ) * p221_211
+  const p21 = ( p211 - p111 ) * p122_112 > ( p212 - p112 ) * p121_111
+  const p22 = ( p221 - p111 ) * p122_112 > ( p222 - p112 ) * p121_111
+
+  return p11 != p12 && p21 != p22
+}
