@@ -66,12 +66,12 @@ function MazeGame() {
 			// TODO
 			// mouse.x+client.x, mouse.y+client.y
 
-			mg.act_at(
-				client.game,
+			client.game = mg.act_at(
+				mg.copy_game(client.game),
 				client.socket.id,
-				mouse.x+client.x, mouse.y+client.y,
-				log,
-			)
+				mouse.x+client.x, mouse.y+client.y, log)
+
+			log('action', client.game.action)
 		}
 
 		if (e.button == 2) {
@@ -104,9 +104,12 @@ function MazeGame() {
 				}
 			}
 			else if (c == ' ') {
-				const game = mg.solve_game(client.game, log)
-				const room = mg.get_room(game, mouse.x+client.x, mouse.y+client.y, log)
-				log('SPACEBAR', game, room)
+
+				const game = mg.copy_game(client.game)
+				mg.setup_links(game)
+				mg.set_game_focus(game, mouse.x+client.x, mouse.y+client.y)
+
+				log('SPACEBAR', game)
 
 			}
 		}
@@ -165,21 +168,20 @@ function MazeGame() {
 		const node_diameter = mg.node_diameter * mouse.scale
 		const line_width = mg.line_width * mouse.scale
 		const half_line_width = line_width / 2
-		const bottom_node_radius = node_radius + half_line_width
 		const portal_radius = mg.portal_radius * mouse.scale
 
-		// TODO
-		// action: mouse.x+client.x, mouse.y+client.y
-		let game = is_mobile ?
-			mg.act_at(client.game, client.socket.id, x, y, ()=>{}) :
-			mg.copy_game(client.game)
-
-		mg.set_colors(client.game)
-
-		ctx.lineWidth = line_width
+		let game = mg.copy_game(client.game)
+		if (!is_mobile) {
+			game = mg.act_at(game, client.socket.id,
+				mouse.x+client.x,
+				mouse.y+client.y, ()=>{})
+		}
 
 		const px = client.x
 		const py = client.y
+		mg.setup_links(game)
+		mg.set_game_focus(game, px, py, true)
+		mg.set_colors(game)
 
 		const scale_bot = mouse.scale
 		const shift_bot_x = mouse.width / 2 - px * scale_bot
@@ -189,42 +191,13 @@ function MazeGame() {
 		const shift_top_x = mouse.width / 2 - px * scale_top
 		const shift_top_y = mouse.height / 2 - py * scale_top
 
-		const sel_room = mg.get_room(game, px, py)
-
-		// setup level for printing
-		{
-
-			// set a, b, and p transforms for all nodes
-			for (const node_idx in game.nodes) {
-				const node = game.nodes[node_idx]
-				node.bot_x = node.x*scale_bot + shift_bot_x
-				node.bot_y = node.y*scale_bot + shift_bot_y
-				node.top_x = node.x*scale_top + shift_top_x
-				node.top_y = node.y*scale_top + shift_top_y
-
-				node.px = px - node.x
-				node.py = py - node.y
-				node.dist2 = node.px*node.px + node.py*node.py
-				node.angle = Math.atan2(node.py, node.px)
-			}
-
-			// flip lines
-			for (const line_idx in game.lines) {
-				const line = game.lines[line_idx]
-
-				const side = line.root_node.px * line.vy > line.root_node.py * line.vx
-				if (side) {
-					game.lines[line_idx] = line.flip
-				}
-
-				const node = line.root_node
-				line.dot = (node.vx * line.vx + node.vy * line.vy) / line.length2
-				line.dx = node.x + line.vx * line.dot - px
-				line.dy = node.y + line.vy * line.dot - py
-				line.dist2 = line.dx*line.dx + line.dy*line.dy
-			}
-
-			game.lines.sort(({dist2:a}, {dist2:b}) => b - a)
+		// set a, b, and p transforms for all nodes
+		for (const node_idx in game.nodes) {
+			const node = game.nodes[node_idx]
+			node.bot_x = node.x*scale_bot + shift_bot_x
+			node.bot_y = node.y*scale_bot + shift_bot_y
+			node.top_x = node.x*scale_top + shift_top_x
+			node.top_y = node.y*scale_top + shift_top_y
 		}
 
 		// draw level
@@ -262,13 +235,15 @@ function MazeGame() {
 			// 	}
 			// }
 
+			ctx.lineWidth = line_width
+
 			// draw bottom nodes
 			for (const node_idx in game.nodes) {
 				const node = game.nodes[ node_idx ]
 
 				ctx.fillStyle = node.fill_color
 				ctx.beginPath()
-				ctx.arc(node.bot_x, node.bot_y, bottom_node_radius, 0, pi2)
+				ctx.arc(node.bot_x, node.bot_y, node_radius, 0, pi2)
 				ctx.fill()
 			}
 
@@ -326,14 +301,15 @@ function MazeGame() {
 
 				ctx.fillStyle = node.fill_color
 				ctx.beginPath()
-				ctx.arc(node.top_x, node.top_y, node_radius + half_line_width, 0, pi2)
+				ctx.arc(node.top_x, node.top_y, node_radius, 0, pi2)
 				ctx.fill()
 			}
 
-
 			ctx.fillStyle = 'white'
 			ctx.beginPath()
-			ctx.arc(client.x*scale_bot + shift_bot_x, client.y*scale_bot + shift_bot_y, node_radius,0,pi2)
+			ctx.arc(
+				client.x*scale_bot + shift_bot_x,
+				client.y*scale_bot + shift_bot_y, node_radius, 0, pi2)
 			ctx.fill()
 		}
 
