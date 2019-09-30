@@ -106,8 +106,8 @@ function MazeGame() {
 			else if (c == ' ') {
 
 				const game = mg.copy_game(client.game)
-				mg.setup_links(game)
-				mg.set_game_focus(game, mouse.x+client.x, mouse.y+client.y)
+				// mg.measure_lines(game)
+				// mg.set_game_focus(game, mouse.x+client.x, mouse.y+client.y)
 
 				log('SPACEBAR', game)
 
@@ -179,9 +179,13 @@ function MazeGame() {
 
 		const px = client.x
 		const py = client.y
-		mg.setup_links(game)
-		mg.set_game_focus(game, px, py, true)
-		mg.set_colors(game)
+
+		mg.measure_lines(game)
+		mg.solve_rooms(game)
+		mg.solve_cells(game)
+		mg.set_game_focus(game, px, py)
+		const sel_room = mg.get_room(game)
+		mg.set_colors(game, sel_room)
 
 		const scale_bot = mouse.scale
 		const shift_bot_x = mouse.width / 2 - px * scale_bot
@@ -202,40 +206,40 @@ function MazeGame() {
 
 		// draw level
 		{
-
-			// // draw rooms
-			// for (const room_idx in game.rooms) {
-			// 	const room = game.rooms[room_idx]
-			//
-			// 	ctx.fillStyle = sel_room == room ? `#80ff8020` : `#ffffff20`
-			// 	for (const cell_idx in room.cells) {
-			// 		const cell = room.cells[cell_idx]
-			//
-			// 		ctx.beginPath()
-			//
-			// 		const node = cell.cords[0].root_node
-			// 		ctx.moveTo(node.x*scale_bot + shift_bot_x, node.y*scale_bot + shift_bot_y)
-			//
-			// 		for (let node_idx = 1; node_idx < cell.cords.length; ++node_idx) {
-			// 			const node = cell.cords[node_idx].root_node
-			// 			ctx.lineTo(node.x*scale_bot + shift_bot_x, node.y*scale_bot + shift_bot_y)
-			// 		}
-			// 		ctx.fill()
-			// 	}
-			//
-			// 	// draw cords
-			// 	for (const cord_idx in room.cords) {
-			// 		const cord = room.cords[cord_idx]
-			//
-			// 		ctx.strokeStyle = '#80808020'
-			// 		ctx.beginPath()
-			// 		ctx.moveTo(cord.root_node.bot_x, cord.root_node.bot_y)
-			// 		ctx.lineTo(cord.spot_node.bot_x, cord.spot_node.bot_y)
-			// 		ctx.stroke()
-			// 	}
-			// }
-
 			ctx.lineWidth = line_width
+
+			// draw rooms
+			for (const room_idx in game.rooms) {
+				const room = game.rooms[room_idx]
+
+				ctx.fillStyle = sel_room == room ? `#80ff8020` : `#ffffff20`
+				for (const cell_idx in room.cells) {
+					const cell = room.cells[cell_idx]
+
+					ctx.beginPath()
+
+					const node = cell.cords[0].root_node
+					ctx.moveTo(node.x*scale_bot + shift_bot_x, node.y*scale_bot + shift_bot_y)
+
+					for (let node_idx = 1; node_idx < cell.cords.length; ++node_idx) {
+						const node = cell.cords[node_idx].root_node
+						ctx.lineTo(node.x*scale_bot + shift_bot_x, node.y*scale_bot + shift_bot_y)
+					}
+					ctx.fill()
+				}
+
+				// draw cords
+				for (const cord_idx in room.cords) {
+					const cord = room.cords[cord_idx]
+
+					ctx.strokeStyle = '#80808020'
+					ctx.beginPath()
+					ctx.moveTo(cord.root_node.bot_x, cord.root_node.bot_y)
+					ctx.lineTo(cord.spot_node.bot_x, cord.spot_node.bot_y)
+					ctx.stroke()
+				}
+			}
+
 
 			// draw bottom nodes
 			for (const node_idx in game.nodes) {
