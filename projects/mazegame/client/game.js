@@ -23,6 +23,7 @@ module.exports = (project_name) => {
   MazeGame.portal_radius = portal_radius
   MazeGame.hight_scale = hight_scale
 
+  // TODO
   const states = {
     node: {
       key: 'n',
@@ -44,6 +45,11 @@ module.exports = (project_name) => {
       stroke_color: gate => '#ffffff80',
       fill_color: gate => '#00800080',
     },
+    portal: {
+      key: 'p',
+      stroke_color: gate => '#ffffff80',
+      fill_color: gate => '#00800080',
+    }
   }
   const state_keys = {}
   for (const name in states) {
@@ -84,16 +90,16 @@ module.exports = (project_name) => {
 
   /* Copy Game (game: Game)
     Return: duplicate of (game: Game)
-    Recommended pre-functions for (game: Game): get_game OR copy_game
+    Recommended pre-functions for Game: get_game OR copy_game
 
     Node
       x,y: Float
       state: String
-      MOD(only write to input) idx: String
+      MOD(only write to input) idx: Id
         idx: index of node in game.nodes
     Line
       root_node,spot_node: Node
-      MOD(only write to input) idx: String
+      MOD(only write to input) idx: Id
         idx: index of line in game.lines
     Editors
       id,name,state: String
@@ -162,7 +168,7 @@ module.exports = (project_name) => {
 
   /* Measure Lines (game: Game)
     Return: null
-    Recommended pre-functions for (game: Game): copy_game
+    Recommended pre-functions for Game: copy_game
     Node
       x,y: Float
     Line
@@ -186,7 +192,7 @@ module.exports = (project_name) => {
 
   /* Set Game Focus(game: Game, fx,fy: Float)
     Return: null
-    Recommended pre-functions for (game: Game): measure_lines
+    Recommended pre-functions for Game: measure_lines
 
     Node
       x,y: Float
@@ -198,8 +204,13 @@ module.exports = (project_name) => {
       root_node,spot_node: Node
       vx,vy,length2: Float
         from measure_lines
-      MOD dot,px,py,dist2: Float
+      MOD side,dot,px,py,dist2: Float
         px,py: vector from closest point on Line to fx,fy
+        side: if +x is up, and +y is right...
+          +side indicates fx,fy on right side of Line
+          -side indicates fx,fy on left side of Line
+          0 side indicates fx,fy on line
+          side / Line.length = px,py length
         dist2: length of px,py squared
         dot: dot(root_node.(x,y), Line.(vx,vy)) / Line.length2
     Game
@@ -219,8 +230,9 @@ module.exports = (project_name) => {
     }
 
     for (const line_idx in game.lines) {
-      const line = game.lines[line_idx]
+      let line = game.lines[line_idx]
 
+      line.side = line.root_node.py*line.vx - line.root_node.px*line.vy
       line.dot = ( line.root_node.px*line.vx + line.root_node.py*line.vy ) / line.length2
       line.px = fx - (line.root_node.x + line.vx * line.dot)
       line.py = fy - (line.root_node.y + line.vy * line.dot)
@@ -230,7 +242,7 @@ module.exports = (project_name) => {
 
   /* Get Node (game: Game, min_dist2: Float)
     Return: closest node if node.dist2 is less than min_dist2
-    Recommended pre-functions for (game: Game): set_game_focus
+    Recommended pre-functions for Game: set_game_focus
     Node
       dist2: Float
         from set_game_focus
@@ -256,7 +268,7 @@ module.exports = (project_name) => {
 
   /* Get Line (game: Game, min_dist2: Float)
     Return: closest line if line.dist2 is less than min_dist2 and 0 < line.dot < 1
-    Recommended pre-functions for (game: Game): set_game_focus
+    Recommended pre-functions for Game: set_game_focus
     Node
       dist2: Float
         from set_game_focus
@@ -281,13 +293,15 @@ module.exports = (project_name) => {
   }
 
   /* Get Line (game: Game)
-    Return: true iff
-      no nodes are within node_diameter of each other
-      for no line does root_node == spot_node
-      no line is within node_diameter of a node
-      no line shares both root_node and spot_node with another line (or vice versa)
-      no lines cross (unless they share a node)
-    Recommended pre-functions for (game: Game): measure_lines
+    Return: String if...
+      nodes are within node_diameter of each other
+      for a line root_node == spot_node
+      line is within node_diameter of a node
+      line shares both root_node and spot_node with another line (or vice versa)
+      lines cross (unless they share a node)
+    Return: Null otherwise
+
+    Recommended pre-functions for Game: measure_lines
     Node
       x,y: Float
     Line
@@ -298,7 +312,8 @@ module.exports = (project_name) => {
       nodes: Node[]
       lines: Line[]
   */
-  function check_is_valid_game (game, log) {
+  MazeGame.check_is_valid_game = check_is_valid_game
+  function check_is_valid_game (game) {
 
     // make sure no node touches another
     for (let root_idx = 0; root_idx < game.nodes.length; ++root_idx) {
@@ -310,8 +325,7 @@ module.exports = (project_name) => {
         const px = spot_node.x - root_node.x
         const py = spot_node.y - root_node.y
         if (px*px + py*py < node_diameter2) {
-          log('INVALID node touch node')
-          return false
+          return 'node touch node'
         }
       }
     }
@@ -321,8 +335,7 @@ module.exports = (project_name) => {
 
       const root_node = root_line.root_node
       if (root_node == root_line.spot_node) {
-        log('INVALID root=spot')
-        return false
+        return 'root=spot'
       }
 
       // make sure no line touches a node
@@ -339,13 +352,11 @@ module.exports = (project_name) => {
         const dot = ( px*root_line.vx + py*root_line.vy ) / root_line.length2
         if (0 < dot && dot < 1) {
 
-
           const qx = root_node.x + root_line.vx * dot - node.x
           const qy = root_node.y + root_line.vy * dot - node.y
 
           if (qx*qx + qy*qy < node_diameter2) {
-            log('INVALID line touch node')
-            return false
+            return 'line touch node'
           }
         }
       }
@@ -356,15 +367,13 @@ module.exports = (project_name) => {
 
         if (root_line.root_node == spot_line.root_node &&
             root_line.spot_node == spot_line.spot_node) {
-          log('INVALID dup line')
-          return false
+          return 'dup line'
         }
 
         if (root_line.root_node == spot_line.spot_node &&
             root_line.spot_node == spot_line.root_node) {
 
-          log('INVALID dup line')
-          return false
+          return 'dup line'
         }
 
         if (root_line.root_node != spot_line.root_node &&
@@ -374,40 +383,36 @@ module.exports = (project_name) => {
 
             MazeGame.check_line_cross(root_line, spot_line))
         {
-          log('INVALID line cross')
-          return false
+          return 'line cross'
         }
 
       }
     }
-
-    return true
   }
 
   /* Solve Room (game: Game)
-    Recommended pre-functions for (game: Game): measure_lines
+    Recommended pre-functions for Game: measure_lines
     Room:
-      MOD lines: Line[]
+      MOD lines: Flip[]
         an array of lines arrayed clockwise around the room from root_node to spot_node
-        for each Line in the array:
+        for each Flip in the array:
           the next element is its next_line
           the previous element is its prev_line
-    Line:
+    Flip:
       root_node,spot_node: Node
-      state: String
-      vx,vy,length2: Float
-        from measure_lines
-      MOD next_line,prev_line: Line
-      MOD angle: Float (-pi,pi)
-      MOD flip: Line
+      MOD flip: Flip
         line with inverted vx,vy, angle, and root and spot nodes
+      MOD angle: Float (-pi,pi)
       MOD room: Room
+      MOD next_line,prev_line: Flip
+    Line: Flip
+      vx,vy: Float
+        from measure_lines
+
     Node:
-      MOD idx: String
-      MOD cord_map: Line{}
-      MOD lines: Line[]
-        array of Lines that all have Node as their root_node
-        sorted by Line.angle from largest to smallest
+      MOD lines: Flip[]
+        array of Flip that all have Node as their root_node
+        sorted by Flip.angle from largest to smallest
     Game:
       nodes: Node[]
       lines: Line[]
@@ -418,9 +423,7 @@ module.exports = (project_name) => {
 
     for (const node_idx in game.nodes) {
       const node = game.nodes[node_idx]
-      node.idx = node_idx
       node.lines = []
-      node.cord_map = {}
     }
 
     for (const line_idx in game.lines) {
@@ -431,21 +434,12 @@ module.exports = (project_name) => {
       line.flip = {
         root_node: line.spot_node,
         spot_node: line.root_node,
-        state: line.state,
-
-        vx: -line.vx,
-        vy: -line.vy,
-        length2: line.length2,
-
         flip: line,
         angle: inverse_angle(line.angle),
       }
 
       line.root_node.lines.push(line)
-      line.root_node.cord_map[line.spot_node.idx] = line
-
       line.spot_node.lines.push(line.flip)
-      line.spot_node.cord_map[line.root_node.idx] = line.flip
     }
 
     // trace lines
@@ -491,82 +485,81 @@ module.exports = (project_name) => {
 
   /* Get Room ( game: Game )
     Return: a room iff the fx,fy defined in set_game_focus is inside the room
-    Recommended pre-functions for (game: Game): solve_rooms && set_game_focus
+    Recommended pre-functions for Game: solve_rooms && set_game_focus
     Room: Object
     Node
       px,py: Float
     Flip
       root_node,spot_node
-      vx,vy,dot,angle: Float
-      MOD side: Boolean
-        true iff fx,fy (from set_game_focus) is on the flip's side of the line
+      vx,vy,angle: Float
+        from set_game_focus
       room: Room OR null
-      flip: Line,
+        from solve_rooms
+      flip: Line
+        from solve_rooms
       prev_line,next_line: Flip
+        from solve_rooms
     Line: Flip
-      dist2: Float
+      dot,dist2,side: Float
     Game
       lines: Line[]
   */
   MazeGame.get_room = get_room
   function get_room ( game, log ) {
 
-    let ret_room = null
+    let ret_line = null
     let min_dist2 = Infinity
 
     for ( const line_idx in game.lines ) {
       let line = game.lines[line_idx]
       const dist2 = line.dist2
+      let dot = line.dot
 
-      line.side = line.root_node.px * line.vy > line.root_node.py * line.vx
-      line.flip.side = !line.side
-      if (line.side) {
+      if (line.side < 0) {
         line = line.flip
+        dot = 1 - dot
       }
 
       if (line.root_node.dist2 == 0) {
         return
       }
 
-      if (0 < line.dot && line.dot < 1) {
+      if (0 < dot && dot < 1) {
         if (dist2 < min_dist2) {
           min_dist2 = dist2
-          ret_room = line.room
+          ret_line = line.room
         }
       }
       else {
 
-        if (0 < line.dot) {
-          line = line.next_line
-        }
+        let dot_line = 0 < dot ? line.next_line : line
 
-        if (line.root_node.dist2 < min_dist2) {
+        if (dot_line.root_node.dist2 < min_dist2) {
           const angle_rank = get_angle_rank(
-            line.prev_line.flip.angle,
-            line.angle,
-            line.root_node.angle)
+            dot_line.prev_line.flip.angle,
+            dot_line.angle,
+            dot_line.root_node.angle)
 
           if (0 < angle_rank && angle_rank < 1) {
-            min_dist2 = line.root_node.dist2
-            ret_room = line.room
+            min_dist2 = dot_line.root_node.dist2
+            ret_line = line.room
           }
         }
       }
     }
 
-    return ret_room
+    return ret_line
   }
 
   /* Solve Cells
     Return null
-    Recommended pre-functions for (game: Game): solve_rooms
+    Recommended pre-functions for Game: solve_rooms
     Cell
       root_cord: Line
       room: Room
       cords: Line[]
       is_acute: Boolean
-    Line
-      root_node,spot_node: Node
+    Cord
       angle: Float (-pi,pi)
       flip: Line
       room: Room
@@ -574,13 +567,16 @@ module.exports = (project_name) => {
       MOD sort_length2: Float
       MOD angle_rank: Float
       MOD cords: Line[]
+      MOD next_cord,prev_cord: Line
+    Line: Cord
+      root_node,spot_node: Node
     Node
-      cord_map: Line{}
-      idx: String
+      MOD idx: Id
+      MOD cords: Line[]
       lines: Line[]
     Room:
-      cells: Cell[]
       lines: Line[]
+      MOD cells: Cell[]
       MOD cords: Line[]
     Game:
       rooms: Room[]
@@ -590,13 +586,23 @@ module.exports = (project_name) => {
 
     for (const node_idx in game.nodes) {
       const node = game.nodes[node_idx]
-      node.cords = []
+      node.idx = node_idx
+      node.cords = {}
+    }
+
+    for (const node_idx in game.nodes) {
+      const node = game.nodes[node_idx]
+
+      for (const line_idx in node.lines) {
+        const line = node.lines[line_idx]
+        node.cords[line.spot_node.idx] = line
+        line.sort_length2 = -1
+      }
     }
 
     // split rooms
     for (const room_idx in game.rooms) {
       const room = game.rooms[room_idx]
-      room.cells = []
       room.cords = []
       const temp_cords = room.lines.slice(0)
 
@@ -607,13 +613,11 @@ module.exports = (project_name) => {
         const flip_angle = root_line.prev_line.flip.angle
         const root_node = root_line.root_node
 
-        root_line.sort_length2 = -1
-
         for (let spot_idx = root_idx + 2; spot_idx < room.lines.length; ++spot_idx) {
           const spot_line = room.lines[spot_idx]
           const spot_node = spot_line.root_node
 
-          if (root_node == spot_node || root_node.cord_map[spot_node.idx]) {
+          if (root_node == spot_node || root_node.cords[spot_node.idx]) {
             continue
           }
 
@@ -646,23 +650,23 @@ module.exports = (project_name) => {
           const new_cord = {
             root_node: root_node,
             spot_node: spot_node,
-            cords: root_line.cords,
             sort_length2: length2,
             length2: length2,
             angle: root_angle,
+            room: room,
 
             flip: {
               root_node: spot_node,
               spot_node: root_node,
-              cords: spot_line.cords,
               sort_length2: length2,
               length2: length2,
               angle: spot_angle,
+              room: room,
             },
           }
           new_cord.flip.flip = new_cord
-          root_node.cord_map[spot_node.idx] = new_cord
-          spot_node.cord_map[root_node.idx] = new_cord.flip
+          root_node.cords[spot_node.idx] = new_cord
+          spot_node.cords[root_node.idx] = new_cord.flip
           temp_cords.push(new_cord)
         }
       }
@@ -687,17 +691,9 @@ module.exports = (project_name) => {
             MazeGame.check_line_cross(root_cord, spot_cord)
           ) {
             temp_cords.splice(--spot_idx, 1)
-            delete spot_cord.root_node.cord_map[spot_cord.spot_node.idx]
-            delete spot_cord.spot_node.cord_map[spot_cord.root_node.idx]
+            delete spot_cord.root_node.cords[spot_cord.spot_node.idx]
+            delete spot_cord.spot_node.cords[spot_cord.root_node.idx]
           }
-        }
-
-        // assign cord to its node
-        root_cord.root_node.cords.push(root_cord)
-        root_cord.spot_node.cords.push(root_cord.flip)
-        room.cords.push(root_cord)
-        if (root_idx >= room.lines.length) {
-          room.cords.push(root_cord.flip)
         }
       }
     }
@@ -705,6 +701,14 @@ module.exports = (project_name) => {
     // trace cords
     for (const node_idx in game.nodes) {
       const node = game.nodes[node_idx]
+      const cord_map = node.cords
+      node.cords = []
+
+      for (const spot_node_idx in cord_map) {
+        const cord = cord_map[spot_node_idx]
+        cord.room.cords.push(cord)
+        node.cords.push(cord)
+      }
 
       node.cords.sort(({angle:a}, {angle:b}) => b - a)
       for ( let cord_idx = 0; cord_idx < node.cords.length; ++cord_idx) {
@@ -719,11 +723,12 @@ module.exports = (project_name) => {
     // make cells
     for (const room_idx in game.rooms) {
       const room = game.rooms[room_idx]
+      room.cells = []
 
       for (const cord_idx in room.cords) {
         const root_cord = room.cords[cord_idx]
 
-        if (root_cord.room) {
+        if (root_cord.cell) {
           continue
         }
 
@@ -757,9 +762,114 @@ module.exports = (project_name) => {
     }
   }
 
-  /*
-    requires
-      game: set_game_focus && solve_cells
+  /* Set Gates (game: Game)
+    Recommended pre-functions for Game: game_copy OR get_game
+
+    Gate
+      MOD is_active: Boolean
+      MOD handles: Handle[]
+      MOD portals: Portal[]
+    Node
+      MOD gate: Gate
+    Line
+      MOD gate: Gate
+      state: String
+      root_node,spot_node: Node
+    Game
+      nodes: Node[]
+      lines: Line[]
+      MOD gates: Gate[]
+      TODO handles: Handle[]
+      TODO portals: Portal[]
+  */
+  MazeGame.set_gates = set_gates
+  function set_gates(game) {
+
+    const temp_gates = []
+
+    for (const line_idx in game.lines) {
+      const line = game.lines[line_idx]
+
+      if (line.state != 'door' || line.state != 'lazer') {
+        continue
+      }
+
+      const root_gate = temp_gates[line.root_node.gate]
+      const spot_gate = temp_gates[line.spot_node.gate]
+
+      if (root_gate) {
+        if ( line.spot_node.gate >= 0 ) {
+          temp_gates[line.spot_node.gate] = root_gate
+        }
+        else {
+          line.spot_node.gate = line.root_node.gate
+        }
+      }
+      else if (spot_gate) {
+        if ( line.root_node.gate >= 0 ) {
+          temp_gates[line.root_node.gate] = spot_gate
+        }
+        else {
+          line.root_node.gate = line.spot_node.gate
+        }
+      }
+      else {
+        const new_gate = {
+          // TODO
+        }
+        line.root_node.gate = temp_gates.length
+        line.spot_node.gate = temp_gates.length
+        temp_gates.push(new_gate)
+      }
+
+      line.gate = line.root_node.gate
+    }
+
+    for (const node_idx in game.nodes) {
+      const node = game.nodes[node_idx]
+      node.gate = temp_gates[node.gate]
+    }
+    for (const line_idx in game.lines) {
+      const line = game.lines[line_idx]
+      line.gate = temp_gates[line.gate]
+    }
+
+    game.gates = []
+    for (const gate_idx in temp_gates) {
+      const gate = temp_gates[gate_idx]
+
+      if (!gate.is_active) {
+        game.gates.push(gate)
+        gate.is_active = true
+      }
+    }
+
+
+  }
+
+  /* Set Colors (game: Game, room: Room)
+    Recommended pre-functions for Game: set_game_focus && solve_cells && set_gates
+    Requires: ( states: State[] )
+
+    State
+      stroke_color: Color(Gate)
+      fill_color: Color(Gate)
+    Gate
+      TODO handles
+      TODO portals
+    Node
+      state: String
+      gate: Gate
+      stroke_color: Color
+      fill_color: Color
+    Line
+      state: String
+      gate: Gate
+      stroke_color: Color
+      fill_color: Color
+    Game
+      nodes: Node[]
+      lines: Line[]
 
   */
   MazeGame.set_colors = set_colors
@@ -780,136 +890,24 @@ module.exports = (project_name) => {
     }
   }
 
+  /* Act At (game: Game, editor_id: Id, px,py: Float, called_by_act_at: Boolean)
+    Recommended pre-functions for Game: copy_game OR get_game
+    Calls: copy_game,
 
-  /*
-    requires
-      game: set_game_focus
-
-  */
-  function try_action(game, editor, px, py, log) {
-
-    let action = ''
-
-    const node = get_node(game, node_diameter2)
-    const line = !node && get_line(game, node_diameter2)
-
-    switch (editor.state) {
-      case 'node':
-      case 'door':
-      case 'wall':
-
-        if (editor.node) {
-          if (node) {
-            if (node == editor.node) {
-              if (editor.state == 'node') {
-                editor.node.x = px
-                editor.node.y = py
-                editor.node = null
-                return action + `moved and deselected node`
-              }
-              else {
-                editor.node = null
-                return `deselected node`
-              }
-            }
-            else if (editor.state == 'node') {
-              editor.node = node
-              return `selected node`
-            }
-            else {
-              const new_line = {
-                root_node: editor.node,
-                spot_node: node,
-                state: editor.state,
-              }
-              editor.node = node
-              game.lines.push(new_line)
-              return `selected node, added new line`
-            }
-          }
-          else if (editor.state == 'node') {
-            editor.node.x = px
-            editor.node.y = py
-            editor.node = null
-            return action + `moved and deselected node`
-          }
-          else {
-            const new_node = {
-              x: px,
-              y: py,
-              state: 'node',
-            }
-            game.nodes.push(new_node)
-
-            if (line) {
-
-              const new_line = {
-                root_node: new_node,
-                spot_node: line.spot_node,
-                state: line.state,
-              }
-              game.lines.push(new_line)
-
-              line.spot_node = new_node
-
-              action = `split ${line.state}, `
-            }
-
-            const new_line = {
-              root_node: editor.node,
-              spot_node: new_node,
-              state: editor.state,
-            }
-            editor.node = new_node
-            game.lines.push(new_line)
-            return action + `added and selected new node, added new ${editor.state}`
-          }
-        }
-        else if (node) {
-          editor.node = node
-          return `selected node`
-        }
-        else {
-          const new_node = {
-            x: px,
-            y: py,
-            state: 'node',
-          }
-          game.nodes.push(new_node)
-
-          if (line) {
-            const new_line = {
-              root_node: new_node,
-              spot_node: line.spot_node,
-              state: line.state,
-            }
-            game.lines.push(new_line)
-
-            line.spot_node = new_node
-
-            action = `split ${line.state}, `
-          }
-
-          if (editor.state == 'node') {
-            return action + `added new node`
-          }
-          else {
-            editor.node = new_node
-            return action + `added and selected new node`
-          }
-        }
-
-        return action
-    }
-  }
-
-  /*
-    requires
-      game: copy_game
-
+    Node
+      MOD state: String
+      MOD x,y: Float
+    Line
+      MOD root_node,spot_node: Node
+    Editor
+      state: String
+      MOD node
+    Game
+      MOD nodes: Node[]
+      MOD lines: Line[]
   */
   MazeGame.act_at = act_at
-  function act_at(game, editor_id, px, py, log) {
+  function act_at(game, editor_id, px, py, log, called_by_act_at) {
 
     const game_copy = copy_game(game)
 
@@ -919,13 +917,141 @@ module.exports = (project_name) => {
       return game_copy
     }
 
-    measure_lines(game_copy)
-    set_game_focus(game_copy, px, py)
+    // try action
+    {
+      measure_lines(game_copy)
+      set_game_focus(game_copy, px, py)
 
-    game_copy.action = try_action(game_copy, editor, px, py, log)
+      game_copy.action = ''
+
+      const node = get_node(game_copy, node_diameter2)
+      const line = !node && get_line(game_copy, node_diameter2)
+
+      switch (editor.state) {
+        case 'node':
+        case 'door':
+        case 'wall':
+
+        if (editor.node) {
+          if (node) {
+            if (node == editor.node) {
+              if (editor.state == 'node') {
+                editor.node.x = px
+                editor.node.y = py
+                editor.node = null
+                game_copy.action += `moved and deselected node`
+                break
+              }
+              else {
+                editor.node = null
+                game_copy.action = `deselected node`
+                break
+              }
+            }
+            else if (editor.state == 'node') {
+              editor.node = node
+              game_copy.action = `selected node`
+              break
+            }
+            else {
+              const new_line = {
+                root_node: editor.node,
+                spot_node: node,
+                state: editor.state,
+              }
+              editor.node = node
+              game_copy.lines.push(new_line)
+              game_copy.action = `selected node, added new line`
+              break
+            }
+          }
+          else if (editor.state == 'node') {
+            editor.node.x = px
+            editor.node.y = py
+            editor.node = null
+            game_copy.action += `moved and deselected node`
+            break
+          }
+          else {
+            const new_node = {
+              x: px,
+              y: py,
+              state: 'node',
+            }
+            game_copy.nodes.push(new_node)
+
+            if (line) {
+
+              const new_line = {
+                root_node: new_node,
+                spot_node: line.spot_node,
+                state: line.state,
+              }
+              game_copy.lines.push(new_line)
+
+              line.spot_node = new_node
+
+              game_copy.action = `split ${line.state}, `
+            }
+
+            const new_line = {
+              root_node: editor.node,
+              spot_node: new_node,
+              state: editor.state,
+            }
+            editor.node = new_node
+            game_copy.lines.push(new_line)
+            game_copy.action += `added and selected new node, added new ${editor.state}`
+            break
+          }
+        }
+        else if (node) {
+          editor.node = node
+          game_copy.action = `selected node`
+          break
+        }
+        else {
+          const new_node = {
+            x: px,
+            y: py,
+            state: 'node',
+          }
+          game_copy.nodes.push(new_node)
+
+          if (line) {
+            const new_line = {
+              root_node: new_node,
+              spot_node: line.spot_node,
+              state: line.state,
+            }
+            game_copy.lines.push(new_line)
+
+            line.spot_node = new_node
+
+            game_copy.action = `split ${line.state}, `
+          }
+
+          if (editor.state == 'node') {
+            game_copy.action += `added new node`
+            break
+          }
+          else {
+            editor.node = new_node
+            game_copy.action += `added and selected new node`
+            break
+          }
+        }
+
+        case 'handle':
+        case 'portal':
+
+
+      }
+    }
 
     measure_lines(game_copy)
-    if (game_copy.action && !check_is_valid_game(game_copy, log)) {
+    const message = game_copy.action && check_is_valid_game(game_copy)
+    if (message) {
 
       const editor = game.editors[editor_id]
 
@@ -937,12 +1063,11 @@ module.exports = (project_name) => {
         game.action = `no action`
       }
 
-      if (game.act_at) {
+      if (called_by_act_at) {
         return copy_game(game)
       }
       else {
-        game.act_at = true
-        return act_at(game, editor_id, px, py, log)
+        return act_at(game, editor_id, px, py, log, true)
       }
     }
     else {

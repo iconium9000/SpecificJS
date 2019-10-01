@@ -100,14 +100,19 @@ function MazeGame() {
 			// delete
 			else if (e.which == 127) {
 				if (editor.node) {
-					mg.remove_node(game, editor.node)
+					const node_idx = game.nodes.indexOf(editor.node)
+					editor.node.idx = -1
+					game.nodes.splice(node_idx, 1)
+					client.game = mg.copy_game(game)
 				}
 			}
 			else if (c == ' ') {
 
 				const game = mg.copy_game(client.game)
-				// mg.measure_lines(game)
-				// mg.set_game_focus(game, mouse.x+client.x, mouse.y+client.y)
+
+				mg.measure_lines(game)
+				mg.solve_rooms(game)
+				mg.solve_cells(game)
 
 				log('SPACEBAR', game)
 
@@ -183,7 +188,9 @@ function MazeGame() {
 		mg.measure_lines(game)
 		mg.solve_rooms(game)
 		mg.solve_cells(game)
-		mg.set_game_focus(game, px, py)
+		mg.set_game_focus(game,
+			mouse.x+client.x,
+			mouse.y+client.y)
 		const sel_room = mg.get_room(game)
 		mg.set_colors(game, sel_room)
 
@@ -239,7 +246,6 @@ function MazeGame() {
 					ctx.stroke()
 				}
 			}
-
 
 			// draw bottom nodes
 			for (const node_idx in game.nodes) {
