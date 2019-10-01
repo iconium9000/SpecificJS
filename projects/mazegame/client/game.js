@@ -292,7 +292,9 @@ module.exports = (project_name) => {
     return ret_line
   }
 
-  /* Get Line (game: Game)
+
+
+  /* Check Is Valid Game (game: Game)
     Return: String if...
       nodes are within node_diameter of each other
       for a line root_node == spot_node
@@ -926,50 +928,91 @@ module.exports = (project_name) => {
 
       const node = get_node(game_copy, node_diameter2)
       const line = !node && get_line(game_copy, node_diameter2)
+      const portal = line && get_portal(line)
+
+      const state = states[editor.state]
 
       switch (editor.state) {
         case 'node':
         case 'door':
         case 'wall':
 
-        if (editor.node) {
-          if (node) {
-            if (node == editor.node) {
-              if (editor.state == 'node') {
-                editor.node.x = px
-                editor.node.y = py
-                editor.node = null
-                game_copy.action += `moved and deselected node`
+          if (editor.node) {
+            if (node) {
+              if (node == editor.node) {
+                if (editor.state == 'node') {
+                  editor.node.x = px
+                  editor.node.y = py
+                  editor.node = null
+                  game_copy.action += `moved and deselected node`
+                  break
+                }
+                else {
+                  editor.node = null
+                  game_copy.action = `deselected node`
+                  break
+                }
+              }
+              else if (editor.state == 'node') {
+                editor.node = node
+                game_copy.action = `selected node`
                 break
               }
               else {
-                editor.node = null
-                game_copy.action = `deselected node`
+                const new_line = {
+                  root_node: editor.node,
+                  spot_node: node,
+                  state: editor.state,
+                }
+                editor.node = node
+                game_copy.lines.push(new_line)
+                game_copy.action = `selected node, added new line`
                 break
               }
             }
             else if (editor.state == 'node') {
-              editor.node = node
-              game_copy.action = `selected node`
+              editor.node.x = px
+              editor.node.y = py
+              editor.node = null
+              game_copy.action += `moved and deselected node`
               break
             }
             else {
+              const new_node = {
+                x: px,
+                y: py,
+                state: 'node',
+              }
+              game_copy.nodes.push(new_node)
+
+              if (line) {
+
+                const new_line = {
+                  root_node: new_node,
+                  spot_node: line.spot_node,
+                  state: line.state,
+                }
+                game_copy.lines.push(new_line)
+
+                line.spot_node = new_node
+
+                game_copy.action = `split ${line.state}, `
+              }
+
               const new_line = {
                 root_node: editor.node,
-                spot_node: node,
+                spot_node: new_node,
                 state: editor.state,
               }
-              editor.node = node
+              editor.node = new_node
               game_copy.lines.push(new_line)
-              game_copy.action = `selected node, added new line`
+              game_copy.action += `added and selected new node, added new ${editor.state}`
               break
             }
           }
-          else if (editor.state == 'node') {
-            editor.node.x = px
-            editor.node.y = py
-            editor.node = null
-            game_copy.action += `moved and deselected node`
+          else if (node) {
+            editor.node = node
+            game_copy.action = `selected node`
             break
           }
           else {
@@ -981,7 +1024,6 @@ module.exports = (project_name) => {
             game_copy.nodes.push(new_node)
 
             if (line) {
-
               const new_line = {
                 root_node: new_node,
                 spot_node: line.spot_node,
@@ -994,56 +1036,26 @@ module.exports = (project_name) => {
               game_copy.action = `split ${line.state}, `
             }
 
-            const new_line = {
-              root_node: editor.node,
-              spot_node: new_node,
-              state: editor.state,
+            if (editor.state == 'node') {
+              game_copy.action += `added new node`
+              break
             }
-            editor.node = new_node
-            game_copy.lines.push(new_line)
-            game_copy.action += `added and selected new node, added new ${editor.state}`
-            break
-          }
-        }
-        else if (node) {
-          editor.node = node
-          game_copy.action = `selected node`
-          break
-        }
-        else {
-          const new_node = {
-            x: px,
-            y: py,
-            state: 'node',
-          }
-          game_copy.nodes.push(new_node)
-
-          if (line) {
-            const new_line = {
-              root_node: new_node,
-              spot_node: line.spot_node,
-              state: line.state,
+            else {
+              editor.node = new_node
+              game_copy.action += `added and selected new node`
+              break
             }
-            game_copy.lines.push(new_line)
-
-            line.spot_node = new_node
-
-            game_copy.action = `split ${line.state}, `
           }
-
-          if (editor.state == 'node') {
-            game_copy.action += `added new node`
-            break
-          }
-          else {
-            editor.node = new_node
-            game_copy.action += `added and selected new node`
-            break
-          }
-        }
 
         case 'handle':
         case 'portal':
+
+          if (line) {
+
+
+
+          }
+
 
 
       }
