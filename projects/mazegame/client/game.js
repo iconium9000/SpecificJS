@@ -27,7 +27,7 @@ module.exports = (project_name) => {
   const handle_portal_dist2 = handle_portal_dist * handle_portal_dist
 
   const top_scale = 1.1
-  const mid_scale = (3 - top_scale) / 2
+  const mid_scale = (top_scale + 1) / 2
   const line_width = node_radius / 2
 
   MazeGame.node_radius = node_radius
@@ -159,8 +159,7 @@ module.exports = (project_name) => {
       action: String
   */
   MazeGame.copy_game = copy_game
-  function copy_game(game, log) {
-    log = log || (()=>{})
+  function copy_game(game) {
 
     // clear idx
     {
@@ -314,8 +313,9 @@ module.exports = (project_name) => {
       x,y: Float
     Line
       root_node,spot_node: Node
-      MOD vx,vy,length2: Float
+      MOD vx,vy,length2,length2: Float
         vx,vy: vector from root_node to spot_node
+        length: length of vx,vy
         length2: length of vx,vy squared
     Game
       nodes: Node[]
@@ -328,6 +328,7 @@ module.exports = (project_name) => {
       line.vx = line.spot_node.x - line.root_node.x
       line.vy = line.spot_node.y - line.root_node.y
       line.length2 = line.vx*line.vx + line.vy*line.vy
+      line.length = Math.sqrt(line.length2)
     }
   }
 
@@ -347,26 +348,31 @@ module.exports = (project_name) => {
       handles: Handle[]
   */
   MazeGame.measure_handles = measure_handles
-  function measure_handles(game) {
+  function measure_handles(game, log) {
+    const handle_portal_dist = handle_radius * 1.25 + portal_radius
+    const handle_diameter = handle_radius * 3
+
     for (const handle_idx in game.handles) {
       const handle = game.handles[handle_idx]
-      const length2 = handle.line.length2
+      const length = handle.line.length
 
       if (handle.portal) {
         handle.side = handle.portal.side * (handle.fix == 0 ? -1 : 1)
-        handle.dot = handle.portal.dot + handle.fix * handle_portal_dist2 / length2
+        handle.dot = handle.portal.dot + handle.fix * handle_portal_dist / length
       }
       else if (handle.handle) {
         handle.side = handle.handle.side * (handle.fix == 0 ? -1 : 1)
-        handle.dot = handle.handle.dot + handle.fix * handle_diameter2 / length2
+        handle.dot = handle.handle.dot + handle.fix * handle_diameter / length
       }
       else {
         handle.side = handle.fix
-        handle.dot = handle_radius / length2
+        handle.dot = handle_radius / length
         if (Math.abs(handle.fix) > 1) {
           handle.dot = 1 - handle.dot
         }
       }
+
+      log && log(handle.dot)
     }
   }
 
@@ -486,15 +492,15 @@ module.exports = (project_name) => {
   MazeGame.get_portal = get_portal
   function get_portal(game, line) {
 
-    let min_dist2 = portal_radius2 / line.length2
+    let min_dist = portal_radius / line.length
     let ret_portal = null
 
     for (const portal_idx in game.portals) {
       const portal = game.portals[portal_idx]
       if (portal.line == line) {
-        const dist2 = Math.abs(portal.dot - line.dot)
-        if (dist2 < min_dist2) {
-          min_dist2 = dist2
+        const dist = Math.abs(portal.dot - line.dot)
+        if (dist < min_dist) {
+          min_dist = dist
           ret_portal = portal
         }
       }
@@ -517,15 +523,18 @@ module.exports = (project_name) => {
   MazeGame.get_handle = get_handle
   function get_handle(game, line) {
 
-    let min_dist2 = handle_radius2 / line.length2
+    let min_dist = handle_diameter * 2 / line.length
     let ret_handle = null
 
     for (const handle_idx in game.handles) {
       const handle = game.handles[handle_idx]
-      if (handle.line == line && handle.side > 0 == line.side > 0) {
-        const dist2 = Math.abs(handle.dot - line.dot)
-        if (dist2 < min_dist2) {
-          min_dist2 = dist2
+      if (handle.line == line) {
+        const dist = Math.abs(handle.dot - line.dot)
+        if (dist < min_dist) {
+          min_dist = dist
+          if (handle.side > 0 != line.side > 0) {
+            min_dist += handle_radius
+          }
           ret_handle = handle
         }
       }
@@ -644,14 +653,14 @@ module.exports = (project_name) => {
 
     for (let root_idx = 0; root_idx < game.portals.length; ++root_idx) {
       const root_portal = game.portals[root_idx]
-      const length2 = root_portal.line.length2
+      const length = root_portal.line.length
 
       for (const handle_idx in game.handles) {
         const handle = game.handles[handle_idx]
 
         if (handle.line == root_portal.line &&
-          handle.side > 0 == portal.side > 0 &&
-          Math.abs(handle.dot - root_portal.dot) * length2 < handle_portal_dist2
+          handle.side > 0 == root_portal.side > 0 &&
+          Math.abs(handle.dot - root_portal.dot) * length < handle_portal_dist
         ) {
           return `handle overlaps portal`
         }
@@ -662,7 +671,7 @@ module.exports = (project_name) => {
 
 
         if (root_portal.line == spot_portal.line &&
-          Math.abs(root_portal.dot - spot_portal.dot) * length2 < portal_diameter2
+          Math.abs(root_portal.dot - spot_portal.dot) * length < portal_diameter
         ) {
           return `portals overlap`
         }
@@ -671,14 +680,14 @@ module.exports = (project_name) => {
 
     for (let root_idx = 0; root_idx < game.handles.length; ++root_idx) {
       const root_handle = game.handles[root_idx]
-      const length2 = root_handle.line.length2
+      const length = root_handle.line.length
 
       for (let spot_idx = root_idx + 1; spot_idx < game.handles.length; ++spot_idx) {
         const spot_handle = game.handles[spot_idx]
 
         if (root_handle.line == spot_handle.line &&
           root_handle.side > 0 == spot_handle.side > 0 &&
-          Math.abs(root_handle.dot - spot_handle.dot) * length2 < handle_diameter2
+          Math.abs(root_handle.dot - spot_handle.dot) * length < handle_diameter2
         ) {
           return `handles overlap`
         }
@@ -801,7 +810,7 @@ module.exports = (project_name) => {
       lines: Line[]
   */
   MazeGame.get_room = get_room
-  function get_room ( game, log ) {
+  function get_room ( game ) {
 
     let ret_line = null
     let min_dist2 = Infinity
@@ -1143,90 +1152,6 @@ module.exports = (project_name) => {
 
   }
 
-  /* Set Colors (game: Game, room: Room)
-    Recommended pre-functions for Game:
-      set_game_focus && solve_cells && set_gates && measure_handles
-
-    Requires: ( states: State[] )
-
-    State
-      stroke_color: Color(Gate)
-      fill_color: Color(Gate)
-    Gate
-      TODO handles
-      TODO portals
-    Node
-      state: String
-      gate: Gate
-      stroke_color: Color
-      fill_color: Color
-    Line
-      state: String
-      gate: Gate
-      stroke_color: Color
-      fill_color: Color
-    Game
-      nodes: Node[]
-      lines: Line[]
-
-  */
-  MazeGame.set_colors = set_colors
-  function set_colors({nodes, lines, portals, handles}, room) {
-
-    for (const node_idx in nodes) {
-      const node = nodes[node_idx]
-      const state = states[node.state]
-
-      node.stroke_color = state.stroke_color(node.gate)
-      node.fill_color = state.fill_color(node.gate)
-    }
-
-    for (const line_idx in lines) {
-      let line = lines[line_idx]
-      const state = states[line.state]
-      line.length = Math.sqrt(line.length2)
-      line.dx = -line.vy / line.length
-      line.dy = line.vx / line.length
-
-      line.stroke_color = state.stroke_color(line.gate)
-      line.fill_color = state.fill_color(line.gate)
-    }
-
-    for (const portal_idx in portals) {
-      const portal = portals[portal_idx]
-      const line = portal.line
-
-      portal.fill_color = '#ff00ff'
-
-      if (portal.side > 0 == line.side > 0) {
-        portal.x = line.root_node.x + portal.dot * line.vx + line.dx * portal_radius
-        portal.y = line.root_node.y + portal.dot * line.vy + line.dy * portal_radius
-      }
-      else {
-        portal.x = line.root_node.x + portal.dot * line.vx - line.dx * portal_radius
-        portal.y = line.root_node.y + portal.dot * line.vy - line.dy * portal_radius
-      }
-    }
-
-    for (const handle_idx in handles) {
-      const handle = handles[handle_idx]
-      const line = handle.lines
-
-      handle.fill_color = '#00ff00'
-
-      if (handle.side > 0 == line.side > 0) {
-        handle.x = line.root_node.x + handle.dot * line.vx + line.dx * handle_radius
-        handle.y = line.root_node.y + handle.dot * line.vy + line.dy * handle_radius
-      }
-      else {
-        handle.x = line.root_node.x + handle.dot * line.vx - line.dx * handle_radius
-        handle.y = line.root_node.y + handle.dot * line.vy - line.dy * handle_radius
-      }
-    }
-
-
-  }
-
   /* Act At (game: Game, editor_id: Id, px,py: Float, called_by_act_at: Boolean)
     Recommended pre-functions for Game: copy_game OR get_game
     Calls: copy_game,
@@ -1267,15 +1192,21 @@ module.exports = (project_name) => {
     // try action
     {
       measure_lines(game_copy)
-      measure_handles(game)
+      measure_handles(game_copy)
       set_game_focus(game_copy, px, py)
 
       game_copy.action = ''
 
       const node = get_node(game_copy, node_diameter2)
       const line = !node && get_line(game_copy, node_diameter2)
-      const handle = line && get_handle(game, line)
-      const portal = line && !handle && get_portal(game, line)
+      const handle = line && get_handle(game_copy, line, log)
+      const portal = line && !handle && get_portal(game_copy, line)
+
+      log(
+        node && 'node',
+        line && 'line',
+        handle && 'handle',
+        portal && 'portal')
 
       const state = states[editor.state]
 
@@ -1396,18 +1327,6 @@ module.exports = (project_name) => {
         case 'handle':
 
           if (handle) {
-            if (editor.handle == handle) {
-              editor.handle = null
-              game_copy.action = `deselected handle`
-              break
-            }
-            else {
-              editor.handle = handle
-              game_copy.action = `selected handle`
-              break
-            }
-          }
-          else if (handle) {
             const new_handle = {
               line: line,
               handle: handle,
@@ -1423,18 +1342,34 @@ module.exports = (project_name) => {
               portal: portal,
               fix: line.side > 0 == portal.side > 0 ? line.dot > portal.dot ? 1 : -1 : 0,
             }
+
             game_copy.handles.push(new_handle)
             game_copy.action = `added new handle to portal`
             break
           }
           else if (line) {
-            const new_handle = {
-              line: line,
-              fix: (line.side > 0 ? 1 : -1) * (line.dot > 0.5 ? 2 : 1),
+
+            const length = line.dot * line.length
+            const handle_diameter = handle_radius * 2.5
+
+            if (length < handle_diameter) {
+              const new_handle = {
+                line: line,
+                fix: line.side > 0 ? 1 : -1,
+              }
+              game_copy.handles.push(new_handle)
+              game_copy.action = `added new handle to node`
+              break
             }
-            game_copy.handles.push(new_handle)
-            game_copy.action = `added new handle to node`
-            break
+            else if (length > line.length - handle_diameter) {
+              const new_handle = {
+                line: line,
+                fix: line.side > 0 ? 2 : -2,
+              }
+              game_copy.handles.push(new_handle)
+              game_copy.action = `added new handle to node`
+              break
+            }
           }
 
           break
@@ -1472,6 +1407,8 @@ module.exports = (project_name) => {
     const message = game_copy.action && check_is_valid_game(game_copy)
     if (message) {
 
+      log('invalid', message)
+
       const editor = game.editors[editor_id]
 
       if (editor.node) {
@@ -1497,6 +1434,155 @@ module.exports = (project_name) => {
       return new_game
     }
 
+  }
+
+  /* Set Up Game (game: Game, client: Client, mouse: Mouse)
+
+    Recommended pre-functions for Game: game_copy
+    Requires: ( states: State[] )
+
+    Client:
+      x,y: Float
+    Mouse:
+      scale,width,height: Float
+
+    TODO (incomplete)
+
+    State
+      stroke_color: Color(Gate)
+      fill_color: Color(Gate)
+    Gate
+      TODO handles
+      TODO portals
+    Node
+      state: String
+      gate: Gate
+      stroke_color: Color
+      fill_color: Color
+    Line
+      state: String
+      gate: Gate
+      stroke_color: Color
+      fill_color: Color
+    Game
+      nodes: Node[]
+      lines: Line[]
+
+  */
+  MazeGame.setup_game = setup_game
+  function setup_game(game, {x: px, y: py}, {scale, width, height}) {
+
+    measure_lines(game)
+    measure_handles(game)
+    solve_rooms(game)
+    solve_cells(game)
+    set_game_focus(game, px, py)
+    const sel_room = get_room(game)
+
+    // set colors
+    {
+      for (const node_idx in game.nodes) {
+        const node = game.nodes[node_idx]
+        const state = states[node.state]
+
+        node.stroke_color = state.stroke_color(node.gate)
+        node.fill_color = state.fill_color(node.gate)
+      }
+
+      for (const line_idx in game.lines) {
+        let line = game.lines[line_idx]
+        const state = states[line.state]
+        line.length = Math.sqrt(line.length2)
+        line.dx = -line.vy / line.length
+        line.dy = line.vx / line.length
+
+        line.stroke_color = state.stroke_color(line.gate)
+        line.fill_color = state.fill_color(line.gate)
+      }
+
+      for (const portal_idx in game.portals) {
+        const portal = game.portals[portal_idx]
+        const line = portal.line
+
+        portal.fill_color = '#ff00ff'
+
+        if (portal.side > 0) {
+          portal.x = line.root_node.x + portal.dot * line.vx + line.dx * portal_radius
+          portal.y = line.root_node.y + portal.dot * line.vy + line.dy * portal_radius
+        }
+        else {
+          portal.x = line.root_node.x + portal.dot * line.vx - line.dx * portal_radius
+          portal.y = line.root_node.y + portal.dot * line.vy - line.dy * portal_radius
+        }
+      }
+
+      for (const handle_idx in game.handles) {
+        const handle = game.handles[handle_idx]
+        const line = handle.line
+
+        handle.fill_color = '#00ff00'
+        handle.stroke_color = '#00ff00'
+
+        if (handle.side > 0) {
+          handle.x = line.root_node.x + handle.dot * line.vx + line.dx * handle_radius
+          handle.y = line.root_node.y + handle.dot * line.vy + line.dy * handle_radius
+        }
+        else {
+          handle.x = line.root_node.x + handle.dot * line.vx - line.dx * handle_radius
+          handle.y = line.root_node.y + handle.dot * line.vy - line.dy * handle_radius
+        }
+      }
+
+      for (const room_idx in game.rooms) {
+        const room = game.rooms[room_idx]
+        room.fill_color = sel_room == room ? `#80ff8020` : `#ffffff20`
+
+        for (const cord_idx in room.cords) {
+          const cord  = room.cords[cord_idx]
+          cord.stroke_color = '#80808020'
+        }
+      }
+    }
+
+    // set transforms
+    {
+      const scale_bot = scale
+      const shift_bot_x = width / 2 - px * scale_bot
+      const shift_bot_y = height / 2 - py * scale_bot
+
+      const scale_mid = scale * mid_scale
+      const shift_mid_x = width / 2 - px * scale_mid
+      const shift_mid_y = height / 2 - py * scale_mid
+
+      const scale_top = scale * top_scale
+      const shift_top_x = width / 2 - px * scale_top
+      const shift_top_y = height / 2 - py * scale_top
+
+      // set a, b, and p transforms for all nodes
+      for (const node_idx in game.nodes) {
+        const node = game.nodes[node_idx]
+        node.bot_x = node.x*scale_bot + shift_bot_x
+        node.bot_y = node.y*scale_bot + shift_bot_y
+        node.mid_x = node.x*scale_mid + shift_mid_x
+        node.mid_y = node.y*scale_mid + shift_mid_y
+        node.top_x = node.x*scale_top + shift_top_x
+        node.top_y = node.y*scale_top + shift_top_y
+      }
+
+      for (const portal_idx in game.portals) {
+        const portal = game.portals[portal_idx]
+
+        portal.mid_x = portal.x*scale_mid + shift_mid_x
+        portal.mid_y = portal.y*scale_mid + shift_mid_y
+      }
+
+      for (const handle_idx in game.handles) {
+        const handle = game.handles[handle_idx]
+
+        handle.mid_x = handle.x*scale_mid + shift_mid_x
+        handle.mid_y = handle.y*scale_mid + shift_mid_y
+      }
+    }
   }
 
   log('game.js')
