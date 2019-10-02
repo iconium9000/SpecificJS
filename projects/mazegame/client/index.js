@@ -63,14 +63,11 @@ function MazeGame() {
     mouse.y = (e.clientY - 7 - mouse.height / 2) / mouse.scale
 
 		if (mouse.left_down) {
-			// TODO
-			// mouse.x+client.x, mouse.y+client.y
 
 			client.game = mg.act_at(
 				mg.copy_game(client.game),
 				client.socket.id,
 				mouse.x+client.x, mouse.y+client.y, log)
-			log(mg.copy_game(client.game, log).handles)
 
 			log('action', client.game.action)
 		}
@@ -174,9 +171,10 @@ function MazeGame() {
 		const shift_x = 1/2 - client.x, shift_y = 1/2 - client.y
 		const node_radius = mg.node_radius * mouse.scale
 		const node_diameter = mg.node_diameter * mouse.scale
+		const portal_radius = mg.portal_radius * mouse.scale
+		const handle_radius = mg.handle_radius * mouse.scale
 		const line_width = mg.line_width * mouse.scale
 		const half_line_width = line_width / 2
-		const portal_radius = mg.portal_radius * mouse.scale
 
 		let game = mg.copy_game(client.game)
 		if (!is_mobile) {
@@ -191,9 +189,7 @@ function MazeGame() {
 		mg.measure_lines(game)
 		mg.solve_rooms(game)
 		mg.solve_cells(game)
-		mg.set_game_focus(game,
-			mouse.x+client.x,
-			mouse.y+client.y)
+		mg.set_game_focus(game, mouse.x+client.x, mouse.y+client.y)
 		const sel_room = mg.get_room(game)
 		mg.set_colors(game, sel_room)
 
@@ -201,17 +197,31 @@ function MazeGame() {
 		const shift_bot_x = mouse.width / 2 - px * scale_bot
 		const shift_bot_y = mouse.height / 2 - py * scale_bot
 
-		const scale_top = mouse.scale * mg.hight_scale
+		const scale_mid = mouse.scale * mg.mid_scale
+		const shift_mid_x = mouse.width / 2 - px * scale_mid
+		const shift_mid_y = mouse.height / 2 - py * scale_mid
+
+		const scale_top = mouse.scale * mg.top_scale
 		const shift_top_x = mouse.width / 2 - px * scale_top
 		const shift_top_y = mouse.height / 2 - py * scale_top
 
-		// set a, b, and p transforms for all nodes
-		for (const node_idx in game.nodes) {
+
+		{
+			// set a, b, and p transforms for all nodes
+			for (const node_idx in game.nodes) {
 			const node = game.nodes[node_idx]
 			node.bot_x = node.x*scale_bot + shift_bot_x
 			node.bot_y = node.y*scale_bot + shift_bot_y
 			node.top_x = node.x*scale_top + shift_top_x
 			node.top_y = node.y*scale_top + shift_top_y
+		}
+
+			for (const portal_idx in game.portals) {
+				const portal = game.portals[portal_idx]
+
+				portal.mid_x = portal.x*scale_mid + shift_mid_x
+				portal.mid_y = portal.y*scale_mid + shift_mid_y
+			}
 		}
 
 		// draw level
@@ -272,6 +282,18 @@ function MazeGame() {
 
 			}
 
+
+			for (const portal_idx in game.portals) {
+				const portal = game.portals[portal_idx]
+
+				if (portal.side > 0 != portal.line.side) {
+					ctx.fillStyle = portal.fill_color
+					ctx.beginPath()
+					ctx.arc(portal.mid_x, portal.mid_y, portal_radius, 0, pi2)
+					ctx.fill()
+				}
+			}
+
 			// draw polys
 			for (const line_idx in game.lines) {
 				const line = game.lines[line_idx]
@@ -283,6 +305,17 @@ function MazeGame() {
 				ctx.lineTo(line.spot_node.top_x, line.spot_node.top_y)
 				ctx.lineTo(line.root_node.top_x, line.root_node.top_y)
 				ctx.fill()
+			}
+
+			for (const portal_idx in game.portals) {
+				const portal = game.portals[portal_idx]
+
+				if (portal.side > 0 == portal.line.side) {
+					ctx.fillStyle = portal.fill_color
+					ctx.beginPath()
+					ctx.arc(portal.mid_x, portal.mid_y, portal_radius, 0, pi2)
+					ctx.fill()
+				}
 			}
 
 			// draw top lines

@@ -8,7 +8,6 @@ module.exports = (project_name) => {
   const noise = 1e-10
   MazeGame.noise = noise
 
-
   const node_radius = 1 / 120
   const node_radius2 = node_radius*node_radius
   const node_diameter = 2*node_radius
@@ -27,7 +26,8 @@ module.exports = (project_name) => {
   const handle_portal_dist = handle_radius + portal_radius
   const handle_portal_dist2 = handle_portal_dist * handle_portal_dist
 
-  const hight_scale = 1.1
+  const top_scale = 1.1
+  const mid_scale = (3 - top_scale) / 2
   const line_width = node_radius / 2
 
   MazeGame.node_radius = node_radius
@@ -36,7 +36,8 @@ module.exports = (project_name) => {
   MazeGame.node_diameter2 = node_diameter2
   MazeGame.portal_radius = portal_radius
   MazeGame.handle_radius = handle_radius
-  MazeGame.hight_scale = hight_scale
+  MazeGame.mid_scale = mid_scale
+  MazeGame.top_scale = top_scale
 
   // TODO
   const states = {
@@ -264,7 +265,6 @@ module.exports = (project_name) => {
           line: new_line,
           fix: handle.fix,
         }
-        log('copy handle', handle)
 
         if (handle.portal) {
           const portal = new_game.portals[handle.portal.idx]
@@ -283,7 +283,6 @@ module.exports = (project_name) => {
           }
         }
         else {
-          new_handle.handle = handle
           new_game.handles.push(new_handle)
           handle.idx = handle_idx
         }
@@ -387,9 +386,9 @@ module.exports = (project_name) => {
         from measure_lines
       MOD side,dot,px,py,dist2: Float
         px,py: vector from closest point on Line to fx,fy
-        side: if +x is up, and +y is right...
-          +side indicates fx,fy on right side of Line
-          -side indicates fx,fy on left side of Line
+        side: if +y is up, and +x is right...
+          +side indicates fx,fy on left side of Line
+          -side indicates fx,fy on right side of Line
           0 side indicates fx,fy on line
           side / Line.length = px,py length
         dist2: length of px,py squared
@@ -491,7 +490,7 @@ module.exports = (project_name) => {
     let ret_portal = null
 
     for (const portal_idx in game.portals) {
-      const portal = line.portals[portal_idx]
+      const portal = game.portals[portal_idx]
       if (portal.line == line) {
         const dist2 = Math.abs(portal.dot - line.dot)
         if (dist2 < min_dist2) {
@@ -522,7 +521,7 @@ module.exports = (project_name) => {
     let ret_handle = null
 
     for (const handle_idx in game.handles) {
-      const handle = line.handles[handle_idx]
+      const handle = game.handles[handle_idx]
       if (handle.line == line && handle.side > 0 == line.side > 0) {
         const dist2 = Math.abs(handle.dot - line.dot)
         if (dist2 < min_dist2) {
@@ -1145,7 +1144,9 @@ module.exports = (project_name) => {
   }
 
   /* Set Colors (game: Game, room: Room)
-    Recommended pre-functions for Game: set_game_focus && solve_cells && set_gates
+    Recommended pre-functions for Game:
+      set_game_focus && solve_cells && set_gates && measure_handles
+
     Requires: ( states: State[] )
 
     State
@@ -1170,21 +1171,60 @@ module.exports = (project_name) => {
 
   */
   MazeGame.set_colors = set_colors
-  function set_colors({nodes, lines}, room) {
+  function set_colors({nodes, lines, portals, handles}, room) {
 
     for (const node_idx in nodes) {
       const node = nodes[node_idx]
       const state = states[node.state]
+
       node.stroke_color = state.stroke_color(node.gate)
       node.fill_color = state.fill_color(node.gate)
     }
 
     for (const line_idx in lines) {
-      const line = lines[line_idx]
+      let line = lines[line_idx]
       const state = states[line.state]
+      line.length = Math.sqrt(line.length2)
+      line.dx = -line.vy / line.length
+      line.dy = line.vx / line.length
+
       line.stroke_color = state.stroke_color(line.gate)
       line.fill_color = state.fill_color(line.gate)
     }
+
+    for (const portal_idx in portals) {
+      const portal = portals[portal_idx]
+      const line = portal.line
+
+      portal.fill_color = '#ff00ff'
+
+      if (portal.side > 0 == line.side > 0) {
+        portal.x = line.root_node.x + portal.dot * line.vx + line.dx * portal_radius
+        portal.y = line.root_node.y + portal.dot * line.vy + line.dy * portal_radius
+      }
+      else {
+        portal.x = line.root_node.x + portal.dot * line.vx - line.dx * portal_radius
+        portal.y = line.root_node.y + portal.dot * line.vy - line.dy * portal_radius
+      }
+    }
+
+    for (const handle_idx in handles) {
+      const handle = handles[handle_idx]
+      const line = handle.lines
+
+      handle.fill_color = '#00ff00'
+
+      if (handle.side > 0 == line.side > 0) {
+        handle.x = line.root_node.x + handle.dot * line.vx + line.dx * handle_radius
+        handle.y = line.root_node.y + handle.dot * line.vy + line.dy * handle_radius
+      }
+      else {
+        handle.x = line.root_node.x + handle.dot * line.vx - line.dx * handle_radius
+        handle.y = line.root_node.y + handle.dot * line.vy - line.dy * handle_radius
+      }
+    }
+
+
   }
 
   /* Act At (game: Game, editor_id: Id, px,py: Float, called_by_act_at: Boolean)
@@ -1453,7 +1493,7 @@ module.exports = (project_name) => {
       if (!game_copy.action) {
         game_copy.action = `no action`
       }
-      const new_game = copy_game(game_copy)
+      const new_game = copy_game(game_copy, log)
       return new_game
     }
 
