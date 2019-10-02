@@ -70,6 +70,7 @@ function MazeGame() {
 				mg.copy_game(client.game),
 				client.socket.id,
 				mouse.x+client.x, mouse.y+client.y, log)
+			log(mg.copy_game(client.game, log).handles)
 
 			log('action', client.game.action)
 		}
@@ -95,6 +96,8 @@ function MazeGame() {
 			if (state) {
 				editor.state = state.name
 				editor.node = null
+				editor.portal = null
+				editor.handle = null
 				log('changed state to', state.name)
 			}
 			// delete
