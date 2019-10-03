@@ -1,9 +1,6 @@
 module.exports = (project_name) => {
 
   const MazeGame = {}
-  const log = (...msg) => console.log(project_name, ...msg)
-  const pi = Math.PI
-  const pi2 = pi * 2
 
   const noise = 1e-10
   MazeGame.noise = noise
@@ -43,28 +40,28 @@ module.exports = (project_name) => {
   const states = {
     node: {
       key: 'n',
-      stroke_color: gate => '#ffffff80',
-      fill_color: gate => '#ffffff',
+      stroke_color: gate_is_active => '#ffffff80',
+      fill_color: gate_is_active => '#ffffff',
     },
     wall: {
       key: 'w',
-      stroke_color: gate => '#ffffff80',
-      fill_color: gate => '#00000080',
+      stroke_color: gate_is_active => '#ffffff80',
+      fill_color: gate_is_active => '#00000080',
     },
     door: {
       key: 'd',
-      stroke_color: gate => '#00ff0080',
-      fill_color: gate => '#00800080',
+      stroke_color: gate_is_active => gate_is_active ? '#00ff0080' : '#ff000080',
+      fill_color: gate_is_active => gate_is_active ? '#00800080' : '#80000080',
     },
     handle: {
       key: 'h',
-      stroke_color: gate => '#ffffff80',
-      fill_color: gate => '#00800080',
+      stroke_color: gate_is_active => gate_is_active ? '#00ff0080' : '#ff000080',
+      fill_color: gate_is_active => gate_is_active ? '#00800080' : '#80000080',
     },
     portal: {
       key: 'p',
-      stroke_color: gate => '#ffffff80',
-      fill_color: gate => '#00800080',
+      stroke_color: gate_is_active => gate_is_active ? '#ff00ff80' : '#ff000080',
+      fill_color: gate_is_active => gate_is_active ? '#80008080' : '#80000080',
     }
   }
   const state_keys = {}
@@ -77,9 +74,9 @@ module.exports = (project_name) => {
   MazeGame.state_keys = state_keys
 
   MazeGame.check_line_cross = (
-    {root_node: a0, spot_node: a1},
-    {root_node: b0, spot_node: b1}
-  ) => line_cross(a0.x, a0.y, a1.x, a1.y, b0.x, b0.y, b1.x, b1.y)
+    {root_node: {x: a00, y: a01}, spot_node: {x: a10, y: a11}},
+    {root_node: {x: b00, y: b01}, spot_node: {x: b10, y: b11}},
+  ) => line_cross(a00, a01, a10, a11, b00, b01, b10, b11)
 
   /* Get Game (client: Client)
     Return: Game
@@ -136,13 +133,12 @@ module.exports = (project_name) => {
     Portal
       line: Line
       dot,side: Float
-      TODO
       MOD(only write to input) idx: Id
         idx: index of portal in game.portals
     Handle
       line: Line
-      fix: Float
-      TODO
+      rel_dot,rel_side: Float
+      portal: Portal, handle: Handle, null
       MOD(only write to input) idx: Id
         idx: index of handle in game.handles
     Editors
@@ -168,13 +164,18 @@ module.exports = (project_name) => {
         line.root_node.idx = -1
         line.spot_node.idx = -1
       }
-
       for (const portal_idx in game.portals) {
         const portal = game.portals[portal_idx]
         portal.line.idx = -1
       }
       for (const handle_idx in game.handles) {
         const handle = game.handles[handle_idx]
+        if (handle.portal) {
+          handle.portal.idx = -1
+        }
+        if (handle.handle) {
+          handle.handle.idx = -1
+        }
         handle.line.idx = -1
       }
       for (const editor_id in game.editors) {
@@ -205,7 +206,6 @@ module.exports = (project_name) => {
     // copy nodes
     for (const node_idx in game.nodes) {
       const node = game.nodes[node_idx]
-      node.idx = node_idx
 
       const new_node = {
         x: node.x, y: node.y,
@@ -213,6 +213,7 @@ module.exports = (project_name) => {
         portals: [],
         handles: [],
       }
+      node.idx = new_game.nodes.length
       new_game.nodes.push(new_node)
     }
 
@@ -229,7 +230,7 @@ module.exports = (project_name) => {
           spot_node: spot_node,
           state: line.state,
         }
-        line.idx = line_idx
+        line.idx = new_game.lines.length
         new_game.lines.push(new_line)
       }
     }
@@ -241,12 +242,12 @@ module.exports = (project_name) => {
       const new_line = new_game.lines[portal.line.idx]
 
       if (new_line) {
-        portal.idx = portal_idx
         const new_portal = {
           line: new_line,
           side: portal.side,
           dot: portal.dot,
         }
+        portal.idx = new_game.portals.length
         new_game.portals.push(new_portal)
       }
     }
@@ -255,35 +256,36 @@ module.exports = (project_name) => {
     for (const handle_idx in game.handles) {
       const handle = game.handles[handle_idx]
       handle.idx = -1
-      const new_line = new_game.lines[handle.line.idx]
 
+      const new_handle = {
+        rel_dot: handle.rel_dot,
+        rel_side: handle.rel_side,
+      }
 
-      if (new_line) {
-
-        const new_handle = {
-          line: new_line,
-          fix: handle.fix,
-        }
-
-        if (handle.portal) {
-          const portal = new_game.portals[handle.portal.idx]
-          if (portal) {
-            new_handle.portal = portal
-            new_game.handles.push(new_handle)
-            handle.idx = handle_idx
-          }
-        }
-        else if (handle.handle) {
-          const spot_handle = new_game.handles[handle.handle.idx]
-          if (spot_handle) {
-            new_handle.handle = spot_handle
-            new_game.handles.push(new_handle)
-            handle.idx = handle_idx
-          }
-        }
-        else {
+      if (handle.portal) {
+        const portal = new_game.portals[handle.portal.idx]
+        if (portal) {
+          new_handle.portal = portal
+          new_handle.line = portal.line
+          handle.idx = new_game.handles.length
           new_game.handles.push(new_handle)
-          handle.idx = handle_idx
+        }
+      }
+      else if (handle.handle) {
+        const spot_handle = new_game.handles[handle.handle.idx]
+        if (spot_handle) {
+          new_handle.handle = spot_handle
+          new_handle.line = spot_handle.line
+          handle.idx = new_game.handles.length
+          new_game.handles.push(new_handle)
+        }
+      }
+      else {
+        const new_line = new_game.lines[handle.line.idx]
+        if (new_line) {
+          handle.idx = new_game.handles.length
+          new_game.handles.push(new_handle)
+          new_handle.line = new_line
         }
       }
     }
@@ -322,9 +324,9 @@ module.exports = (project_name) => {
       lines: Line[]
   */
   MazeGame.measure_lines = measure_lines
-  function measure_lines(game) {
-    for (const line_idx in game.lines) {
-      const line = game.lines[line_idx]
+  function measure_lines({lines}) {
+    for (const line_idx in lines) {
+      const line = lines[line_idx]
       line.vx = line.spot_node.x - line.root_node.x
       line.vy = line.spot_node.y - line.root_node.y
       line.length2 = line.vx*line.vx + line.vy*line.vy
@@ -340,34 +342,34 @@ module.exports = (project_name) => {
     Portal
       side,dot: Float
     Handle
-      fix: Float
+      rel_side,rel_dot: Float
       line: Line
       handle: Handle, portal: Portal, null
-      MOD side,dot: Float
+      MOD dot,side: Float
     Game
       handles: Handle[]
   */
   MazeGame.measure_handles = measure_handles
-  function measure_handles(game, log) {
+  function measure_handles({handles}, log) {
     const handle_portal_dist = handle_radius * 1.25 + portal_radius
     const handle_diameter = handle_radius * 3
 
-    for (const handle_idx in game.handles) {
-      const handle = game.handles[handle_idx]
+    for (const handle_idx in handles) {
+      const handle = handles[handle_idx]
       const length = handle.line.length
 
       if (handle.portal) {
-        handle.side = handle.portal.side * (handle.fix == 0 ? -1 : 1)
-        handle.dot = handle.portal.dot + handle.fix * handle_portal_dist / length
+        handle.side = handle.portal.side * handle.rel_side
+        handle.dot = handle.portal.dot + handle.rel_dot * handle_portal_dist / length
       }
       else if (handle.handle) {
-        handle.side = handle.handle.side * (handle.fix == 0 ? -1 : 1)
-        handle.dot = handle.handle.dot + handle.fix * handle_diameter / length
+        handle.side = handle.handle.side * handle.rel_side
+        handle.dot = handle.handle.dot + handle.rel_dot * handle_diameter / length
       }
       else {
-        handle.side = handle.fix
-        handle.dot = handle_radius / length
-        if (Math.abs(handle.fix) > 1) {
+        handle.side = handle.rel_side
+        handle.dot = handle_diameter / length
+        if (handle.rel_dot) {
           handle.dot = 1 - handle.dot
         }
       }
@@ -687,9 +689,11 @@ module.exports = (project_name) => {
 
         if (root_handle.line == spot_handle.line &&
           root_handle.side > 0 == spot_handle.side > 0 &&
-          Math.abs(root_handle.dot - spot_handle.dot) * length < handle_diameter2
+          Math.abs(root_handle.dot - spot_handle.dot) * length < handle_diameter
         ) {
-          return `handles overlap`
+          return `handles overlap
+          ${Math.abs(root_handle.dot - spot_handle.dot) * length} ${handle_diameter}
+          `
         }
       }
     }
@@ -1072,23 +1076,29 @@ module.exports = (project_name) => {
 
     Gate
       MOD is_active: Boolean
-      MOD handles: Handle[]
-      MOD portals: Portal[]
     Node
       MOD gate: Gate
     Line
       MOD gate: Gate
       state: String
       root_node,spot_node: Node
+    Portal
+      line: Line
+      MOD gate: Gate
+    Handle
+      line: Line
+      rel_dot: Float
+      portal: Portal, handle: Handle, null
+      MOD gate: Gate
     Game
       nodes: Node[]
       lines: Line[]
+      portals: Portal[]
+      handles: Handle[]
       MOD gates: Gate[]
-      TODO handles: Handle[]
-      TODO portals: Portal[]
   */
-  MazeGame.set_gates = set_gates
-  function set_gates(game) {
+  MazeGame.solve_gates = solve_gates
+  function solve_gates(game) {
 
     const temp_gates = []
 
@@ -1120,7 +1130,7 @@ module.exports = (project_name) => {
       }
       else {
         const new_gate = {
-          // TODO
+          is_active: false,
         }
         line.root_node.gate = temp_gates.length
         line.spot_node.gate = temp_gates.length
@@ -1138,6 +1148,21 @@ module.exports = (project_name) => {
       const line = game.lines[line_idx]
       line.gate = temp_gates[line.gate]
     }
+    for (const portal_idx in game.portals) {
+      const portal = game.portals[portal_idx]
+      const new_gate = {
+        is_active: false,
+      }
+      portal.gate = new_gate
+      temp_gates.push(new_gate)
+    }
+    for (const handle_idx in game.handles) {
+      const handle = game.handles[handle_idx]
+      handle.gate =
+        handle.portal ? handle.portal.gate :
+        handle.handle ? handle.handle.gate :
+        handle.rel_dot ? handle.line.spot_node.gate : handle.line.root_node.gate
+    }
 
     game.gates = []
     for (const gate_idx in temp_gates) {
@@ -1148,8 +1173,6 @@ module.exports = (project_name) => {
         gate.is_active = true
       }
     }
-
-
   }
 
   /* Act At (game: Game, editor_id: Id, px,py: Float, called_by_act_at: Boolean)
@@ -1170,7 +1193,7 @@ module.exports = (project_name) => {
     Handle
       line: Line
       handle: Handle, portal: Portal, null
-      fix: Float
+      rel_dot: Float
       TODO
     Game
       MOD nodes: Node[]
@@ -1198,11 +1221,11 @@ module.exports = (project_name) => {
       game_copy.action = ''
 
       const node = get_node(game_copy, node_diameter2)
-      const line = !node && get_line(game_copy, node_diameter2)
+      const line = get_line(game_copy, node_diameter2)
       const handle = line && get_handle(game_copy, line, log)
-      const portal = line && !handle && get_portal(game_copy, line)
+      const portal = line && get_portal(game_copy, line)
 
-      log(
+      log && log(
         node && 'node',
         line && 'line',
         handle && 'handle',
@@ -1213,6 +1236,7 @@ module.exports = (project_name) => {
       switch (editor.state) {
         case 'node':
         case 'door':
+        case 'laser':
         case 'wall':
 
           if (editor.node) {
@@ -1263,7 +1287,7 @@ module.exports = (project_name) => {
               }
               game_copy.nodes.push(new_node)
 
-              if (line) {
+              if (line && !node) {
 
                 const new_line = {
                   root_node: new_node,
@@ -1326,56 +1350,70 @@ module.exports = (project_name) => {
           }
         case 'handle':
 
-          if (handle) {
-            const new_handle = {
-              line: line,
-              handle: handle,
-              fix: line.side > 0 == handle.side > 0 ? line.dot > handle.dot ? 1 : -1 : 0,
-            }
-            game_copy.handles.push(new_handle)
-            game_copy.action = `added new handle to handle`
+          if (!line || line.state != 'wall') {
             break
+          }
+
+          const new_handle = {
+            line: line,
+            rel_side: line.side,
+          }
+
+          const length = line.dot * line.length
+          const handle_diameter = handle_radius * 2.5
+
+          if (length < handle_diameter) {
+            new_handle.rel_dot = 0
+            game_copy.action = `added new handle to node`
+          }
+          else if (length > line.length - handle_diameter) {
+            new_handle.rel_dot = 1
+            game_copy.action = `added new handle to node`
+          }
+          else if (handle) {
+            if (line.side > 0 == handle.side > 0) {
+              new_handle.rel_dot = line.dot > handle.dot ? 1 : -1
+              new_handle.rel_side = 1
+            }
+            else {
+              new_handle.rel_dot = 0
+              new_handle.rel_side = -1
+            }
+            new_handle.handle = handle
+            game_copy.action = `added new handle to handle`
           }
           else if (portal) {
-            const new_handle = {
-              line: line,
-              portal: portal,
-              fix: line.side > 0 == portal.side > 0 ? line.dot > portal.dot ? 1 : -1 : 0,
-            }
 
-            game_copy.handles.push(new_handle)
+            new_handle.portal = portal
+            if (line.side > 0 == portal.side > 0) {
+              new_handle.rel_dot = line.dot > portal.dot ? 1 : -1
+              new_handle.rel_side = 1
+            }
+            else {
+              new_handle.rel_dot = 0
+              new_handle.rel_side = -1
+            }
             game_copy.action = `added new handle to portal`
+          }
+          else {
             break
           }
-          else if (line) {
 
-            const length = line.dot * line.length
-            const handle_diameter = handle_radius * 2.5
-
-            if (length < handle_diameter) {
-              const new_handle = {
-                line: line,
-                fix: line.side > 0 ? 1 : -1,
-              }
-              game_copy.handles.push(new_handle)
-              game_copy.action = `added new handle to node`
-              break
-            }
-            else if (length > line.length - handle_diameter) {
-              const new_handle = {
-                line: line,
-                fix: line.side > 0 ? 2 : -2,
-              }
-              game_copy.handles.push(new_handle)
-              game_copy.action = `added new handle to node`
-              break
-            }
-          }
-
+          game_copy.handles.push(new_handle)
           break
         case 'portal':
 
-          if (portal) {
+          if (editor.portal) {
+            const line = editor.portal.line
+            if (0 < line.dot && line.dot < 1) {
+              editor.portal.dot = line.dot
+              editor.portal.side = line.side
+              editor.portal = null
+              game_copy.action = `moved and deselected portal`
+            }
+            break
+          }
+          else if (portal) {
             if (editor.portal == portal) {
               editor.portal = null
               game_copy.action = `deselected portal`
@@ -1387,7 +1425,7 @@ module.exports = (project_name) => {
               break
             }
           }
-          else if (line) {
+          else if (line && line.state == 'wall') {
             const new_portal = {
               line: line,
               side: line.side,
@@ -1407,7 +1445,7 @@ module.exports = (project_name) => {
     const message = game_copy.action && check_is_valid_game(game_copy)
     if (message) {
 
-      log('invalid', message)
+      log && log('invalid', message)
 
       const editor = game.editors[editor_id]
 
@@ -1469,13 +1507,14 @@ module.exports = (project_name) => {
       lines: Line[]
 
   */
-  MazeGame.setup_game = setup_game
-  function setup_game(game, {x: px, y: py}, {scale, width, height}) {
+  MazeGame.solve_game = solve_game
+  function solve_game(game, {x: px, y: py}, {scale, width, height}, log) {
 
     measure_lines(game)
     measure_handles(game)
     solve_rooms(game)
     solve_cells(game)
+    solve_gates(game)
     set_game_focus(game, px, py)
     const sel_room = get_room(game)
 
@@ -1485,8 +1524,8 @@ module.exports = (project_name) => {
         const node = game.nodes[node_idx]
         const state = states[node.state]
 
-        node.stroke_color = state.stroke_color(node.gate)
-        node.fill_color = state.fill_color(node.gate)
+        node.stroke_color = state.stroke_color(node.gate && node.gate.is_active)
+        node.fill_color = state.fill_color(node.gate && node.gate.is_active)
       }
 
       for (const line_idx in game.lines) {
@@ -1496,15 +1535,17 @@ module.exports = (project_name) => {
         line.dx = -line.vy / line.length
         line.dy = line.vx / line.length
 
-        line.stroke_color = state.stroke_color(line.gate)
-        line.fill_color = state.fill_color(line.gate)
+        log && log(line.state, state)
+
+        line.stroke_color = state.stroke_color(line.gate && line.gate.is_active)
+        line.fill_color = state.fill_color(line.gate && line.gate.is_active)
       }
 
       for (const portal_idx in game.portals) {
         const portal = game.portals[portal_idx]
         const line = portal.line
 
-        portal.fill_color = '#ff00ff'
+        portal.fill_color = states.portal.fill_color(portal.gate && portal.gate.is_active)
 
         if (portal.side > 0) {
           portal.x = line.root_node.x + portal.dot * line.vx + line.dx * portal_radius
@@ -1520,8 +1561,8 @@ module.exports = (project_name) => {
         const handle = game.handles[handle_idx]
         const line = handle.line
 
-        handle.fill_color = '#00ff00'
-        handle.stroke_color = '#00ff00'
+        handle.fill_color = states.handle.fill_color(handle.gate && handle.gate.is_active)
+        handle.stroke_color = states.handle.stroke_color(handle.gate && handle.gate.is_active)
 
         if (handle.side > 0) {
           handle.x = line.root_node.x + handle.dot * line.vx + line.dx * handle_radius
@@ -1536,11 +1577,6 @@ module.exports = (project_name) => {
       for (const room_idx in game.rooms) {
         const room = game.rooms[room_idx]
         room.fill_color = sel_room == room ? `#80ff8020` : `#ffffff20`
-
-        for (const cord_idx in room.cords) {
-          const cord  = room.cords[cord_idx]
-          cord.stroke_color = '#80808020'
-        }
       }
     }
 
@@ -1585,6 +1621,6 @@ module.exports = (project_name) => {
     }
   }
 
-  log('game.js')
+  console.log(project_name, 'game.js')
   return MazeGame
 }

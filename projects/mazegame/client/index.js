@@ -101,15 +101,20 @@ function MazeGame() {
 			else if (e.which == 127) {
 				if (editor.node) {
 					const node_idx = game.nodes.indexOf(editor.node)
-					editor.node.idx = -1
 					game.nodes.splice(node_idx, 1)
+					client.game = mg.copy_game(game)
+				}
+
+				if (editor.portal) {
+					const portal_idx = game.portals.indexOf(editor.portal)
+					game.portals.splice(portal_idx, 1)
 					client.game = mg.copy_game(game)
 				}
 			}
 			else if (c == ' ') {
 
 				let game = mg.copy_game(client.game)
-				mg.setup_game(game, client, mouse)
+				mg.solve_game(game, client, mouse, log)
 
 				log('SPACEBAR', game)
 
@@ -180,8 +185,7 @@ function MazeGame() {
 				mouse.y+client.y, ()=>{})
 		}
 
-		mg.setup_game(game, client, mouse)
-
+		mg.solve_game(game, client, mouse)
 
 		// draw level
 		{
@@ -208,10 +212,10 @@ function MazeGame() {
 				}
 
 				// draw cords
+				ctx.strokeStyle = '#80808020'
 				for (const cord_idx in room.cords) {
 					const cord = room.cords[cord_idx]
 
-					ctx.strokeStyle = cord.stroke_color
 					ctx.beginPath()
 					ctx.moveTo(cord.root_node.bot_x, cord.root_node.bot_y)
 					ctx.lineTo(cord.spot_node.bot_x, cord.spot_node.bot_y)
@@ -257,6 +261,24 @@ function MazeGame() {
 				const handle = game.handles[handle_idx]
 
 				if (handle.side > 0 != handle.line.side > 0) {
+					ctx.strokeStyle = handle.stroke_color
+					ctx.beginPath()
+					ctx.moveTo(handle.mid_x, handle.mid_y)
+					let node = null
+					if (handle.portal) {
+						node = handle.portal
+					}
+					else if (handle.handle) {
+						node = handle.handle
+					}
+					else if (handle.rel_dot) {
+						node = handle.line.spot_node
+					}
+					else {
+						node = handle.line.root_node
+					}
+					ctx.lineTo(node.mid_x, node.mid_y)
+					ctx.stroke()
 
 					ctx.fillStyle = handle.fill_color
 					ctx.beginPath()
@@ -282,26 +304,26 @@ function MazeGame() {
 			for (const handle_idx in game.handles) {
 				const handle = game.handles[handle_idx]
 
-				ctx.strokeStyle = handle.stroke_color
-				ctx.beginPath()
-				ctx.moveTo(handle.mid_x, handle.mid_y)
-				let node = null
-				if (handle.portal) {
-					node = handle.portal
-				}
-				else if (handle.handle) {
-					node = handle.handle
-				}
-				else if (Math.abs(handle.fix) > 1) {
-					node = handle.line.spot_node
-				}
-				else {
-					node = handle.line.root_node
-				}
-				ctx.lineTo(node.mid_x, node.mid_y)
-				ctx.stroke()
 
 				if (handle.side > 0 == handle.line.side > 0) {
+					ctx.strokeStyle = handle.stroke_color
+					ctx.beginPath()
+					ctx.moveTo(handle.mid_x, handle.mid_y)
+					let node = null
+					if (handle.portal) {
+						node = handle.portal
+					}
+					else if (handle.handle) {
+						node = handle.handle
+					}
+					else if (handle.rel_dot) {
+						node = handle.line.spot_node
+					}
+					else {
+						node = handle.line.root_node
+					}
+					ctx.lineTo(node.mid_x, node.mid_y)
+					ctx.stroke()
 
 					ctx.fillStyle = handle.fill_color
 					ctx.beginPath()
