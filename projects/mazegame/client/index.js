@@ -95,7 +95,14 @@ function MazeGame() {
 				editor.node = null
 				editor.portal = null
 				editor.handle = null
+				editor.key = null
+				editor.jack = null
+
 				log('changed state to', state.name)
+			}
+			// Enter
+			else if (e.which == 13) {
+				mg.switch_player()
 			}
 			// delete
 			else if (e.which == 127) {
@@ -175,6 +182,11 @@ function MazeGame() {
 		const node_diameter = mg.node_diameter * mouse.scale
 		const portal_radius = mg.portal_radius * mouse.scale
 		const handle_radius = mg.handle_radius * mouse.scale
+		const key_radius = mg.key_radius * mouse.scale
+		const jack_radius = mg.jack_radius * mouse.scale
+
+		const cell_radius = node_radius / 4
+
 		const line_width = mg.line_width * mouse.scale
 		const half_line_width = line_width / 2
 
@@ -208,6 +220,10 @@ function MazeGame() {
 						const node = cell.cords[node_idx].root_node
 						ctx.lineTo(node.bot_x, node.bot_y)
 					}
+					ctx.fill()
+
+					ctx.beginPath()
+					ctx.arc(cell.bot_x, cell.bot_y, cell_radius, 0, pi2)
 					ctx.fill()
 				}
 
@@ -252,10 +268,11 @@ function MazeGame() {
 				if (portal.side > 0 != portal.line.side > 0) {
 					ctx.fillStyle = portal.fill_color
 					ctx.beginPath()
-					ctx.arc(portal.mid_x, portal.mid_y, portal_radius, 0, pi2)
+					ctx.arc(portal.mid_wx, portal.mid_wy, portal_radius, 0, pi2)
 					ctx.fill()
 				}
 			}
+
 			// draw far handles
 			for (const handle_idx in game.handles) {
 				const handle = game.handles[handle_idx]
@@ -282,7 +299,17 @@ function MazeGame() {
 
 					ctx.fillStyle = handle.fill_color
 					ctx.beginPath()
-					ctx.arc(handle.mid_x, handle.mid_y, handle_radius, 0, pi2)
+					if (handle.is_square) {
+						ctx.rect(
+							handle.mid_wx - handle_radius,
+							handle.mid_wy - handle_radius,
+							handle_radius*2,
+							handle_radius*2,
+						)
+					}
+					else {
+						ctx.arc(handle.mid_wx, handle.mid_wy, handle_radius, 0, pi2)
+					}
 					ctx.fill()
 				}
 			}
@@ -291,19 +318,20 @@ function MazeGame() {
 			for (const line_idx in game.lines) {
 				const line = game.lines[line_idx]
 
-				ctx.fillStyle = line.fill_color
-				ctx.beginPath()
-				ctx.moveTo(line.root_node.bot_x, line.root_node.bot_y)
-				ctx.lineTo(line.spot_node.bot_x, line.spot_node.bot_y)
-				ctx.lineTo(line.spot_node.top_x, line.spot_node.top_y)
-				ctx.lineTo(line.root_node.top_x, line.root_node.top_y)
-				ctx.fill()
+				if (line.state != 'laser') {
+					ctx.fillStyle = line.fill_color
+					ctx.beginPath()
+					ctx.moveTo(line.root_node.bot_x, line.root_node.bot_y)
+					ctx.lineTo(line.spot_node.bot_x, line.spot_node.bot_y)
+					ctx.lineTo(line.spot_node.top_x, line.spot_node.top_y)
+					ctx.lineTo(line.root_node.top_x, line.root_node.top_y)
+					ctx.fill()
+				}
 			}
 
 			// draw close handles
 			for (const handle_idx in game.handles) {
 				const handle = game.handles[handle_idx]
-
 
 				if (handle.side > 0 == handle.line.side > 0) {
 					ctx.strokeStyle = handle.stroke_color
@@ -325,9 +353,19 @@ function MazeGame() {
 					ctx.lineTo(node.mid_x, node.mid_y)
 					ctx.stroke()
 
-					ctx.fillStyle = handle.fill_color
 					ctx.beginPath()
-					ctx.arc(handle.mid_x, handle.mid_y, handle_radius, 0, pi2)
+					ctx.fillStyle = handle.fill_color
+					if (handle.is_square) {
+						ctx.rect(
+							handle.mid_wx - handle_radius,
+							handle.mid_wy - handle_radius,
+							handle_radius*2,
+							handle_radius*2,
+						)
+					}
+					else {
+						ctx.arc(handle.mid_wx, handle.mid_wy, handle_radius, 0, pi2)
+					}
 					ctx.fill()
 				}
 			}
@@ -338,7 +376,7 @@ function MazeGame() {
 				if (portal.side > 0 == portal.line.side > 0) {
 					ctx.fillStyle = portal.fill_color
 					ctx.beginPath()
-					ctx.arc(portal.mid_x, portal.mid_y, portal_radius, 0, pi2)
+					ctx.arc(portal.mid_wx, portal.mid_wy, portal_radius, 0, pi2)
 					ctx.fill()
 				}
 			}
@@ -347,11 +385,13 @@ function MazeGame() {
 			for (const line_idx in game.lines) {
 				const line = game.lines[line_idx]
 
-				ctx.strokeStyle = line.stroke_color
-				ctx.beginPath()
-				ctx.moveTo(line.root_node.top_x, line.root_node.top_y)
-				ctx.lineTo(line.spot_node.top_x, line.spot_node.top_y)
-				ctx.stroke()
+				if (line.state != 'laser') {
+					ctx.strokeStyle = line.stroke_color
+					ctx.beginPath()
+					ctx.moveTo(line.root_node.top_x, line.root_node.top_y)
+					ctx.lineTo(line.spot_node.top_x, line.spot_node.top_y)
+					ctx.stroke()
+				}
 			}
 
 			// draw top nodes
@@ -375,6 +415,37 @@ function MazeGame() {
 				ctx.arc(node.top_x, node.top_y, node_radius, 0, pi2)
 				ctx.fill()
 			}
+
+			// draw jacks
+			for (const jack_idx in game.jacks) {
+				const jack = game.jacks[jack_idx]
+
+				ctx.fillStyle = jack.fill_color
+				ctx.beginPath()
+				ctx.arc(jack.mid_x, jack.mid_y, jack_radius, 0, pi2)
+				ctx.fill()
+			}
+
+			// draw keys
+			for (const key_idx in game.keys) {
+				const key = game.keys[key_idx]
+
+				ctx.fillStyle = key.fill_color
+				ctx.beginPath()
+				if (key.is_square) {
+					ctx.rect(
+						key.mid_x - key_radius,
+						key.mid_y - key_radius,
+						key_radius*2,
+						key_radius*2,
+					)
+				}
+				else {
+					ctx.arc(key.mid_x, key.mid_y, key_radius, 0, pi2)
+				}
+				ctx.fill()
+			}
+
 		}
 
 	}
