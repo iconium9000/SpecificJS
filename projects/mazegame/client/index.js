@@ -62,14 +62,59 @@ function MazeGame() {
 		mouse.x = (e.clientX - 7 - mouse.width / 2) / mouse.scale
     mouse.y = (e.clientY - 7 - mouse.height / 2) / mouse.scale
 
-		if (mouse.left_down) {
+		let game = mg.copy_game(client.game)
+		const editor = game && game.editors[ client.socket.id ]
+		if (editor && mouse.left_down) {
 
-			client.game = mg.act_at(
-				mg.copy_game(client.game),
-				client.socket.id,
-				mouse.x+client.x, mouse.y+client.y, log)
+			let center = client
 
-			log('action', client.game.action)
+			if (client.command) {
+				log('COMMAND')
+			}
+			else if (editor.state == 'game') {
+				mg.measure_game(game)
+				if (editor.jack) {
+					center = editor.jack
+				}
+
+				mg.set_game_focus(game, mouse.x+center.x, mouse.y+center.y)
+
+				const node = mg.get_node(game, 4 * mg.node_radius * mg.node_radius)
+	      const line = mg.get_line(game, 4 * mg.node_radius * mg.node_radius)
+	      const handle = line && mg.get_handle(game, line)
+	      const portal = line && mg.get_portal(game, line)
+				const jack = mg.get_jack(game, handle, 2 * mg.jack_radius)
+				const key = mg.get_key(game, handle, jack, 2 * mg.key_radius)
+
+				log(
+					node && 'node',
+					line && 'line',
+					handle && 'handle',
+					portal && 'portal',
+					jack && 'jack',
+					key && 'key',
+				)
+
+				if (editor.jack) {
+					mg.solve_rooms(game)
+					mg.solve_cells(game)
+					const path = mg.get_path(game, editor.jack)
+				}
+				else if (jack) {
+					editor.jack = jack
+					client.game = game
+
+					log('set jack')
+				}
+			}
+			else {
+				client.game = mg.act_at(
+					game, client.socket.id,
+					mouse.x+center.x, mouse.y+center.y, log
+				)
+
+				log('action', client.game.action)
+			}
 		}
 
 		if (e.button == 2) {
@@ -86,7 +131,7 @@ function MazeGame() {
 	$(document).keypress(e => {
     var c = String.fromCharCode(e.which | 0x20)
 
-		const game = client.game
+		let game = client.game
 		const editor = game && game.editors[ client.socket.id ]
 		if (editor) {
 			const state = mg.state_keys[c]
@@ -102,29 +147,26 @@ function MazeGame() {
 			}
 			// Enter
 			else if (e.which == 13) {
-				mg.switch_player()
+
 			}
 			// delete
 			else if (e.which == 127) {
 				if (editor.node) {
 					const node_idx = game.nodes.indexOf(editor.node)
 					game.nodes.splice(node_idx, 1)
-					client.game = mg.copy_game(game)
+					game = mg.copy_game(game)
 				}
 
 				if (editor.portal) {
 					const portal_idx = game.portals.indexOf(editor.portal)
 					game.portals.splice(portal_idx, 1)
-					client.game = mg.copy_game(game)
+					game = mg.copy_game(game)
 				}
 			}
 			else if (c == ' ') {
-
-				let game = mg.copy_game(client.game)
+				game = mg.copy_game(game)
 				mg.solve_game(game, client, mouse, log)
-
 				log('SPACEBAR', game)
-
 			}
 		}
 
@@ -161,6 +203,37 @@ function MazeGame() {
 
 	function tick() {
 
+		let center = client
+		let game = mg.copy_game(client.game)
+		const editor = game.editors[client.socket.id]
+
+		if (!editor) {
+			return
+		}
+		else if (editor.state == 'game') {
+
+			if (client.command) {
+
+			}
+			else if (editor.jack) {
+				center = editor.jack
+			}
+		}
+		else {
+			if (!is_mobile) {
+				game = mg.act_at(game,
+					client.socket.id,
+					mouse.x+client.x,
+					mouse.y+client.y
+				)
+			}
+		}
+
+		mg.solve_game(game, center, mouse)
+		draw_game(game)
+	}
+
+	function draw_game(game)  {
 		const canvas = document.getElementById('canvas')
 		const ctx = canvas.getContext('2d')
 		mouse.width = canvas.width = window.innerWidth - 20
@@ -190,263 +263,254 @@ function MazeGame() {
 		const line_width = mg.line_width * mouse.scale
 		const half_line_width = line_width / 2
 
-		let game = mg.copy_game(client.game)
-		if (!is_mobile) {
-			game = mg.act_at(game, client.socket.id,
-				mouse.x+client.x,
-				mouse.y+client.y, ()=>{})
+		ctx.lineWidth = line_width
+
+		// draw rooms
+		for (const room_idx in game.rooms) {
+			const room = game.rooms[room_idx]
+
+			ctx.fillStyle = room.fill_color
+			for (const cell_idx in room.cells) {
+				const cell = room.cells[cell_idx]
+
+				ctx.beginPath()
+
+				const node = cell.cords[0].root_node
+				ctx.moveTo(node.bot_x, node.bot_y)
+
+				for (let node_idx = 1; node_idx < cell.cords.length; ++node_idx) {
+					const node = cell.cords[node_idx].root_node
+					ctx.lineTo(node.bot_x, node.bot_y)
+				}
+				ctx.fill()
+
+				ctx.beginPath()
+				ctx.arc(cell.bot_x, cell.bot_y, cell_radius, 0, pi2)
+				ctx.fill()
+			}
+
+			// draw cords
+			ctx.strokeStyle = '#80808020'
+			for (const cord_idx in room.cords) {
+				const cord = room.cords[cord_idx]
+
+				ctx.beginPath()
+				ctx.moveTo(cord.root_node.bot_x, cord.root_node.bot_y)
+				ctx.lineTo(cord.spot_node.bot_x, cord.spot_node.bot_y)
+				ctx.stroke()
+			}
 		}
 
-		mg.solve_game(game, client, mouse)
+		// draw bottom nodes
+		for (const node_idx in game.nodes) {
+			const node = game.nodes[ node_idx ]
 
-		// draw level
-		{
-			ctx.lineWidth = line_width
+			ctx.fillStyle = node.fill_color
+			ctx.beginPath()
+			ctx.arc(node.bot_x, node.bot_y, node_radius, 0, pi2)
+			ctx.fill()
+		}
 
-			// draw rooms
-			for (const room_idx in game.rooms) {
-				const room = game.rooms[room_idx]
+		// draw bottom lines
+		for (const line_idx in game.lines) {
+			const line = game.lines[line_idx]
 
-				ctx.fillStyle = room.fill_color
-				for (const cell_idx in room.cells) {
-					const cell = room.cells[cell_idx]
+			ctx.strokeStyle = line.stroke_color
+			ctx.beginPath()
+			ctx.moveTo(line.root_node.bot_x, line.root_node.bot_y)
+			ctx.lineTo(line.spot_node.bot_x, line.spot_node.bot_y)
+			ctx.stroke()
 
-					ctx.beginPath()
+		}
 
-					const node = cell.cords[0].root_node
-					ctx.moveTo(node.bot_x, node.bot_y)
+		// draw far portals
+		for (const portal_idx in game.portals) {
+			const portal = game.portals[portal_idx]
 
-					for (let node_idx = 1; node_idx < cell.cords.length; ++node_idx) {
-						const node = cell.cords[node_idx].root_node
-						ctx.lineTo(node.bot_x, node.bot_y)
-					}
-					ctx.fill()
-
-					ctx.beginPath()
-					ctx.arc(cell.bot_x, cell.bot_y, cell_radius, 0, pi2)
-					ctx.fill()
-				}
-
-				// draw cords
-				ctx.strokeStyle = '#80808020'
-				for (const cord_idx in room.cords) {
-					const cord = room.cords[cord_idx]
-
-					ctx.beginPath()
-					ctx.moveTo(cord.root_node.bot_x, cord.root_node.bot_y)
-					ctx.lineTo(cord.spot_node.bot_x, cord.spot_node.bot_y)
-					ctx.stroke()
-				}
-			}
-
-			// draw bottom nodes
-			for (const node_idx in game.nodes) {
-				const node = game.nodes[ node_idx ]
-
-				ctx.fillStyle = node.fill_color
+			if (portal.side > 0 != portal.line.side > 0) {
+				ctx.fillStyle = portal.fill_color
 				ctx.beginPath()
-				ctx.arc(node.bot_x, node.bot_y, node_radius, 0, pi2)
+				ctx.arc(portal.mid_wx, portal.mid_wy, portal_radius, 0, pi2)
 				ctx.fill()
 			}
+		}
 
-			// draw bottom lines
-			for (const line_idx in game.lines) {
-				const line = game.lines[line_idx]
+		// draw far handles
+		for (const handle_idx in game.handles) {
+			const handle = game.handles[handle_idx]
 
-				ctx.strokeStyle = line.stroke_color
+			if (handle.side > 0 != handle.line.side > 0) {
+				ctx.strokeStyle = handle.stroke_color
 				ctx.beginPath()
-				ctx.moveTo(line.root_node.bot_x, line.root_node.bot_y)
-				ctx.lineTo(line.spot_node.bot_x, line.spot_node.bot_y)
+				ctx.moveTo(handle.mid_x, handle.mid_y)
+				let node = null
+				if (handle.portal) {
+					node = handle.portal
+				}
+				else if (handle.handle) {
+					node = handle.handle
+				}
+				else if (handle.rel_dot) {
+					node = handle.line.spot_node
+				}
+				else {
+					node = handle.line.root_node
+				}
+				ctx.lineTo(node.mid_x, node.mid_y)
 				ctx.stroke()
 
-			}
-
-			// draw far portals
-			for (const portal_idx in game.portals) {
-				const portal = game.portals[portal_idx]
-
-				if (portal.side > 0 != portal.line.side > 0) {
-					ctx.fillStyle = portal.fill_color
-					ctx.beginPath()
-					ctx.arc(portal.mid_wx, portal.mid_wy, portal_radius, 0, pi2)
-					ctx.fill()
-				}
-			}
-
-			// draw far handles
-			for (const handle_idx in game.handles) {
-				const handle = game.handles[handle_idx]
-
-				if (handle.side > 0 != handle.line.side > 0) {
-					ctx.strokeStyle = handle.stroke_color
-					ctx.beginPath()
-					ctx.moveTo(handle.mid_x, handle.mid_y)
-					let node = null
-					if (handle.portal) {
-						node = handle.portal
-					}
-					else if (handle.handle) {
-						node = handle.handle
-					}
-					else if (handle.rel_dot) {
-						node = handle.line.spot_node
-					}
-					else {
-						node = handle.line.root_node
-					}
-					ctx.lineTo(node.mid_x, node.mid_y)
-					ctx.stroke()
-
-					ctx.fillStyle = handle.fill_color
-					ctx.beginPath()
-					if (handle.is_square) {
-						ctx.rect(
-							handle.mid_wx - handle_radius,
-							handle.mid_wy - handle_radius,
-							handle_radius*2,
-							handle_radius*2,
-						)
-					}
-					else {
-						ctx.arc(handle.mid_wx, handle.mid_wy, handle_radius, 0, pi2)
-					}
-					ctx.fill()
-				}
-			}
-
-			// draw polys
-			for (const line_idx in game.lines) {
-				const line = game.lines[line_idx]
-
-				if (line.state != 'laser') {
-					ctx.fillStyle = line.fill_color
-					ctx.beginPath()
-					ctx.moveTo(line.root_node.bot_x, line.root_node.bot_y)
-					ctx.lineTo(line.spot_node.bot_x, line.spot_node.bot_y)
-					ctx.lineTo(line.spot_node.top_x, line.spot_node.top_y)
-					ctx.lineTo(line.root_node.top_x, line.root_node.top_y)
-					ctx.fill()
-				}
-			}
-
-			// draw close handles
-			for (const handle_idx in game.handles) {
-				const handle = game.handles[handle_idx]
-
-				if (handle.side > 0 == handle.line.side > 0) {
-					ctx.strokeStyle = handle.stroke_color
-					ctx.beginPath()
-					ctx.moveTo(handle.mid_x, handle.mid_y)
-					let node = null
-					if (handle.portal) {
-						node = handle.portal
-					}
-					else if (handle.handle) {
-						node = handle.handle
-					}
-					else if (handle.rel_dot) {
-						node = handle.line.spot_node
-					}
-					else {
-						node = handle.line.root_node
-					}
-					ctx.lineTo(node.mid_x, node.mid_y)
-					ctx.stroke()
-
-					ctx.beginPath()
-					ctx.fillStyle = handle.fill_color
-					if (handle.is_square) {
-						ctx.rect(
-							handle.mid_wx - handle_radius,
-							handle.mid_wy - handle_radius,
-							handle_radius*2,
-							handle_radius*2,
-						)
-					}
-					else {
-						ctx.arc(handle.mid_wx, handle.mid_wy, handle_radius, 0, pi2)
-					}
-					ctx.fill()
-				}
-			}
-			// draw close portals
-			for (const portal_idx in game.portals) {
-				const portal = game.portals[portal_idx]
-
-				if (portal.side > 0 == portal.line.side > 0) {
-					ctx.fillStyle = portal.fill_color
-					ctx.beginPath()
-					ctx.arc(portal.mid_wx, portal.mid_wy, portal_radius, 0, pi2)
-					ctx.fill()
-				}
-			}
-
-			// draw top lines
-			for (const line_idx in game.lines) {
-				const line = game.lines[line_idx]
-
-				if (line.state != 'laser') {
-					ctx.strokeStyle = line.stroke_color
-					ctx.beginPath()
-					ctx.moveTo(line.root_node.top_x, line.root_node.top_y)
-					ctx.lineTo(line.spot_node.top_x, line.spot_node.top_y)
-					ctx.stroke()
-				}
-			}
-
-			// draw top nodes
-			for (const node_idx in game.nodes) {
-				const node = game.nodes[ node_idx ]
-
-				const vx = node.bot_x - node.top_x, vy = node.bot_y - node.top_y
-				const v = node_radius / Math.sqrt(vx*vx + vy*vy)
-
-				const ax = node.bot_x + vx * v
-				const ay = node.bot_y + vy * v
-
-				ctx.strokeStyle = node.stroke_color
+				ctx.fillStyle = handle.fill_color
 				ctx.beginPath()
-				ctx.moveTo(ax, ay)
-				ctx.lineTo(node.top_x, node.top_y)
-				ctx.stroke()
-
-				ctx.fillStyle = node.fill_color
-				ctx.beginPath()
-				ctx.arc(node.top_x, node.top_y, node_radius, 0, pi2)
-				ctx.fill()
-			}
-
-			// draw jacks
-			for (const jack_idx in game.jacks) {
-				const jack = game.jacks[jack_idx]
-
-				ctx.fillStyle = jack.fill_color
-				ctx.beginPath()
-				ctx.arc(jack.mid_x, jack.mid_y, jack_radius, 0, pi2)
-				ctx.fill()
-			}
-
-			// draw keys
-			for (const key_idx in game.keys) {
-				const key = game.keys[key_idx]
-
-				ctx.fillStyle = key.fill_color
-				ctx.beginPath()
-				if (key.is_square) {
+				if (handle.is_square) {
 					ctx.rect(
-						key.mid_x - key_radius,
-						key.mid_y - key_radius,
-						key_radius*2,
-						key_radius*2,
+						handle.mid_wx - handle_radius,
+						handle.mid_wy - handle_radius,
+						handle_radius*2,
+						handle_radius*2,
 					)
 				}
 				else {
-					ctx.arc(key.mid_x, key.mid_y, key_radius, 0, pi2)
+					ctx.arc(handle.mid_wx, handle.mid_wy, handle_radius, 0, pi2)
 				}
 				ctx.fill()
 			}
-
 		}
+
+		// draw polys
+		for (const line_idx in game.lines) {
+			const line = game.lines[line_idx]
+
+			if (line.state != 'laser') {
+				ctx.fillStyle = line.fill_color
+				ctx.beginPath()
+				ctx.moveTo(line.root_node.bot_x, line.root_node.bot_y)
+				ctx.lineTo(line.spot_node.bot_x, line.spot_node.bot_y)
+				ctx.lineTo(line.spot_node.top_x, line.spot_node.top_y)
+				ctx.lineTo(line.root_node.top_x, line.root_node.top_y)
+				ctx.fill()
+			}
+		}
+
+		// draw close handles
+		for (const handle_idx in game.handles) {
+			const handle = game.handles[handle_idx]
+
+			if (handle.side > 0 == handle.line.side > 0) {
+				ctx.strokeStyle = handle.stroke_color
+				ctx.beginPath()
+				ctx.moveTo(handle.mid_x, handle.mid_y)
+				let node = null
+				if (handle.portal) {
+					node = handle.portal
+				}
+				else if (handle.handle) {
+					node = handle.handle
+				}
+				else if (handle.rel_dot) {
+					node = handle.line.spot_node
+				}
+				else {
+					node = handle.line.root_node
+				}
+				ctx.lineTo(node.mid_x, node.mid_y)
+				ctx.stroke()
+
+				ctx.beginPath()
+				ctx.fillStyle = handle.fill_color
+				if (handle.is_square) {
+					ctx.rect(
+						handle.mid_wx - handle_radius,
+						handle.mid_wy - handle_radius,
+						handle_radius*2,
+						handle_radius*2,
+					)
+				}
+				else {
+					ctx.arc(handle.mid_wx, handle.mid_wy, handle_radius, 0, pi2)
+				}
+				ctx.fill()
+			}
+		}
+		// draw close portals
+		for (const portal_idx in game.portals) {
+			const portal = game.portals[portal_idx]
+
+			if (portal.side > 0 == portal.line.side > 0) {
+				ctx.fillStyle = portal.fill_color
+				ctx.beginPath()
+				ctx.arc(portal.mid_wx, portal.mid_wy, portal_radius, 0, pi2)
+				ctx.fill()
+			}
+		}
+
+		// draw top lines
+		for (const line_idx in game.lines) {
+			const line = game.lines[line_idx]
+
+			if (line.state != 'laser') {
+				ctx.strokeStyle = line.stroke_color
+				ctx.beginPath()
+				ctx.moveTo(line.root_node.top_x, line.root_node.top_y)
+				ctx.lineTo(line.spot_node.top_x, line.spot_node.top_y)
+				ctx.stroke()
+			}
+		}
+
+		// draw top nodes
+		for (const node_idx in game.nodes) {
+			const node = game.nodes[ node_idx ]
+
+			const vx = node.bot_x - node.top_x, vy = node.bot_y - node.top_y
+			const v = node_radius / Math.sqrt(vx*vx + vy*vy)
+
+			const ax = node.bot_x + vx * v
+			const ay = node.bot_y + vy * v
+
+			ctx.strokeStyle = node.stroke_color
+			ctx.beginPath()
+			ctx.moveTo(ax, ay)
+			ctx.lineTo(node.top_x, node.top_y)
+			ctx.stroke()
+
+			ctx.fillStyle = node.fill_color
+			ctx.beginPath()
+			ctx.arc(node.top_x, node.top_y, node_radius, 0, pi2)
+			ctx.fill()
+		}
+
+		// draw jacks
+		for (const jack_idx in game.jacks) {
+			const jack = game.jacks[jack_idx]
+
+			ctx.fillStyle = jack.fill_color
+			ctx.beginPath()
+			ctx.arc(jack.mid_x, jack.mid_y, jack_radius, 0, pi2)
+			ctx.fill()
+		}
+
+		// draw keys
+		for (const key_idx in game.keys) {
+			const key = game.keys[key_idx]
+
+			ctx.fillStyle = key.fill_color
+			ctx.beginPath()
+			if (key.is_square) {
+				ctx.rect(
+					key.mid_x - key_radius,
+					key.mid_y - key_radius,
+					key_radius*2,
+					key_radius*2,
+				)
+			}
+			else {
+				ctx.arc(key.mid_x, key.mid_y, key_radius, 0, pi2)
+			}
+			ctx.fill()
+		}
+
+	}
+
+	function do_garbo(game, editor) {
 
 	}
 
