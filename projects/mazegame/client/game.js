@@ -1045,43 +1045,94 @@ module.exports = (project_name) => {
     }
 
     /* Get Path (game: Game, jack: Jack)
-      Return: Path[]
-      Recommended pre-functions for Game: set_game_focus && solve_cells
+      Return: Path
+      Recommended pre-functions for Game: set_game_focus && solve_cells && solve_gates
 
+      Trail
+        MOD length,total_length,x,y: Float
       Path
-        dist,x,y: Float
+        MOD total_length: Float
+        MOD trails: Trail[]
       Cell
         x,y: Float
+      Gate
+        is_active: Boolean
       Flip
         flip: Flip
         MOD gate: Gate or Null
+        MOD state: String
       Line: Flip
         gate: Gate or Null
       Room
         cells: Cell[]
         doors: Flip[]
+        MOD dist_rank: Float
       Game
         lines: Line
         rooms: Room[]
         fx,fy
-
-
     */
     MazeGame.get_path = get_path
-    function get_path(game, jack) {
+    function get_path(game, jack, log) {
 
-      const path = {
-        dist: 0,
+      log && log('get_path')
+
+      const root_trail = {
+        length: 0,
+        total_length: 0,
         x: game.fx,
         y: game.fy,
       }
 
       const spot_room = get_room(game)
       set_game_focus(game, jack.x, jack.y)
-      
+      const root_room = get_room(game)
+
+      if (spot_room != root_room) {
+
+        for (const room_idx in game.rooms) {
+          const room = game.rooms[room_idx]
+          room.dist_rank = Infinity
+        }
+        for (const line_idx in game.lines) {
+          const line = game.lines[line_idx]
+          line.flip.gate = line.gate
+          line.flip.state = line.state
+        }
+
+        spot_room.dist_rank = 0
+        const room_stack = [spot_room]
+        const gate = jack.handle && jack.handle.gate
+
+        while (room_stack.length) {
+          const room = room_stack.pop()
+          const dist_rank = room.dist_rank + 1
+
+          for (const flip_idx in room.doors) {
+            const flip = room.doors[flip_idx]
+
+            log(
+              (dist_rank < flip.room.dist_rank),
+              (!gate || flip.gate != gate || flip.state != 'door'),
+              (!flip.gate || flip.gate.is_active),
+            )
+
+            if (
+              (dist_rank < flip.room.dist_rank) &&
+              (!gate || flip.gate != gate || flip.state != 'door') &&
+              (!flip.gate || flip.gate.is_active)
+            ) {
+              flip.room.dist_rank = dist_rank
+              room_stack.push(flip.room)
+            }
+          }
+        }
+
+        log(game)
+      }
+
 
     }
-
   }
 
   // solvers
@@ -1211,6 +1262,7 @@ module.exports = (project_name) => {
           an array of flip lines of all the non-wall lines in the room
       Flip:
         root_node,spot_node: Node
+        state: String
         MOD flip: Flip
           line with inverted vx,vy, angle, and root and spot nodes
         MOD angle: Float (-pi,pi)
@@ -1218,7 +1270,6 @@ module.exports = (project_name) => {
         MOD next_line,prev_line: Flip
       Line: Flip
         vx,vy: Float
-        state: String
       Node:
         MOD lines: Flip[]
           array of Flip that all have Node as their root_node
@@ -1248,6 +1299,7 @@ module.exports = (project_name) => {
         line.flip = {
           root_node: line.spot_node,
           spot_node: line.root_node,
+          state: line.state,
           flip: line,
           angle: inverse_angle(line.angle),
         }

@@ -74,7 +74,7 @@ function MazeGame() {
 			else if (editor.state == 'game') {
 				mg.measure_game(game)
 				if (editor.jack) {
-					center = editor.jack
+					center = editor.jack.handle || editor.jack
 				}
 
 				mg.set_game_focus(game, mouse.x+center.x, mouse.y+center.y)
@@ -98,7 +98,8 @@ function MazeGame() {
 				if (editor.jack) {
 					mg.solve_rooms(game)
 					mg.solve_cells(game)
-					const path = mg.get_path(game, editor.jack)
+					mg.solve_gates(game)
+					const path = mg.get_path(game, editor.jack, log)
 				}
 				else if (jack) {
 					editor.jack = jack
@@ -205,6 +206,7 @@ function MazeGame() {
 
 		let center = client
 		let game = mg.copy_game(client.game)
+		mg.measure_game(game)
 		const editor = game.editors[client.socket.id]
 
 		if (!editor) {
@@ -216,7 +218,7 @@ function MazeGame() {
 
 			}
 			else if (editor.jack) {
-				center = editor.jack
+				center = editor.jack.handle || editor.jack
 			}
 		}
 		else {
