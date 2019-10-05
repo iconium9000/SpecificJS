@@ -1044,95 +1044,6 @@ module.exports = (project_name) => {
       return ret_room
     }
 
-    /* Get Path (game: Game, jack: Jack)
-      Return: Path
-      Recommended pre-functions for Game: set_game_focus && solve_cells && solve_gates
-
-      Trail
-        MOD length,total_length,x,y: Float
-      Path
-        MOD total_length: Float
-        MOD trails: Trail[]
-      Cell
-        x,y: Float
-      Gate
-        is_active: Boolean
-      Flip
-        flip: Flip
-        MOD gate: Gate or Null
-        MOD state: String
-      Line: Flip
-        gate: Gate or Null
-      Room
-        cells: Cell[]
-        doors: Flip[]
-        MOD dist_rank: Float
-      Game
-        lines: Line
-        rooms: Room[]
-        fx,fy
-    */
-    MazeGame.get_path = get_path
-    function get_path(game, jack, log) {
-
-      log && log('get_path')
-
-      const root_trail = {
-        length: 0,
-        total_length: 0,
-        x: game.fx,
-        y: game.fy,
-      }
-
-      const spot_room = get_room(game)
-      set_game_focus(game, jack.x, jack.y)
-      const root_room = get_room(game)
-
-      if (spot_room != root_room) {
-
-        for (const room_idx in game.rooms) {
-          const room = game.rooms[room_idx]
-          room.dist_rank = Infinity
-        }
-        for (const line_idx in game.lines) {
-          const line = game.lines[line_idx]
-          line.flip.gate = line.gate
-          line.flip.state = line.state
-        }
-
-        spot_room.dist_rank = 0
-        const room_stack = [spot_room]
-        const gate = jack.handle && jack.handle.gate
-
-        while (room_stack.length) {
-          const room = room_stack.pop()
-          const dist_rank = room.dist_rank + 1
-
-          for (const flip_idx in room.doors) {
-            const flip = room.doors[flip_idx]
-
-            log(
-              (dist_rank < flip.room.dist_rank),
-              (!gate || flip.gate != gate || flip.state != 'door'),
-              (!flip.gate || flip.gate.is_active),
-            )
-
-            if (
-              (dist_rank < flip.room.dist_rank) &&
-              (!gate || flip.gate != gate || flip.state != 'door') &&
-              (!flip.gate || flip.gate.is_active)
-            ) {
-              flip.room.dist_rank = dist_rank
-              room_stack.push(flip.room)
-            }
-          }
-        }
-
-        log(game)
-      }
-
-
-    }
   }
 
   // solvers
@@ -1160,6 +1071,11 @@ module.exports = (project_name) => {
         nodes: Node[]
         lines: Line[]
         portals: Portal[]
+        MOD active_portals: Portal[]
+          contains either 0 or 2 portals (with gates that are active)
+          if there do not exist exactly 2 portals with active gates,
+            the number of active portals is set to zero
+            and all portals gates are deactivated
         handles: Handle[]
         MOD gates: Gate[]
     */
@@ -1214,6 +1130,7 @@ module.exports = (project_name) => {
         const line = game.lines[line_idx]
         line.gate = temp_gates[line.gate]
       }
+
       for (const portal_idx in game.portals) {
         const portal = game.portals[portal_idx]
         const new_gate = {
@@ -1244,12 +1161,28 @@ module.exports = (project_name) => {
           handle.gate.is_active = !!(handle.key || handle.jack)
         }
       }
+
+      game.active_portals = []
+      for (const portal_idx in game.portals) {
+        const portal = game.portals[portal_idx]
+        if (portals.gate.is_active) {
+          game.active_portals.push(portal)
+        }
+      }
+      if (game.active_portals.length != 2) {
+        for (const portal_idx in game.active_portals) {
+          const portal = game.active_portals[portal_idx]
+          portal.is_active = false
+        }
+        game.active_portals = []
+      }
     }
 
     /* Solve Rooms (game: Game)
       Recommended pre-functions for Game: measure_game
       Handle
         line: Line
+        room: Room
       Room:
         MOD handles: Handle[]
         MOD portals: Handle[]
@@ -1358,24 +1291,16 @@ module.exports = (project_name) => {
 
       for (const handle_idx in game.handles) {
         const handle = game.handles[handle_idx]
-
-        if (handle.side > 0) {
-          handle.line.room.handles.push(handle)
-        }
-        else {
-          handle.line.flip.room.handles.push(handle)
-        }
+        const line = handle.side > 0 ? handle.line : handle.line.flip
+        line.room.handles.push(handle)
+        handle.room = line.room
       }
 
       for (const portal_idx in game.portals) {
         const portal = game.portals[portal_idx]
-
-        if (portal.side > 0) {
-          portal.line.room.portals.push(portal)
-        }
-        else {
-          portal.line.flip.room.portals.push(portal)
-        }
+        const line = portal.side > 0 ? portal.line : portal.line.flip
+        line.room.portals.push(portal)
+        portal.room = line.room
       }
     }
 
@@ -1597,6 +1522,358 @@ module.exports = (project_name) => {
           }
         }
       }
+    }
+
+
+    /** Check Flip Trail Cross (root_trail,spot_trail: Trail, flips: Flip[])
+      Node
+        x,y: Float
+      Flip
+        root_node,spot_node: Node
+      Trail: Node
+        flip: Flip or Null
+    */
+    function check_trail_flips_cross(root_trail, spot_trail, flips) {
+
+      for (const flip_idx in flips) {
+        const flip = flips[flip_idx]
+        if (
+          root_trail.flip != flip &&
+          spot_trail.flip != flip &&
+          line_cross(
+            root_trail.x, root_trail.y,
+            spot_trail.x, spot_trail.y,
+            flip.root_node.x, flip.root_node.y,
+            flip.spot_node.x, flip.spot_node.y,
+          )
+        ) {
+          return false
+        }
+      }
+
+      return true
+    }
+
+    /* Solve Path (game: Game, jack: Jack)
+      Return: Path or Null if no paths exists
+      Recommended pre-functions for Game: set_game_focus && solve_cells && solve_gates
+
+      Trail
+        MOD length,total_length,x,y: Float
+      Path
+        MOD total_length: Float
+        MOD trails: Trail[]
+      Cell
+        x,y: Float
+      Gate
+        is_active: Boolean
+      Portal
+        MOD flip: Portal OR Null
+        room: Room
+        is_active: Boolean
+      Flip
+        flip: Flip
+        MOD gate: Gate or Null
+        MOD state: String
+      Line: Flip
+        gate: Gate or Null
+      Room
+        cells: Cell[]
+        doors: Flip[]
+        portals: Portal[]
+        MOD portal: Portal OR Null
+        MOD dist_rank: Float
+      Game
+        lines: Line
+        rooms: Room[]
+        portals: Portal[]
+        fx,fy
+    */
+    MazeGame.solve_path = solve_path
+    function solve_path(game, jack, log) {
+
+      log && log('get_path')
+
+      const fx = game.fx, fy = game.fy
+      const spot_room = get_room(game) // focus fx,fy
+
+      set_game_focus(game, jack.x, jack.y)
+      const root_room = get_room(game) // focus jack.x,y
+
+      const root_trail = {
+        room: root_room,
+        x: jack.x, y: jack.y,
+        flag: false,
+      }
+      let trail = root_trail
+
+      /* if jack and target are in different rooms...
+        - set variables to known values
+        - set the distance of any given room to the target (spot) room
+          connecting via open doors and portals
+          that do not rely on a handle powered by the jack
+        - return null if source (root) room does not reach the spot room
+        - starting at the root room, pick the next room in decreasing distance
+
+        adds entry and exit trails to trail linked list
+          for every room it takes to go from room to room to room
+      */
+      if (spot_room != root_room) {
+
+        // clear all room.dist_rank,portal,portal_room
+        for (const room_idx in game.rooms) {
+          const room = game.rooms[room_idx]
+          room.dist_rank = Infinity
+          room.portal = null
+          room.portal_room = null
+        }
+
+        // set all line.flip.gate,state = flin.gate,state
+        for (const line_idx in game.lines) {
+          const line = game.lines[line_idx]
+          line.flip.gate = line.gate
+          line.flip.state = line.state
+        }
+
+        spot_room.dist_rank = 0
+        const room_stack = [spot_room]
+        const gate = jack.handle && jack.handle.gate
+
+        // define room.portal and portal.portal_room
+        if (game.active_portals.length == 2) {
+          const [root_portal, spot_portal] = game.active_portals
+
+          if (
+            root_portal.room != spot_portal.room &&
+            root_portal.gate != gate &&
+            spot_portal.gate != gate
+          ) {
+            root_portal.room.portal = root_portal
+            root_portal.portal_room = spot_portal.room
+            spot_portal.room.portal = spot_portal
+            spot_portal.portal_room = root_portal.room
+          }
+        }
+
+
+        /* define all room's dist_rank
+          dist_rank:
+            Infinity: cannot connect to spot_room
+            0: spot_room
+            Otherwise: number of steps to spot_room
+        */
+        while (room_stack.length) {
+          const room = room_stack.pop()
+          const dist_rank = room.dist_rank + 1
+
+          for (const flip_idx in room.doors) {
+            const flip = room.doors[flip_idx]
+            if (
+              (dist_rank < flip.room.dist_rank) &&
+              !(flip.gate == gate && flip.state == 'door') &&
+              (!flip.gate || flip.gate.is_active)
+            ) {
+              flip.room.dist_rank = dist_rank
+              room_stack.push(flip.room)
+            }
+          }
+
+          if ( room.portal_room && dist_rank < room.portal_room.dist_rank ) {
+            room.portal_room.dist_rank = dist_rank
+            room_stack.push(room.portal_room)
+          }
+        }
+
+        // if root_room does not connect to spot_room, no path exists
+        if (!isFinite(root_room.dist_rank)) {
+          log && log('no paths exist', 'room dist_rank', game)
+          return // no paths exist
+        }
+
+        /* create trail linked list
+          spot_trail.next = ...next = root_trail
+
+          while trail hasn't been touched
+            touch trail
+
+            for each door in room
+              if door...
+                is open
+                's room is closer to the root room than the trail's room
+                is not powered by the gate that the jack is powering
+              then add two trails to the head of the linked list
+        */
+        while (!trail.flag) {
+          let room = trail.room
+          trail.flag = true
+
+          for (const spot_idx in room.doors) {
+            const flip = room.doors[spot_idx]
+
+            if (
+              (flip.room.dist_rank < room.dist_rank) &&
+              !(flip.gate == gate && flip.state == 'door') &&
+              (!flip.gate || flip.gate.is_active)
+            ) {
+
+              const x = (flip.spot_node.x + flip.root_node.x) / 2
+              const y = (flip.spot_node.y + flip.root_node.y) / 2
+
+              trail = {
+                room: flip.room,
+                flip: flip,
+                x: x, y: y,
+                next: {
+                  room: room,
+                  flip: flip.flip,
+                  x: x, y: y,
+                  next: trail,
+                },
+              }
+              break
+            }
+          }
+
+          if (
+            trail.flag &&
+            room.portal_room && room.portal_room.dist_rank < room.dist_rank
+          ) {
+            trail = {
+              room: room.portal_room,
+              x: portal_room.portal.x,
+              y: portal_room.portal.y,
+              next: {
+                room: room,
+                x: room.portal.x,
+                y: room.portal.y,
+                next: trail,
+              },
+            }
+          }
+        }
+
+        /* trail linked list cannot theoretically fail,
+          but this is an easy enough test, it doesn't hurt to try
+          the reason it theoretically cannot fail, is if room_stack succeeded,
+            then trail linked list cannot fail as they essenstially do the same
+            thing in reverse.
+        */
+        if (trail.room != spot_room) {
+          log && log('no paths exist', 'trail room != spot_room', game, trail, )
+          return // no paths exist
+          // this should never happen, but I put it here for safety
+        }
+      }
+
+      // cap off trail linked list
+      trail = {
+        room: spot_room,
+        x: fx, y: fy,
+        next: trail,
+      }
+
+      let trails = []
+      while (trail && trail.next) {
+
+        if (trail.room == trail.next.room) {
+          const room = trail.room
+          const root_trail = trail
+          const spot_trail = trail.next
+
+          // clear distance to spot trail
+          {
+            for (const cell_idx in room.cells) {
+              const cell = room.cells[cell_idx]
+              cell.dist_rank = Infinity
+            }
+
+            root_trail.dist_rank = Infinity
+            spot_trail.dist_rank = 0
+          }
+
+          // set distance to spot trail for each cell in the room
+          const trail_stack = [ spot_trail ]
+          while (trail_stack.length) {
+            const trail = trail_stack.pop()
+
+            const dist_rank = trail.dist_rank + 1
+
+            if (
+              dist_rank < root_trail.dist_rank &&
+              check_trail_flips_cross(trail, root_trail, room.lines)
+            ) {
+              root_trail.dist_rank = dist_rank
+            }
+            else {
+              for (const cell_idx in room.cells) {
+                const cell = room.cells[cell_idx]
+
+                if (
+                  dist_rank < cell.dist_rank &&
+                  check_trail_flips_cross(trail, cell, room.lines)
+                ) {
+                  cell.dist_rank = dist_rank
+                  trail_stack.push(cell)
+                }
+              }
+            }
+          }
+
+          /* Check if spot_trail reaches the root_trail
+            it is theoretically immpossible for two points
+            to be unable to reach each other in a room
+              if the room was solved correctly
+
+            if there was an error with the room solve, two points may not be able
+              to reach eachother
+          */
+          if (!isFinite(root_trail.dist_rank)) {
+            log && log(
+              'no paths exist',
+              '!isFinite(root_trail.dist_rank)',
+              game, root_trail, trails
+            )
+
+            return // no paths exist
+            // this should never happen, but I put it here for safety
+          }
+
+          trails.push(root_trail)
+
+          /* Trace the cells between the root and root trails
+
+          */
+          do {
+            trail.flag = false
+
+            if ( check_trail_flips_cross(trail, spot_trail, room.lines) ) {
+              trails.push(trail = spot_trail)
+              trail.flag = false
+            }
+            else {
+              for (const cell_idx in room.cells) {
+                const cell = room.cells[cell_idx]
+
+                if (
+                  cell.dist_rank < trail.dist_rank &&
+                  check_trail_flips_cross(trail, cell, room.lines)
+                ) {
+                  trails.push(trail = cell)
+                  trail.flag = true
+                  break
+                }
+              }
+            }
+          }
+          while (trail.flag)
+        }
+        else {
+          trails.push(trail)
+          trail = trail.next
+        }
+      }
+
+      log('good path:', trails)
     }
   }
 

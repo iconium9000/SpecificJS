@@ -62,8 +62,8 @@ function MazeGame() {
 		mouse.x = (e.clientX - 7 - mouse.width / 2) / mouse.scale
     mouse.y = (e.clientY - 7 - mouse.height / 2) / mouse.scale
 
-		let game = mg.copy_game(client.game)
-		const editor = game && game.editors[ client.socket.id ]
+		let game_copy = mg.copy_game(client.game)
+		const editor = game_copy && game_copy.editors[ client.socket.id ]
 		if (editor && mouse.left_down) {
 
 			let center = client
@@ -72,19 +72,19 @@ function MazeGame() {
 				log('COMMAND')
 			}
 			else if (editor.state == 'game') {
-				mg.measure_game(game)
+				mg.measure_game(game_copy)
 				if (editor.jack) {
 					center = editor.jack.handle || editor.jack
 				}
 
-				mg.set_game_focus(game, mouse.x+center.x, mouse.y+center.y)
+				mg.set_game_focus(game_copy, mouse.x+center.x, mouse.y+center.y)
 
-				const node = mg.get_node(game, 4 * mg.node_radius * mg.node_radius)
-	      const line = mg.get_line(game, 4 * mg.node_radius * mg.node_radius)
-	      const handle = line && mg.get_handle(game, line)
-	      const portal = line && mg.get_portal(game, line)
-				const jack = mg.get_jack(game, handle, 2 * mg.jack_radius)
-				const key = mg.get_key(game, handle, jack, 2 * mg.key_radius)
+				const node = mg.get_node(game_copy, 4 * mg.node_radius * mg.node_radius)
+	      const line = mg.get_line(game_copy, 4 * mg.node_radius * mg.node_radius)
+	      const handle = line && mg.get_handle(game_copy, line)
+	      const portal = line && mg.get_portal(game_copy, line)
+				const jack = mg.get_jack(game_copy, handle, 2 * mg.jack_radius)
+				const key = mg.get_key(game_copy, handle, jack, 2 * mg.key_radius)
 
 				log(
 					node && 'node',
@@ -96,21 +96,21 @@ function MazeGame() {
 				)
 
 				if (editor.jack) {
-					mg.solve_rooms(game)
-					mg.solve_cells(game)
-					mg.solve_gates(game)
-					const path = mg.get_path(game, editor.jack, log)
+					mg.solve_rooms(game_copy)
+					mg.solve_cells(game_copy)
+					mg.solve_gates(game_copy)
+					const path = mg.solve_path(game_copy, editor.jack, log)
 				}
 				else if (jack) {
 					editor.jack = jack
-					client.game = game
+					client.game = game_copy
 
 					log('set jack')
 				}
 			}
 			else {
 				client.game = mg.act_at(
-					game, client.socket.id,
+					game_copy, client.socket.id,
 					mouse.x+center.x, mouse.y+center.y, log
 				)
 
@@ -155,13 +155,11 @@ function MazeGame() {
 				if (editor.node) {
 					const node_idx = game.nodes.indexOf(editor.node)
 					game.nodes.splice(node_idx, 1)
-					game = mg.copy_game(game)
 				}
 
 				if (editor.portal) {
 					const portal_idx = game.portals.indexOf(editor.portal)
 					game.portals.splice(portal_idx, 1)
-					game = mg.copy_game(game)
 				}
 			}
 			else if (c == ' ') {
