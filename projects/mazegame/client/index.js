@@ -62,60 +62,8 @@ function MazeGame() {
 		mouse.x = (e.clientX - 7 - mouse.width / 2) / mouse.scale
     mouse.y = (e.clientY - 7 - mouse.height / 2) / mouse.scale
 
-		let game_copy = mg.copy_game(client.game)
-		const editor = game_copy && game_copy.editors[ client.socket.id ]
-		if (editor && mouse.left_down) {
-
-			let center = client
-
-			if (client.command) {
-				log('COMMAND')
-			}
-			else if (editor.state == 'game') {
-				mg.measure_game(game_copy)
-				if (editor.jack) {
-					center = editor.jack.handle || editor.jack
-				}
-
-				mg.set_game_focus(game_copy, mouse.x+center.x, mouse.y+center.y)
-
-				const node = mg.get_node(game_copy, 4 * mg.node_radius * mg.node_radius)
-	      const line = mg.get_line(game_copy, 4 * mg.node_radius * mg.node_radius)
-	      const handle = line && mg.get_handle(game_copy, line)
-	      const portal = line && mg.get_portal(game_copy, line)
-				const jack = mg.get_jack(game_copy, handle, 2 * mg.jack_radius)
-				const key = mg.get_key(game_copy, handle, jack, 2 * mg.key_radius)
-
-				log(
-					node && 'node',
-					line && 'line',
-					handle && 'handle',
-					portal && 'portal',
-					jack && 'jack',
-					key && 'key',
-				)
-
-				if (editor.jack) {
-					mg.solve_rooms(game_copy)
-					mg.solve_cells(game_copy)
-					mg.solve_gates(game_copy)
-					const path = mg.solve_path(game_copy, editor.jack, log)
-				}
-				else if (jack) {
-					editor.jack = jack
-					client.game = game_copy
-
-					log('set jack')
-				}
-			}
-			else {
-				client.game = mg.act_at(
-					game_copy, client.socket.id,
-					mouse.x+center.x, mouse.y+center.y, log
-				)
-
-				log('action', client.game.action)
-			}
+		if (mouse.left_down) {
+			client.game = mg.do_action(client.game, client.socket.id, client, mouse, log)
 		}
 
 		if (e.button == 2) {
@@ -150,7 +98,7 @@ function MazeGame() {
 			else if (e.which == 13) {
 
 			}
-			// delete
+			// Delete
 			else if (e.which == 127) {
 				if (editor.node) {
 					const node_idx = game.nodes.indexOf(editor.node)
@@ -163,12 +111,15 @@ function MazeGame() {
 				}
 			}
 			else if (c == ' ') {
-				game = mg.copy_game(game)
-				mg.solve_game(game, client, mouse, log)
+				const game = mg.do_action(
+					mg.copy_game(client.game),
+					client.socket.id,
+					client, mouse, log
+				)
+				mg.solve_game(game, game.center || client, mouse, log)
 				log('SPACEBAR', game)
 			}
 		}
-
   })
 
   $(document).keyup(e => {
@@ -202,34 +153,12 @@ function MazeGame() {
 
 	function tick() {
 
-		let center = client
-		let game = mg.copy_game(client.game)
-		mg.measure_game(game)
-		const editor = game.editors[client.socket.id]
-
-		if (!editor) {
-			return
-		}
-		else if (editor.state == 'game') {
-
-			if (client.command) {
-
-			}
-			else if (editor.jack) {
-				center = editor.jack.handle || editor.jack
-			}
-		}
-		else {
-			if (!is_mobile) {
-				game = mg.act_at(game,
-					client.socket.id,
-					mouse.x+client.x,
-					mouse.y+client.y
-				)
-			}
-		}
-
-		mg.solve_game(game, center, mouse)
+		const game = mg.do_action(
+			mg.copy_game(client.game),
+			client.socket.id,
+			client, mouse,
+		)
+		mg.solve_game(game, game.center || client, mouse)
 		draw_game(game)
 	}
 
@@ -508,9 +437,18 @@ function MazeGame() {
 			ctx.fill()
 		}
 
-	}
+		if (game.path) {
 
-	function do_garbo(game, editor) {
+			let f = 'moveTo'
+			ctx.strokeStyle = 'white'
+			ctx.beginPath()
+			for (const trail_idx in game.path.trails) {
+				const trail = game.path.trails[trail_idx]
+				ctx[f](trail.mid_x, trail.mid_y)
+				f = 'lineTo'
+			}
+			ctx.stroke()
+		}
 
 	}
 

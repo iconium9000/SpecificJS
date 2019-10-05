@@ -29,22 +29,11 @@ module.exports = (project_name) => {
   const key_radius = node_radius * 0.7
   const key_diameter = 2*key_radius
 
-  const top_scale = 1.1
-  const mid_scale = (top_scale + 1) / 2
+  const bot_scale = 0.95
+  const top_scale = 1.05
+  const mid_scale = 1
   const line_width = node_radius / 2
 
-  MazeGame.node_radius = node_radius
-  MazeGame.line_width = line_width
-  MazeGame.node_diameter = node_diameter
-  MazeGame.node_diameter2 = node_diameter2
-  MazeGame.handle_radius = handle_radius
-  MazeGame.portal_radius = portal_radius
-  MazeGame.key_radius = key_radius
-  MazeGame.jack_radius = jack_radius
-  MazeGame.mid_scale = mid_scale
-  MazeGame.top_scale = top_scale
-
-  // TODO
   const states = {
     node: {
       key: 'n',
@@ -94,18 +83,34 @@ module.exports = (project_name) => {
     }
   }
   const state_keys = {}
-  for (const name in states) {
-    const state = states[name]
-    state.name = name
-    state_keys[state.key] = state
-  }
-  MazeGame.states = states
-  MazeGame.state_keys = state_keys
 
-  MazeGame.check_line_cross = (
-    {root_node: {x: a00, y: a01}, spot_node: {x: a10, y: a11}},
-    {root_node: {x: b00, y: b01}, spot_node: {x: b10, y: b11}},
-  ) => line_cross(a00, a01, a10, a11, b00, b01, b10, b11)
+  // constants
+  {
+    MazeGame.node_radius = node_radius
+    MazeGame.line_width = line_width
+    MazeGame.node_diameter = node_diameter
+    MazeGame.node_diameter2 = node_diameter2
+    MazeGame.handle_radius = handle_radius
+    MazeGame.portal_radius = portal_radius
+    MazeGame.key_radius = key_radius
+    MazeGame.jack_radius = jack_radius
+    MazeGame.mid_scale = mid_scale
+    MazeGame.top_scale = top_scale
+
+    // TODO
+    for (const name in states) {
+      const state = states[name]
+      state.name = name
+      state_keys[state.key] = state
+    }
+    MazeGame.states = states
+    MazeGame.state_keys = state_keys
+
+    MazeGame.check_line_cross = (
+      {root_node: {x: a00, y: a01}, spot_node: {x: a10, y: a11}},
+      {root_node: {x: b00, y: b01}, spot_node: {x: b10, y: b11}},
+    ) => line_cross(a00, a01, a10, a11, b00, b01, b10, b11)
+  }
 
   // game manip
   {
@@ -135,11 +140,12 @@ module.exports = (project_name) => {
         portal: Portal, handle: Handle, null
         MOD(only write to input) idx: Id
         idx: index of handle in game.handles
-      Editors
+      Editor
         id,name,state: String
         node: Node
         portal: Portal
         handle: Handle
+        path: Object TODO
       Game
         nodes: Node[]
         lines: Line[]
@@ -384,10 +390,12 @@ module.exports = (project_name) => {
           handle: editor.handle && new_game.handles[editor.handle.idx],
           key: editor.key && new_game.keys[editor.key.idx],
           jack: editor.jack && new_game.jacks[editor.jack.idx],
+
         }
         new_game.editors[new_editor.id] = new_editor
       }
 
+      new_game.path = game.path // TODO
       return new_game
     }
 
@@ -398,10 +406,11 @@ module.exports = (project_name) => {
         x,y: Float
       Line
         root_node,spot_node: Node
-        MOD vx,vy,length2,length2: Float
-        vx,vy: vector from root_node to spot_node
-        length: length of vx,vy
-        length2: length of vx,vy squared
+        MOD vx,vy,length2,length2,cx,cy: Float
+          vx,vy: vector from root_node to spot_node
+          length: length of vx,vy
+          length2: length of vx,vy squared
+          cx,cy: mid point between root_node and spot_node
       Portal
         side,dot: Float
       Handle
@@ -427,6 +436,9 @@ module.exports = (project_name) => {
         // log && log(line.length
         line.dx = -line.vy / line.length
         line.dy = line.vx / line.length
+
+        line.cx = (line.spot_node.x + line.root_node.x) / 2
+        line.cy = (line.spot_node.y + line.root_node.y) / 2
       }
 
       // measure handles
@@ -1044,6 +1056,23 @@ module.exports = (project_name) => {
       return ret_room
     }
 
+    /* Get node,line,handle,portal,jack,key
+      TODO
+    */
+    MazeGame.get_room = get_room
+    function get_all(game) {
+
+      const getter = {}
+      getter.node = get_node(game, node_diameter2)
+      getter.line = get_line(game, node_diameter2)
+      getter.handle = getter.line && get_handle(game, getter.line)
+      getter.portal = getter.line && get_portal(game, getter.line)
+      getter.jack = get_jack(game, getter.handle, jack_diameter)
+      getter.key = get_key(game, getter.handle, getter.jack, key_diameter)
+
+      return getter
+    }
+
   }
 
   // solvers
@@ -1165,7 +1194,7 @@ module.exports = (project_name) => {
       game.active_portals = []
       for (const portal_idx in game.portals) {
         const portal = game.portals[portal_idx]
-        if (portals.gate.is_active) {
+        if (portal.gate.is_active) {
           game.active_portals.push(portal)
         }
       }
@@ -1196,6 +1225,7 @@ module.exports = (project_name) => {
       Flip:
         root_node,spot_node: Node
         state: String
+        MOD cx,cy: Float
         MOD flip: Flip
           line with inverted vx,vy, angle, and root and spot nodes
         MOD angle: Float (-pi,pi)
@@ -1228,6 +1258,7 @@ module.exports = (project_name) => {
         const line = game.lines[line_idx]
 
         line.angle = Math.atan2(line.vy, line.vx)
+        line.room = null
 
         line.flip = {
           root_node: line.spot_node,
@@ -1235,6 +1266,10 @@ module.exports = (project_name) => {
           state: line.state,
           flip: line,
           angle: inverse_angle(line.angle),
+          room: null,
+
+          cx: line.cx,
+          cy: line.cy,
         }
 
         line.root_node.lines.push(line)
@@ -1524,7 +1559,6 @@ module.exports = (project_name) => {
       }
     }
 
-
     /** Check Flip Trail Cross (root_trail,spot_trail: Trail, flips: Flip[])
       Node
         x,y: Float
@@ -1655,7 +1689,6 @@ module.exports = (project_name) => {
           }
         }
 
-
         /* define all room's dist_rank
           dist_rank:
             Infinity: cannot connect to spot_room
@@ -1716,17 +1749,14 @@ module.exports = (project_name) => {
               (!flip.gate || flip.gate.is_active)
             ) {
 
-              const x = (flip.spot_node.x + flip.root_node.x) / 2
-              const y = (flip.spot_node.y + flip.root_node.y) / 2
-
               trail = {
                 room: flip.room,
                 flip: flip,
-                x: x, y: y,
+                x: flip.cx, y: flip.cy,
                 next: {
                   room: room,
                   flip: flip.flip,
-                  x: x, y: y,
+                  x: flip.cx, y: flip.cy,
                   next: trail,
                 },
               }
@@ -1873,14 +1903,29 @@ module.exports = (project_name) => {
         }
       }
 
-      log('good path:', trails)
+      const new_path = {
+        trails: trails,
+      }
+      log && log('good path:', new_path)
+      return new_path
     }
   }
 
-  /* Act At (game: Game, editor_id: Id, fx,fy: Float, called_by_act_at: Boolean)
-    Recommended pre-functions for Game: copy_game OR get_game
-    Calls: copy_game,
+  /* Do Action (game: Game, editor_id: Id, center,mouse: Point)
+    Return: Game
+    Recommended pre-functions for Game: copy_game
 
+    TODO
+
+    Point
+      x,y: Float
+    Editor: edit_game.Editor
+      MOD path: solve_path.Path
+      MOD jack: edit_game.Jack
+    Game: edit_game.Game
+      MOD action: String
+      MOD reaction: String OR Null
+      MOD center,mouse: Point
     Node
       MOD state: String
       MOD x,y: Float
@@ -1896,59 +1941,117 @@ module.exports = (project_name) => {
       line: Line
       handle: Handle, portal: Portal, null
       rel_dot: Float
-      TODO
     Game
       MOD nodes: Node[]
       MOD lines: Line[]
       MOD handles: Handle[]
       MOD portals: Portal[]
   */
-  MazeGame.act_at = act_at
-  function act_at(game, editor_id, fx, fy, log, called_by_act_at) {
+  MazeGame.do_action = do_action
+  function do_action(game, editor_id, center, mouse, log) {
 
-    const game_copy = copy_game(game)
+    let game_copy = copy_game(game)
+		let editor = game_copy && game_copy.editors[ editor_id ]
 
-    const editor = game_copy.editors[editor_id]
-
-    if (!editor) {
-      return game_copy
+		if (!editor) {
+      return game
     }
+    else if (game_copy.path) {
+			log && log('COMMAND')
+      return game
+		}
+		else if (editor.state == 'game') {
 
-    // try action
-    {
       measure_game(game_copy)
-      set_game_focus(game_copy, fx, fy)
+			if (editor.jack) {
+				center = editor.jack.handle || editor.jack
+        game_copy.center = center
+			}
 
-      game_copy.action = ''
+			set_game_focus(game_copy, mouse.x+center.x, mouse.y+center.y)
 
-      const node = get_node(game_copy, node_diameter2)
-      const line = get_line(game_copy, node_diameter2)
-      const handle = line && get_handle(game_copy, line, log)
-      const portal = line && get_portal(game_copy, line)
-      const jack = get_jack(game_copy, handle, jack_diameter)
-      const key = get_key(game_copy, handle, jack, key_diameter)
+      const {node,line,handle,portal,jack,key} = get_all(game_copy)
 
-      // log && log(
-      //   node && 'node',
-      //   line && 'line',
-      //   handle && 'handle',
-      //   portal && 'portal',
-      //   key && 'key',
-      //   jack && 'jack',
-      // )
+			log && log(
+				node && 'node',
+				line && 'line',
+				handle && 'handle',
+				portal && 'portal',
+				jack && 'jack',
+				key && 'key',
+			)
 
-      const state = states[editor.state]
+			if (editor.jack) {
+				solve_rooms(game_copy)
+				solve_cells(game_copy)
+				solve_gates(game_copy)
+				game_copy.path = solve_path(game_copy, editor.jack, log)
 
-      switch (editor.state) {
-        case 'node':
-        case 'door':
-        case 'laser':
-        case 'wall':
+        log && log('game_copy.path', game_copy.path)
+			}
+			else if (jack) {
+				editor.jack = jack
+				log && log('set jack')
+			}
+      return game_copy
+		}
+		else {
+      const fx = mouse.x+center.x, fy = mouse.y+center.y
 
-          if (editor.node) {
-            if (node) {
-              if (node == editor.node) {
-                if (editor.state == 'node') {
+      let sanity = 2
+      while (sanity-- > 0) {
+
+        // try action
+        {
+          measure_game(game_copy)
+          set_game_focus(game_copy, fx, fy)
+
+          game_copy.action = ''
+
+          const {node,line,handle,portal,jack,key} = get_all(game_copy)
+
+          const state = states[editor.state]
+
+          switch (editor.state) {
+            case 'node':
+            case 'door':
+            case 'laser':
+            case 'wall':
+
+              if (editor.node) {
+                if (node) {
+                  if (node == editor.node) {
+                    if (editor.state == 'node') {
+                      editor.node.x = fx
+                      editor.node.y = fy
+                      editor.node = null
+                      game_copy.action += `moved and deselected node`
+                      break
+                    }
+                    else {
+                      editor.node = null
+                      game_copy.action = `deselected node`
+                      break
+                    }
+                  }
+                  else if (editor.state == 'node') {
+                    editor.node = node
+                    game_copy.action = `selected node`
+                    break
+                  }
+                  else {
+                    const new_line = {
+                      root_node: editor.node,
+                      spot_node: node,
+                      state: editor.state,
+                    }
+                    editor.node = node
+                    game_copy.lines.push(new_line)
+                    game_copy.action = `selected node, added new line`
+                    break
+                  }
+                }
+                else if (editor.state == 'node') {
                   editor.node.x = fx
                   editor.node.y = fy
                   editor.node = null
@@ -1956,370 +2059,335 @@ module.exports = (project_name) => {
                   break
                 }
                 else {
-                  editor.node = null
-                  game_copy.action = `deselected node`
+                  const new_node = {
+                    x: fx,
+                    y: fy,
+                    state: 'node',
+                  }
+                  game_copy.nodes.push(new_node)
+
+                  if (line && !node) {
+
+                    const new_line = {
+                      root_node: new_node,
+                      spot_node: line.spot_node,
+                      state: line.state,
+                    }
+                    game_copy.lines.push(new_line)
+
+                    line.spot_node = new_node
+
+                    game_copy.action = `split ${line.state}, `
+                  }
+
+                  const new_line = {
+                    root_node: editor.node,
+                    spot_node: new_node,
+                    state: editor.state,
+                  }
+                  editor.node = new_node
+                  game_copy.lines.push(new_line)
+                  game_copy.action += `added and selected new node, added new ${editor.state}`
                   break
                 }
               }
-              else if (editor.state == 'node') {
+              else if (node) {
                 editor.node = node
                 game_copy.action = `selected node`
                 break
               }
               else {
-                const new_line = {
-                  root_node: editor.node,
-                  spot_node: node,
-                  state: editor.state,
+                const new_node = {
+                  x: fx,
+                  y: fy,
+                  state: 'node',
                 }
-                editor.node = node
-                game_copy.lines.push(new_line)
-                game_copy.action = `selected node, added new line`
+                game_copy.nodes.push(new_node)
+
+                if (line) {
+                  const new_line = {
+                    root_node: new_node,
+                    spot_node: line.spot_node,
+                    state: line.state,
+                  }
+                  game_copy.lines.push(new_line)
+
+                  line.spot_node = new_node
+
+                  game_copy.action = `split ${line.state}, `
+                }
+
+                if (editor.state == 'node') {
+                  game_copy.action += `added new node`
+                  break
+                }
+                else {
+                  editor.node = new_node
+                  game_copy.action += `added and selected new node`
+                  break
+                }
+              }
+            case 'handle':
+
+
+              if (!line || line.state != 'wall') {
                 break
               }
-            }
-            else if (editor.state == 'node') {
-              editor.node.x = fx
-              editor.node.y = fy
-              editor.node = null
-              game_copy.action += `moved and deselected node`
-              break
-            }
-            else {
-              const new_node = {
-                x: fx,
-                y: fy,
-                state: 'node',
+
+              const new_handle = {
+                line: line,
+                is_square: false,
+                rel_side: line.side,
               }
-              game_copy.nodes.push(new_node)
 
-              if (line && !node) {
+              const length = line.dot * line.length
+              const handle_diameter = handle_radius * 2.5
 
-                const new_line = {
-                  root_node: new_node,
-                  spot_node: line.spot_node,
-                  state: line.state,
+              if (length < handle_diameter) {
+                new_handle.rel_dot = 0
+                game_copy.action = `added new handle to node`
+              }
+              else if (length > line.length - handle_diameter) {
+                new_handle.rel_dot = 1
+                game_copy.action = `added new handle to node`
+              }
+              else if (portal) {
+                new_handle.portal = portal
+                if (line.side > 0 == portal.side > 0) {
+                  new_handle.rel_dot = line.dot > portal.dot ? 1 : -1
+                  new_handle.rel_side = 1
                 }
-                game_copy.lines.push(new_line)
-
-                line.spot_node = new_node
-
-                game_copy.action = `split ${line.state}, `
+                else {
+                  new_handle.rel_dot = 0
+                  new_handle.rel_side = -1
+                }
+                game_copy.action = `added new handle to portal`
+              }
+              else if (handle) {
+                if (line.side > 0 == handle.side > 0) {
+                  new_handle.rel_dot = line.dot > handle.dot ? 1 : -1
+                  new_handle.rel_side = 1
+                }
+                else {
+                  new_handle.rel_dot = 0
+                  new_handle.rel_side = -1
+                }
+                new_handle.handle = handle
+                game_copy.action = `added new handle to handle`
+              }
+              else {
+                break
               }
 
-              const new_line = {
-                root_node: editor.node,
-                spot_node: new_node,
-                state: editor.state,
+              game_copy.handles.push(new_handle)
+              break
+            case 'portal':
+
+              if (editor.portal) {
+                const line = editor.portal.line
+                if (0 < line.dot && line.dot < 1) {
+                  editor.portal.dot = line.dot
+                  editor.portal.side = line.side
+                  editor.portal = null
+                  game_copy.action = `moved and deselected portal`
+                }
+                break
               }
-              editor.node = new_node
-              game_copy.lines.push(new_line)
-              game_copy.action += `added and selected new node, added new ${editor.state}`
-              break
-            }
-          }
-          else if (node) {
-            editor.node = node
-            game_copy.action = `selected node`
-            break
-          }
-          else {
-            const new_node = {
-              x: fx,
-              y: fy,
-              state: 'node',
-            }
-            game_copy.nodes.push(new_node)
-
-            if (line) {
-              const new_line = {
-                root_node: new_node,
-                spot_node: line.spot_node,
-                state: line.state,
+              else if (portal) {
+                if (editor.portal == portal) {
+                  editor.portal = null
+                  game_copy.action = `deselected portal`
+                  break
+                }
+                else {
+                  editor.portal = portal
+                  game_copy.action = `selected portal`
+                  break
+                }
               }
-              game_copy.lines.push(new_line)
+              else if (line && line.state == 'wall') {
+                const new_portal = {
+                  line: line,
+                  side: line.side,
+                  dot: line.dot,
+                }
+                game_copy.portals.push(new_portal)
+                game_copy.action = `added new portal`
+                break
+              }
 
-              line.spot_node = new_node
-
-              game_copy.action = `split ${line.state}, `
-            }
-
-            if (editor.state == 'node') {
-              game_copy.action += `added new node`
               break
-            }
-            else {
-              editor.node = new_node
-              game_copy.action += `added and selected new node`
+            case 'square':
+              if (handle) {
+                handle.is_square = !handle.is_square
+                game_copy.action = `changed handle is_square to ${handle.is_square}, `
+              }
+              if (key) {
+                key.is_square = !key.is_square
+                game_copy.action += `changed key is_square to ${key.is_square}`
+              }
               break
-            }
-          }
-        case 'handle':
+            case 'key':
+              if (editor.key) {
 
+                editor.key.x = fx
+                editor.key.y = fy
 
-          if (!line || line.state != 'wall') {
-            break
-          }
+                if (editor.key.handle) {
+                  editor.key.handle.key = null
+                  editor.key.handle = null
+                }
 
-          const new_handle = {
-            line: line,
-            is_square: false,
-            rel_side: line.side,
-          }
+                if (editor.key.jack) {
+                  editor.key.jack.key = null
+                  editor.key.jack = null
+                }
 
-          const length = line.dot * line.length
-          const handle_diameter = handle_radius * 2.5
+                if (jack) {
+                  editor.key.jack = jack
+                  jack.key = editor.key
+                  editor.key.is_square = !!jack.handle && jack.handle.is_square
+                  game_copy.action = `added key to jack`
+                }
+                else if (handle) {
+                  editor.key.handle = handle
+                  handle.key = editor.key
+                  editor.key.is_square = handle.is_square
+                  game_copy.action = `added key to handle`
+                }
 
-          if (length < handle_diameter) {
-            new_handle.rel_dot = 0
-            game_copy.action = `added new handle to node`
-          }
-          else if (length > line.length - handle_diameter) {
-            new_handle.rel_dot = 1
-            game_copy.action = `added new handle to node`
-          }
-          else if (portal) {
-            new_handle.portal = portal
-            if (line.side > 0 == portal.side > 0) {
-              new_handle.rel_dot = line.dot > portal.dot ? 1 : -1
-              new_handle.rel_side = 1
-            }
-            else {
-              new_handle.rel_dot = 0
-              new_handle.rel_side = -1
-            }
-            game_copy.action = `added new handle to portal`
-          }
-          else if (handle) {
-            if (line.side > 0 == handle.side > 0) {
-              new_handle.rel_dot = line.dot > handle.dot ? 1 : -1
-              new_handle.rel_side = 1
-            }
-            else {
-              new_handle.rel_dot = 0
-              new_handle.rel_side = -1
-            }
-            new_handle.handle = handle
-            game_copy.action = `added new handle to handle`
-          }
-          else {
-            break
-          }
+                editor.key = null
+                game_copy.action = `moved and deselected key, ${game_copy.action}`
+              }
+              else if (key) {
+                editor.key = key
+                game_copy.action = `selected key`
+              }
+              else {
 
-          game_copy.handles.push(new_handle)
-          break
-        case 'portal':
+                const new_key = {
+                  x: fx, y: fy,
+                  is_square: false,
+                }
+                game_copy.keys.push(new_key)
 
+                if (jack) {
+                  new_key.jack = jack
+                  jack.key = new_key
+                  new_key.is_square = !!jack.handle && jack.handle.is_square
+                  game_copy.action = `added key to jack`
+                }
+                else if (handle) {
+                  new_key.handle = handle
+                  handle.key = new_key
+                  new_key.is_square = handle.is_square
+                  game_copy.action = `added key to handle`
+                }
+                else {
+                  game_copy.action = `added key to game`
+                }
+              }
+
+              break
+            case 'jack':
+
+              if (editor.jack) {
+                editor.jack.x = fx
+                editor.jack.y = fy
+
+                if (editor.jack.handle) {
+                  editor.jack.handle.jack = null
+                  editor.jack.handle = null
+                }
+
+                if (handle) {
+                  editor.jack.handle = handle
+                  handle.jack = editor.jack
+                  game_copy.action = `added jack to handle`
+                }
+
+                editor.jack = null
+                game_copy.action = `moved and deselected jack, ${game_copy.action}`
+              }
+              else if (jack) {
+                editor.jack = jack
+                game_copy.action = `selected jack`
+              }
+              else {
+                const new_jack = {
+                  x: fx, y: fy,
+                }
+                game_copy.jacks.push(new_jack)
+
+                if (handle) {
+                  new_jack.handle = handle
+                  handle.jack = new_jack
+                  game_copy.action = `added jack to handle`
+                }
+                else {
+                  game_copy.action = `added jack to game`
+                }
+              }
+
+              break
+          }
+        }
+
+        measure_game(game_copy)
+        const message = game_copy.action && check_is_valid_game(game_copy)
+        if (!message) {
+          if (!game_copy.action) {
+            game_copy.action = `no action`
+          }
+          return game_copy
+        } else if (game_copy.reaction) {
+          game.action = game_copy.reaction
+          return game
+        }
+        else {
+          game_copy = copy_game(game)
+          editor = game_copy.editors[editor_id]
+
+          game_copy.reaction = message + `, `
+
+          // clear editor
+          if (editor.node) {
+            editor.node = null
+            game_copy.reaction = `deselected node`
+          }
+          if (editor.node) {
+            editor.node = null
+            game_copy.reaction += `deselected node, `
+          }
           if (editor.portal) {
-            const line = editor.portal.line
-            if (0 < line.dot && line.dot < 1) {
-              editor.portal.dot = line.dot
-              editor.portal.side = line.side
-              editor.portal = null
-              game_copy.action = `moved and deselected portal`
-            }
-            break
+            editor.portal = null
+            game_copy.reaction += `deselected portal, `
           }
-          else if (portal) {
-            if (editor.portal == portal) {
-              editor.portal = null
-              game_copy.action = `deselected portal`
-              break
-            }
-            else {
-              editor.portal = portal
-              game_copy.action = `selected portal`
-              break
-            }
+          if (editor.handle) {
+            editor.handle = null
+            game_copy.reaction += `deselected handle, `
           }
-          else if (line && line.state == 'wall') {
-            const new_portal = {
-              line: line,
-              side: line.side,
-              dot: line.dot,
-            }
-            game_copy.portals.push(new_portal)
-            game_copy.action = `added new portal`
-            break
-          }
-
-          break
-        case 'square':
-          if (handle) {
-            handle.is_square = !handle.is_square
-            game_copy.action = `changed handle is_square to ${handle.is_square}, `
-          }
-          if (key) {
-            key.is_square = !key.is_square
-            game_copy.action += `changed key is_square to ${key.is_square}`
-          }
-          break
-        case 'key':
           if (editor.key) {
-
-            editor.key.x = fx
-            editor.key.y = fy
-
-            if (editor.key.handle) {
-              editor.key.handle.key = null
-              editor.key.handle = null
-            }
-
-            if (editor.key.jack) {
-              editor.key.jack.key = null
-              editor.key.jack = null
-            }
-
-            if (jack) {
-              editor.key.jack = jack
-              jack.key = editor.key
-              editor.key.is_square = !!jack.handle && jack.handle.is_square
-              game_copy.action = `added key to jack`
-            }
-            else if (handle) {
-              editor.key.handle = handle
-              handle.key = editor.key
-              editor.key.is_square = handle.is_square
-              game_copy.action = `added key to handle`
-            }
-
             editor.key = null
-            game_copy.action = `moved and deselected key, ${game_copy.action}`
+            game_copy.reaction += `deselected key, `
           }
-          else if (key) {
-            editor.key = key
-            game_copy.action = `selected key`
-          }
-          else {
-
-            const new_key = {
-              x: fx, y: fy,
-              is_square: false,
-            }
-            game_copy.keys.push(new_key)
-
-            if (jack) {
-              new_key.jack = jack
-              jack.key = new_key
-              new_key.is_square = !!jack.handle && jack.handle.is_square
-              game_copy.action = `added key to jack`
-            }
-            else if (handle) {
-              new_key.handle = handle
-              handle.key = new_key
-              new_key.is_square = handle.is_square
-              game_copy.action = `added key to handle`
-            }
-            else {
-              game_copy.action = `added key to game`
-            }
-          }
-
-          break
-        case 'jack':
-
           if (editor.jack) {
-            editor.jack.x = fx
-            editor.jack.y = fy
-
-            if (editor.jack.handle) {
-              editor.jack.handle.jack = null
-              editor.jack.handle = null
-            }
-
-            if (handle) {
-              editor.jack.handle = handle
-              handle.jack = editor.jack
-              game_copy.action = `added jack to handle`
-            }
-
             editor.jack = null
-            game_copy.action = `moved and deselected jack, ${game_copy.action}`
+            game_copy.reaction += `deselected jack, `
           }
-          else if (jack) {
-            editor.jack = jack
-            game_copy.action = `selected jack`
-          }
-          else {
-            const new_jack = {
-              x: fx, y: fy,
-            }
-            game_copy.jacks.push(new_jack)
-
-            if (handle) {
-              new_jack.handle = handle
-              handle.jack = new_jack
-              game_copy.action = `added jack to handle`
-            }
-            else {
-              game_copy.action = `added jack to game`
-            }
-          }
-
-          break
-
+        }
       }
-    }
-
-    measure_game(game_copy)
-    const message = game_copy.action && check_is_valid_game(game_copy)
-    if (message) {
-
-
-      const editor = game.editors[editor_id]
-
-      game.action = message + `, `
-
-      if (editor.node) {
-        editor.node = null
-        game.action = `deselected node`
-      }
-      if (editor.node) {
-        editor.node = null
-        game.action += `deselected node, `
-      }
-      if (editor.portal) {
-        editor.portal = null
-        game.action += `deselected portal, `
-      }
-      if (editor.handle) {
-        editor.handle = null
-        game.action += `deselected handle, `
-      }
-      if (editor.key) {
-        editor.key = null
-        game.action += `deselected key, `
-      }
-      if (editor.jack) {
-        editor.jack = null
-        game.action += `deselected jack, `
-      }
-
-      if (called_by_act_at) {
-        return copy_game(game)
-      }
-      else {
-        return act_at(game, editor_id, fx, fy, log, true)
-      }
-    }
-    else {
-      if (!game_copy.action) {
-        game_copy.action = `no action`
-      }
-      const new_game = copy_game(game_copy, log)
-      return new_game
-    }
-
+		}
   }
 
-  /* Set Up Game (game: Game, client: Client, mouse: Mouse)
+  /* Solve Game (game: Game, center: Point, mouse: Mouse)
 
     Recommended pre-functions for Game: game_copy
     Requires: ( states: State[] )
 
-    Client:
+    Point:
       x,y: Float
-    Mouse:
+    Mouse: Point
       scale,width,height: Float
 
     TODO (incomplete)
@@ -2371,8 +2439,6 @@ module.exports = (project_name) => {
         let line = game.lines[line_idx]
         const state = states[line.state]
 
-        log && log(line.state, state)
-
         line.stroke_color = state.stroke_color(line.gate && line.gate.is_active)
         line.fill_color = state.fill_color(line.gate && line.gate.is_active)
       }
@@ -2414,7 +2480,7 @@ module.exports = (project_name) => {
 
     // set transforms
     {
-      const scale_bot = scale
+      const scale_bot = scale * bot_scale
       const shift_bot_x = width / 2 - px * scale_bot
       const shift_bot_y = height / 2 - py * scale_bot
 
@@ -2438,16 +2504,16 @@ module.exports = (project_name) => {
       }
 
       // set transform for rooms
-			for (const room_idx in game.rooms) {
-				const room = game.rooms[room_idx]
+      for (const room_idx in game.rooms) {
+        const room = game.rooms[room_idx]
 
-				for (const cell_idx in room.cells) {
-					const cell = room.cells[cell_idx]
+        for (const cell_idx in room.cells) {
+          const cell = room.cells[cell_idx]
           cell.bot_x = cell.x * scale_bot + shift_bot_x
           cell.bot_y = cell.y * scale_bot + shift_bot_y
-				}
+        }
 
-			}
+      }
 
       for (const portal_idx in game.portals) {
         const portal = game.portals[portal_idx]
@@ -2480,9 +2546,16 @@ module.exports = (project_name) => {
         jack.mid_x = jack.x * scale_mid + shift_mid_x
         jack.mid_y = jack.y * scale_mid + shift_mid_y
       }
-    }
 
-    // set_game_focus(game, px, py)
+      if (game.path) {
+        for (const trail_idx in game.path.trails) {
+          const trail = game.path.trails[trail_idx]
+
+          trail.mid_x = trail.x * scale_mid + shift_mid_x
+          trail.mid_y = trail.y * scale_mid + shift_mid_y
+        }
+      }
+    }
   }
 
   console.log(project_name, 'game.js')
