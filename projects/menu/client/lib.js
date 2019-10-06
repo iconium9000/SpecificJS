@@ -1,13 +1,17 @@
+const Lib = module.exports = {}
+
 const pi = Math.PI
 const pi2 = pi * 2
 
+Lib.get_cookie = get_cookie
 function get_cookie(cookie_name) {
   return document.cookie.
-    replace(
-      new RegExp(`(?:(?:^|.*;\\s*)${cookie_name}\\s*\\=\\s*([^;]*).*$)|^.*$`
-    ), '$1')
+  replace(
+    new RegExp(`(?:(?:^|.*;\\s*)${cookie_name}\\s*\\=\\s*([^;]*).*$)|^.*$`
+  ), '$1')
 }
 
+Lib.inverse_angle = inverse_angle
 // for -pi < angle < pi
 function inverse_angle(angle) {
   return angle + pi > pi ? angle - pi : angle + pi
@@ -25,12 +29,14 @@ function inverse_angle(angle) {
   angle rank of t is 0 < r < 1 iff
     t is a member of the set of angles spanning from a to f
 */
+Lib.get_angle_rank = get_angle_rank
 function get_angle_rank(a, f, t) {
   return f < a ? (t - a) / (f - a) :
     f < t ? (t - a - pi2) / (f - a - pi2) : t < a ? (t - a) / (f - a - pi2) : -1
 }
 
 // broken
+Lib.insert_sort = insert_sort
 function insert_sort(sorted_array, spot_element, sort_by) {
 
   const sorted_array_length = sorted_array.length
@@ -74,6 +80,7 @@ function insert_sort(sorted_array, spot_element, sort_by) {
   }
 }
 
+Lib.line_cross = line_cross
 function line_cross(p111, p112, p121, p122, p211, p212, p221, p222) {
 
   const p222_212 = p222 - p212, p221_211 = p221 - p211

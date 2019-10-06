@@ -6,8 +6,7 @@ function MazeGame() {
 	const log = (...msg) => console.log(project_name, ...msg)
 	const err = console.error
 	const pi2 = Math.PI * 2
-	const MazeGame = module.exports(project_name)
-	const mg = MazeGame
+	const MazeGame = module.exports(project_name, Lib)
 
 	const client = {
 	  socket: io('/mazegame'),
@@ -63,7 +62,16 @@ function MazeGame() {
     mouse.y = (e.clientY - 7 - mouse.height / 2) / mouse.scale
 
 		if (mouse.left_down) {
-			client.game = mg.do_action(client.game, client.socket.id, client, mouse, log)
+
+			log('left_down', client.game.path && 'PATH')
+			client.game = MazeGame.do_action(client.game, client, client, mouse, log)
+			log(`left down`, client.game.path && 'PATH', client.game.action)
+
+			client.socket.emit(
+				'update center mouse',
+				{ x: client.x, y: client.y, },
+				{ x: mouse.x, y: mouse.y, },
+			)
 		}
 
 		if (e.button == 2) {
@@ -81,9 +89,9 @@ function MazeGame() {
     var c = String.fromCharCode(e.which | 0x20)
 
 		let game = client.game
-		const editor = game && game.editors[ client.socket.id ]
+		const editor = MazeGame.get_editor(game, client)
 		if (editor) {
-			const state = mg.state_keys[c]
+			const state = MazeGame.state_keys[c]
 			if (state) {
 				editor.state = state.name
 				editor.node = null
@@ -93,6 +101,7 @@ function MazeGame() {
 				editor.jack = null
 
 				log('changed state to', state.name)
+				client.socket.emit('update state', state.name)
 			}
 			// Enter
 			else if (e.which == 13) {
@@ -109,15 +118,19 @@ function MazeGame() {
 					const portal_idx = game.portals.indexOf(editor.portal)
 					game.portals.splice(portal_idx, 1)
 				}
+
+				client.socket.emit('update delete')
 			}
 			else if (c == ' ') {
-				const game = mg.do_action(
-					mg.copy_game(client.game),
-					client.socket.id,
-					client, mouse, log
+				const game = MazeGame.do_action(
+					MazeGame.copy_game(client.game),
+					client, client, mouse, log
 				)
-				mg.solve_game(game, game.center || client, mouse, log)
-				log('SPACEBAR', game)
+				MazeGame.solve_game(game, game.center || client, mouse, log)
+
+				log('SPACEBAR', game,
+					MazeGame.export_game(MazeGame.copy_game(client.game))
+				)
 			}
 		}
   })
@@ -146,19 +159,27 @@ function MazeGame() {
 
 	  log(client.full_name, 'connected to server')
 
-		client.game = mg.get_game(client)
+		client.game = MazeGame.get_game()
+		MazeGame.get_editor(client.game, client)
 
 	  tick()
 	})
 
+	client.socket.on('update', (game_export, msg) => {
+		client.game = MazeGame.import_game(game_export)
+		const editor = MazeGame.get_editor(client.game, client, log)
+
+		log('update', msg, client.game)
+	})
+
 	function tick() {
 
-		const game = mg.do_action(
-			mg.copy_game(client.game),
-			client.socket.id,
+		const game = MazeGame.do_action(
+			MazeGame.copy_game(client.game),
+			client,
 			client, mouse,
 		)
-		mg.solve_game(game, game.center || client, mouse)
+		MazeGame.solve_game(game, game.center || client, mouse)
 		draw_game(game)
 	}
 
@@ -180,16 +201,16 @@ function MazeGame() {
 		const half_scale = scale / 2
 
 		const shift_x = 1/2 - client.x, shift_y = 1/2 - client.y
-		const node_radius = mg.node_radius * mouse.scale
-		const node_diameter = mg.node_diameter * mouse.scale
-		const portal_radius = mg.portal_radius * mouse.scale
-		const handle_radius = mg.handle_radius * mouse.scale
-		const key_radius = mg.key_radius * mouse.scale
-		const jack_radius = mg.jack_radius * mouse.scale
+		const node_radius = MazeGame.node_radius * mouse.scale
+		const node_diameter = MazeGame.node_diameter * mouse.scale
+		const portal_radius = MazeGame.portal_radius * mouse.scale
+		const handle_radius = MazeGame.handle_radius * mouse.scale
+		const key_radius = MazeGame.key_radius * mouse.scale
+		const jack_radius = MazeGame.jack_radius * mouse.scale
 
 		const cell_radius = node_radius / 4
 
-		const line_width = mg.line_width * mouse.scale
+		const line_width = MazeGame.line_width * mouse.scale
 		const half_line_width = line_width / 2
 
 		ctx.lineWidth = line_width
@@ -198,10 +219,10 @@ function MazeGame() {
 		for (const room_idx in game.rooms) {
 			const room = game.rooms[room_idx]
 
-			ctx.fillStyle = room.fill_color
 			for (const cell_idx in room.cells) {
 				const cell = room.cells[cell_idx]
 
+				ctx.fillStyle = cell.fill_color
 				ctx.beginPath()
 
 				const node = cell.cords[0].root_node
