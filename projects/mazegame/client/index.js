@@ -8,12 +8,15 @@ function MazeGame() {
 	const pi2 = Math.PI * 2
 	const MazeGame = module.exports(project_name, Lib)
 
+	const game_queue = []
 	const client = {
 	  socket: io('/mazegame'),
 		now: start_time,
 	  prev_now: start_time - max_deltaT,
 		name: null,
 		full_name: null,
+
+		game: MazeGame.get_game(),
 
 		scale: 1,
 		x: 0, y: 0,
@@ -34,7 +37,13 @@ function MazeGame() {
 		mouse.x = (e.clientX - 7 - mouse.width / 2) / mouse.scale
     mouse.y = (e.clientY - 7 - mouse.height / 2) / mouse.scale
 
-		if (mouse.right_down) {
+		const editor = MazeGame.get_editor(client.game, client)
+
+		if (
+			mouse.right_down &&
+			(editor.state != 'game' || !editor.jack) &&
+			!client.game.path
+		) {
 			client.x += mouse.prev_x - mouse.x
 			client.y += mouse.prev_y - mouse.y
 		}
@@ -63,10 +72,6 @@ function MazeGame() {
 
 		if (mouse.left_down) {
 
-			log('left_down', client.game.path && 'PATH')
-			client.game = MazeGame.do_action(client.game, client, client, mouse, log)
-			log(`left down`, client.game.path && 'PATH', client.game.action)
-
 			client.socket.emit(
 				'update center mouse',
 				{ x: client.x, y: client.y, },
@@ -93,14 +98,6 @@ function MazeGame() {
 		if (editor) {
 			const state = MazeGame.state_keys[c]
 			if (state) {
-				editor.state = state.name
-				editor.node = null
-				editor.portal = null
-				editor.handle = null
-				editor.key = null
-				editor.jack = null
-
-				log('changed state to', state.name)
 				client.socket.emit('update state', state.name)
 			}
 			// Enter
@@ -109,16 +106,6 @@ function MazeGame() {
 			}
 			// Delete
 			else if (e.which == 127) {
-				if (editor.node) {
-					const node_idx = game.nodes.indexOf(editor.node)
-					game.nodes.splice(node_idx, 1)
-				}
-
-				if (editor.portal) {
-					const portal_idx = game.portals.indexOf(editor.portal)
-					game.portals.splice(portal_idx, 1)
-				}
-
 				client.socket.emit('update delete')
 			}
 			else if (c == ' ') {
@@ -159,28 +146,64 @@ function MazeGame() {
 
 	  log(client.full_name, 'connected to server')
 
-		client.game = MazeGame.get_game()
 		MazeGame.get_editor(client.game, client)
 
 	  tick()
 	})
 
-	client.socket.on('update', (game_export, msg) => {
-		client.game = MazeGame.import_game(game_export)
-		const editor = MazeGame.get_editor(client.game, client, log)
+	function do_queue() {
+		while (!client.game.path && game_queue.length) {
+			const msg = game_queue.pop()
+			client.game = game_queue.pop()
 
-		log('update', msg, client.game)
+			log('update', msg, client.game.action, client.game)
+
+			if (client.game.path) {
+				client.game.path.start_time = Lib.now()
+
+				setTimeout(
+					() => {
+						MazeGame.measure_game(client.game)
+						MazeGame.do_path(client.game)
+						do_queue()
+					},
+					client.game.path.total_dist * MazeGame.jack_speed * 1e3
+				)
+			}
+		}
+	}
+
+	client.socket.on('update', (game_export, msg) => {
+		game_queue.push(MazeGame.import_game(game_export), msg)
+		do_queue()
 	})
 
 	function tick() {
 
-		const game = MazeGame.do_action(
-			MazeGame.copy_game(client.game),
-			client,
-			client, mouse,
-		)
-		MazeGame.solve_game(game, game.center || client, mouse)
-		draw_game(game)
+		let game_copy = MazeGame.copy_game(client.game)
+		const editor = MazeGame.get_editor(game_copy, client)
+
+		if (editor.state == 'game' && editor.jack) {
+			client.x = editor.jack.x
+			client.y = editor.jack.y
+		}
+
+		game_copy = MazeGame.do_action(game_copy, client, client, mouse,)
+
+		if (!client.game.path && game_copy.path) {
+			MazeGame.measure_game(game_copy)
+			MazeGame.do_path(game_copy)
+		}
+		else if (game_copy.path) {
+			MazeGame.proj_path(game_copy.path)
+			if (client.game.path) {
+				client.x = editor.jack.x
+				client.y = editor.jack.y
+			}
+		}
+
+		MazeGame.solve_game(game_copy, client, mouse)
+		draw_game(game_copy)
 	}
 
 	function draw_game(game)  {
@@ -190,7 +213,7 @@ function MazeGame() {
 		mouse.height = canvas.height = window.innerHeight - 22
 		window.requestAnimationFrame(tick)
 
-		const now = (new Date()).getTime() * 1e-3
+		const now = Lib.now()
 		const prev_now = client.prev_now
 		const deltaT = now - prev_now > max_deltaT ? max_deltaT : now - prev_now
 
@@ -458,18 +481,18 @@ function MazeGame() {
 			ctx.fill()
 		}
 
-		if (game.path) {
-
-			let f = 'moveTo'
-			ctx.strokeStyle = 'white'
-			ctx.beginPath()
-			for (const trail_idx in game.path.trails) {
-				const trail = game.path.trails[trail_idx]
-				ctx[f](trail.mid_x, trail.mid_y)
-				f = 'lineTo'
-			}
-			ctx.stroke()
-		}
+		// if (game.path) {
+		//
+		// 	let f = 'moveTo'
+		// 	ctx.strokeStyle = 'white'
+		// 	ctx.beginPath()
+		// 	for (const trail_idx in game.path.trails) {
+		// 		const trail = game.path.trails[trail_idx]
+		// 		ctx[f](trail.mid_x, trail.mid_y)
+		// 		f = 'lineTo'
+		// 	}
+		// 	ctx.stroke()
+		// }
 
 	}
 

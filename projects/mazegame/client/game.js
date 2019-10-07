@@ -8,6 +8,8 @@ module.exports = (project_name, Lib) => {
   const pi = Math.PI
   const pi2 = pi * 2
 
+  const jack_speed = 4 / 3
+
   const node_radius = 1 / 120
   const node_radius2 = node_radius*node_radius
   const node_diameter = 2*node_radius
@@ -89,6 +91,7 @@ module.exports = (project_name, Lib) => {
 
   // constants
   {
+    MazeGame.jack_speed = jack_speed
     MazeGame.node_radius = node_radius
     MazeGame.line_width = line_width
     MazeGame.node_diameter = node_diameter
@@ -166,7 +169,7 @@ module.exports = (project_name, Lib) => {
       Path
         jack: Jack
         handle: Handle, key: Key, Null
-        total_dist: Float
+        total_dist,start_time: Float
         trails: Trail[]
       Game
         nodes: Node[]
@@ -437,6 +440,7 @@ module.exports = (project_name, Lib) => {
           key: game.path.key && new_game.keys[game.path.key.idx],
           total_dist: game.path.total_dist,
           trails: [],
+          start_time: game.path.start_time,
         }
         if (
           (!game.path.jack || new_path.jack) &&
@@ -799,9 +803,9 @@ module.exports = (project_name, Lib) => {
       if (game_export.path) {
 
         game_import.path = {
-          jack: game_export.jacks[game_export.path.jack],
-          handle: game_export.handles[game_export.path.handle],
-          key: game_export.keys[game_export.path.key],
+          jack: game_import.jacks[game_export.path.jack],
+          handle: game_import.handles[game_export.path.handle],
+          key: game_import.keys[game_export.path.key],
           total_dist: 0,
           trails: [],
         }
@@ -1719,7 +1723,7 @@ module.exports = (project_name, Lib) => {
       if (game.active_portals.length != 2) {
         for (const portal_idx in game.active_portals) {
           const portal = game.active_portals[portal_idx]
-          portal.is_active = false
+          portal.gate.is_active = false
         }
         game.active_portals = []
       }
@@ -2387,13 +2391,13 @@ module.exports = (project_name, Lib) => {
   MazeGame.do_action = do_action
   function do_action(game, client, center, mouse, log) {
 
-
     let game_copy = copy_game(game)
 		let editor = get_editor(game_copy, client)
 
     // log && log('do_action', game_copy.path)
 		if (game_copy.path) {
 			// log && log('COMMAND')
+      game.action = `path exists`
       return game
 		}
 		else if (editor.state == 'game') {
@@ -2736,7 +2740,16 @@ module.exports = (project_name, Lib) => {
                 if (handle) {
                   editor.jack.handle = handle
                   handle.jack = editor.jack
-                  game_copy.action = `added jack to handle`
+
+                  if (handle.key) {
+                    handle.key.jack = editor.jack
+                    editor.jack.key = handle.key
+                    handle.key.handle = null
+                    handle.key = null
+                    game_copy.action = `added handle key to jack and `
+                  }
+
+                  game_copy.action += `added jack to handle`
                 }
 
                 editor.jack = null
@@ -2755,10 +2768,19 @@ module.exports = (project_name, Lib) => {
                 if (handle) {
                   new_jack.handle = handle
                   handle.jack = new_jack
-                  game_copy.action = `added jack to handle`
+
+                  if (handle.key) {
+                    handle.key.jack = new_jack
+                    new_jack.key = handle.key
+                    handle.key.handle = null
+                    handle.key = null
+                    game_copy.action = `added handle key to new jack and `
+                  }
+
+                  game_copy.action += `added new jack to handle`
                 }
                 else {
-                  game_copy.action = `added jack to game`
+                  game_copy.action = `added new jack to game`
                 }
               }
 
@@ -2814,6 +2836,86 @@ module.exports = (project_name, Lib) => {
 		}
   }
 
+  /* Do Path (game: Game)
+
+
+    Path
+      jack: Jack
+      handle: Handle, key: Key, Null
+    Game
+      path: Path
+  */
+  MazeGame.do_path = do_path
+  function do_path(game) {
+
+    const path = game.path
+    const jack = path.jack
+    const handle = path.handle
+    const key = path.key
+
+    if (jack.handle) {
+      if (jack.key) {
+        jack.key.handle = jack.handle
+        jack.handle.key = jack.key
+        jack.key.jack = null
+        jack.key = null
+      }
+
+      jack.handle.jack = null
+      jack.handle = null
+    }
+
+    if (handle) {
+      jack.handle = handle
+      handle.jack = jack
+
+      if (handle.key) {
+        jack.key = handle.key
+        jack.key.jack = jack
+
+        handle.key.handle = null
+        handle.key = null
+      }
+    }
+    else if (path.key) {
+      path.key.jack = jack
+      jack.key = path.key
+
+      jack.x = path.key.x
+      jack.y = path.key.y
+    }
+    else {
+      const spot_trail = path.trails.pop()
+
+      jack.x = spot_trail.x
+      jack.y = spot_trail.y
+    }
+
+    game.path = null
+  }
+
+  // TODO
+  MazeGame.proj_path = proj_path
+  function proj_path(path, log) {
+    const dist = (Lib.now() - path.start_time) / jack_speed
+
+    for (let spot_idx = 1; spot_idx < path.trails.length; ++spot_idx) {
+      const root_trail = path.trails[spot_idx-1]
+      const spot_trail = path.trails[spot_idx]
+
+      log && log(spot_trail.total_dist, dist)
+      if (dist < spot_trail.total_dist) {
+
+        const dot = (dist - root_trail.total_dist) / spot_trail.dist
+        log && log('start', path.jack.x, path.jack.y)
+        path.jack.x = root_trail.x + (spot_trail.x - root_trail.x) * dot
+        path.jack.y = root_trail.y + (spot_trail.y - root_trail.y) * dot
+        log && log('end', path.jack.x, path.jack.y)
+        return
+      }
+    }
+  }
+
   /* Solve Game (game: Game, center: Point, mouse: Mouse)
 
     Recommended pre-functions for Game: game_copy
@@ -2848,10 +2950,10 @@ module.exports = (project_name, Lib) => {
 
   */
   MazeGame.solve_game = solve_game
-  function solve_game(game, {x: px, y: py}, {scale, width, height, x:mx, y:my}, log) {
+  function solve_game(game, center, {scale, width, height, x:mx, y:my}, log) {
 
+    const {x: px, y: py} = center
     const fx = px + mx, fy = py + my
-
     measure_game(game, log)
     solve_rooms(game)
     solve_cells(game)
@@ -2975,13 +3077,6 @@ module.exports = (project_name, Lib) => {
         handle.mid_y = handle.y * scale_mid + shift_mid_y
       }
 
-      for (const key_idx in game.keys) {
-        const key = game.keys[key_idx]
-
-        key.mid_x = key.x * scale_mid + shift_mid_x
-        key.mid_y = key.y * scale_mid + shift_mid_y
-      }
-
       for (const jack_idx in game.jacks) {
         const jack = game.jacks[jack_idx]
 
@@ -2989,14 +3084,26 @@ module.exports = (project_name, Lib) => {
         jack.mid_y = jack.y * scale_mid + shift_mid_y
       }
 
-      if (game.path) {
-        for (const trail_idx in game.path.trails) {
-          const trail = game.path.trails[trail_idx]
+      for (const key_idx in game.keys) {
+        const key = game.keys[key_idx]
 
-          trail.mid_x = trail.x * scale_mid + shift_mid_x
-          trail.mid_y = trail.y * scale_mid + shift_mid_y
+        if (key.jack) {
+          key.x = key.jack.x
+          key.y = key.jack.y
         }
+
+        key.mid_x = key.x * scale_mid + shift_mid_x
+        key.mid_y = key.y * scale_mid + shift_mid_y
       }
+
+      // if (path) {
+      //   for (const trail_idx in path.trails) {
+      //     const trail = path.trails[trail_idx]
+      //
+      //     trail.mid_x = trail.x * scale_mid + shift_mid_x
+      //     trail.mid_y = trail.y * scale_mid + shift_mid_y
+      //   }
+      // }
     }
   }
 

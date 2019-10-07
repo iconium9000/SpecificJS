@@ -3,6 +3,8 @@ const Lib = module.exports = {}
 const pi = Math.PI
 const pi2 = pi * 2
 
+Lib.now = () => (new Date()).getTime() * 1e-3
+
 Lib.get_cookie = get_cookie
 function get_cookie(cookie_name) {
   return document.cookie.
