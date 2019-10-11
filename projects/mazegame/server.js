@@ -5,7 +5,7 @@ module.exports = (project, projects, Lib) => {
 
   const MazeGame = require('./client/game.js')(project_name, Lib)
 
-  let game = MazeGame.get_game()
+  // let game = MazeGame.get_game()
   const clients = {}
 
   project.socket.on('connection', (socket) => {
@@ -25,14 +25,14 @@ module.exports = (project, projects, Lib) => {
       client.name = name
       client.full_name = `'${name}' (${client.socket.id})`
 
-      MazeGame.get_editor(game, client)
+      // MazeGame.get_editor(game, client)
       // const game_export = MazeGame.export_game(game = MazeGame.copy_game(game))
       // project.socket.emit('update', game_export, 'client name')
     })
 
     client.socket.on(`disconnect`, () => {
       delete client[client.socket.id]
-      delete game.editors[client.socket.id]
+      // delete game.editors[client.socket.id]
     })
   })
 

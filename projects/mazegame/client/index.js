@@ -8,6 +8,24 @@ function MazeGame() {
 	const pi2 = Math.PI * 2
 	const MazeGame = module.exports(project_name, Lib)
 
+	const state = MazeGame.Spot
+
+	switch (state) {
+		case MazeGame.Key:
+			log('Key')
+			break
+		case MazeGame.Jack:
+			log('jack')
+			break
+		case MazeGame.Spot:
+			log('spot')
+			break
+		default:
+			log('error')
+			break
+	}
+
+
 	const game_queue = []
 	const client = {
 	  socket: io('/mazegame'),
