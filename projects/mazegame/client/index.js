@@ -16,7 +16,7 @@ function MazeGame() {
 		name: null,
 		full_name: null,
 
-		game: MazeGame.get_game(),
+		// game: MazeGame.get_game(),
 
 		scale: 1,
 		x: 0, y: 0,
@@ -37,16 +37,16 @@ function MazeGame() {
 		mouse.x = (e.clientX - 7 - mouse.width / 2) / mouse.scale
     mouse.y = (e.clientY - 7 - mouse.height / 2) / mouse.scale
 
-		const editor = MazeGame.get_editor(client.game, client)
-
-		if (
-			mouse.right_down &&
-			(editor.state != 'game' || !editor.jack) &&
-			!client.game.path
-		) {
-			client.x += mouse.prev_x - mouse.x
-			client.y += mouse.prev_y - mouse.y
-		}
+		// const editor = MazeGame.get_editor(client.game, client)
+		//
+		// if (
+		// 	mouse.right_down &&
+		// 	(editor.state != 'game' || !editor.jack) &&
+		// 	!client.game.path
+		// ) {
+		// 	client.x += mouse.prev_x - mouse.x
+		// 	client.y += mouse.prev_y - mouse.y
+		// }
 
 		mouse.prev_x = mouse.x
 		mouse.prev_y = mouse.y
@@ -89,25 +89,25 @@ function MazeGame() {
 	$(document).keypress(e => {
     var c = String.fromCharCode(e.which | 0x20)
 
-		let game = client.game
-		const editor = MazeGame.get_editor(game, client)
-		if (editor) {
-			const state = null // MazeGame.state_keys[c]
-			if (state) {
-				// TODO
-			}
-			// Enter
-			else if (e.which == 13) {
-
-			}
-			// Delete
-			else if (e.which == 127) {
-				client.socket.emit('update delete')
-			}
-			else if (c == ' ') {
-
-			}
-		}
+		// let game = client.game
+		// const editor = MazeGame.get_editor(game, client)
+		// if (editor) {
+		// 	const state = null // MazeGame.state_keys[c]
+		// 	if (state) {
+		// 		// TODO
+		// 	}
+		// 	// Enter
+		// 	else if (e.which == 13) {
+		//
+		// 	}
+		// 	// Delete
+		// 	else if (e.which == 127) {
+		// 		client.socket.emit('update delete')
+		// 	}
+		// 	else if (c == ' ') {
+		//
+		// 	}
+		// }
   })
 
   $(document).keyup(e => {
@@ -134,14 +134,14 @@ function MazeGame() {
 
 	  log(client.full_name, 'connected to server')
 
-		MazeGame.get_editor(client.game, client)
+		// MazeGame.get_editor(client.game, client)
 
 	  tick()
 	})
 
 	function tick() {
 
-		draw_game(client.game)
+		// draw_game(client.game)
 	}
 
 	function draw_game(game)  {

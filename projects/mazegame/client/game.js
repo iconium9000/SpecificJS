@@ -28,362 +28,378 @@ module.exports = (project_name, Lib) => {
     long_spot_lock:  [-1, 1, 0,-1 ],
   }
 
-  // Getters
-  {
-    /* Get Game ()
-      Return: Game
+  class State {
+    // ['wall','door','portal','lock','key','jack','level']
+  }
 
-      Game: copy_game.Game
-    */
-    MazeGame.get_game = get_game
-    function get_game() {
+  class Spot {
+    static names = 'spots'
+    static state = 'spot'
 
-      const new_game = {
-        walls: [],
-        doors: [],
-        portals: [],
-        open_portals: [],
-        locks: [],
-        keys: [],
-        jacks: [],
-        editors: [],
+    editor // Editor,Null
+    root_x;root_y // Float
+    is_open;change_open = false // Boolean
 
-        is_open: true,
+    static round_root = 2 // Float
+
+    constructor(
+      level, // Game,Level
+      root_x,root_y, // Float
+      is_open, // Boolean
+    ) {
+      const round_root = this.constructor.round_root
+      if (round_root) {
+        this.root_x = Math.round(root_x / round_root) * round_root
+        this.root_y = Math.round(root_y / round_root) * round_root
       }
-
-      return new_game
+      else {
+        this.root_x = root_x; this.root_y = root_y
+      }
+      this.is_open = is_open
+      level[this.constructor.names].push(this)
     }
 
-    /* Get Editor (game: Game, client: Client)
-      Return: Editor
-
-      Socket
-        id: ID
-      Client
-        name: String
-        socket: Socket
-      Editor: copy_editor.Editor
-      Game: copy_game.Game
-    */
-    MazeGame.get_editor = get_editor
-    function get_editor(game, client) {
-      const editor = game.editors[client.socket.id]
+    copy(
+      level_copy, // Level
+      spot_copy, // Spot
+    ) {
       if (editor) {
-        return editor
+        spot_copy.editor = editor.copy( level_copy, spot_copy, )
       }
-
-      const new_editor = {
-        id: client.socket.id,
-        name: client.name,
-        state: 'wall',
-      }
-      game.editors[new_editor.id] = new_editor
-
-      return new_editor
+      spot_copy.change_open = this.is_open != spot_copy.is_open
+      return spot_copy
     }
   }
 
-  // copyers
-  {
+  class Editor {
+    static names = 'editors'
+    static state = 'editor'
 
-    /* Copy Editor (
-        game_copy: Game
-        old_editor: Editor
-        spot_copy: Spot
+    id // ID
+    name // String
+    spot_x;spot_y // Float
+    spot // Spot,Null
+    state // String
+
+    constructor(
+      level, // Level
+      id, // ID
+      name, // String
+      state, // State
+      spot_x,spot_y, // Float
+      spot, // Spot,Null
+    ) {
+      this.id = id
+      this.name = name
+      this.state = state
+      this.spot_x = spot_x
+      this.spot_y = spot_y
+      this.spot = spot
+      level[this.constructor.names][id] = this
+    }
+
+    copy(
+      level_copy, // Level
+      spot_copy, // Spot,Null
+    ) {
+      const editor_copy = new Editor(
+        level_copy,
+        id, name, state, spot_x,spot_y,
+        spot_copy,
       )
-      Return: Editor
-
-      Game: copy_game.Game
-      Spot: Object
-        editor: Editor,Null
-        root_x,root_y: Float
-        is_open,change_open: Boolean
-      Editor: Object
-        id: ID
-        name: String
-        state: ['wall','door','portal','lock','key','jack','game']
-        spot: Spot,Null
-        spot_x,spot_y: Float
-    */
-    function copy_editor(game_copy, old_editor, spot_copy) {
-      const editor_copy = {
-        id: old_editor.id,
-        name: old_editor.name,
-        state: old_editor.state,
-        spot: spot_copy,
-        spot_x: old_editor.spot_x,
-        spot_y: old_editor.spot_y,
-      }
-      if (spot_copy) {
-        spot_copy.editor = editor_copy
-      }
-      game_copy.editors[editor_copy.id] = editor_copy
       return editor_copy
     }
+  }
 
-    /* Copy Wall (
-        game_copy: Game
-        old_wall: Wall
-      )
-      Return: Wall
+  class Wall extends Spot {
+    static names = 'walls'
+    static state = 'wall'
 
-      Game: copy_game.Game
-      Wall: copy_editor.Spot
-        long_x,long_y: Float
-    */
-    function copy_wall(game_copy, old_wall) {
+    long_x;long_y;long // Float
 
-      const wall_copy = {
-        root_x: old_wall.root_x, root_y: old_wall.root_y,
-        long_x: old_wall.long_x, long_y: old_wall.long_y,
-      }
-      game_copy.walls.push(wall_copy)
+    static ceil_long = 2
 
-      if (old_wall.editor) {
-        copy_editor(game_copy, old_wall.editor, wall_copy)
-      }
+    constructor(
+      level, // Level
+      root_x,root_y,long_x,long_y, // Float
+      long, // Float,Null
+    ) {
+      super( level, root_x,root_y, false, )
 
-      const abs_long_x = Math.abs(wall_copy.long_x)
-      const abs_long_y = Math.abs(wall_copy.long_y)
+      const abs_long_x = Math.abs(long_x)
+      const abs_long_y = Math.abs(long_y)
 
-      if (abs_long_x < abs_long_y) {
-        wall_copy.long_x = 0
-        if (abs_long_y < min_wall_long) {
-          wall_copy.long_y = min_wall_long * (wall_copy.long_y > 0 ? 1 : -1)
-        }
+      const ceil_long = this.constructor.ceil_long
+      if ( abs_long_x < abs_long_y ) {
+        this.long = abs_long_y
+        this.long_y = 1; this.long_x = 0
       }
       else {
-        wall_copy.long_y = 0
-        if (abs_long_x < min_wall_long) {
-          wall_copy.long_x = min_wall_long * (wall_copy.long_x > 0 ? 1 : -1)
-        }
+        this.long = abs_long_x || ceil_long
+        this.long_x = 1; this.long_y = 0
       }
 
-      return copy_wall
+      if (long > 0) {
+        this.long = long
+      }
+      this.long = Math.ceil(this.long / ceil_long) * ceil_long
     }
 
-    /* Copy Jack (
-        game_copy: Game,
-        old_jack: Jack,
-        key_copy: Key,
-        lock_copy: Lock,Null
-      )
-      Return: Jack
-
-      Game: copy_game.Game
-      Key: copy_key.Key
-      Lock: copy_lock.Lock
-      Path TODO
-      Jack: copy_wall.Wall
-        lock: Lock
-        key: Key
-    */
-    function copy_jack(game_copy, old_jack, key_copy, lock_copy) {
-
-      const jack_copy = {
-        root_x: key_copy.root_x,
-        root_y: key_copy.root_y,
-        key: key_copy,
+    copy(
+      level_copy, // Level
+      wall_copy, // Wall,Null
+    ) {
+      if (!wall_copy) {
+        wall_copy = new Wall (
+          level_copy, root_x, root_y, long_x, long_y, long
+        )
       }
-      game_copy.jacks.push(jack_copy)
+      return super.copy(level_copy, wall_copy)
+    }
+  }
 
-      // TODO PATH
+  class Jack extends Spot {
+    static names = 'jacks'
+    static state = 'jack'
 
-      jack_copy.is_open = !old_jack.editor
-      if (!jack_copy.is_open) {
-        copy_editor(game_copy, old_jack.editor, jack_copy)
-      }
-      jack_copy.change_open = jack_copy.is_open != old_jack.is_open
+    lock // Lock
+    key // Key
+    long_x; long_y // Float
+
+    static round_root = 0
+
+    constructor(
+      level, // Level
+      key, // Key
+      lock, // Lock
+      root_x, root_y, long_x, long_y, // Float
+    ) {
+      super(level, root_x, root_y, false)
+      this.key = key; this.lock = lock
+      this.long_x = long_x; this.long_y = long_y
+    }
+
+    copy(
+      level_copy, // Level
+      key_copy, // Key
+      lock_copy, // Lock,Null
+      jack_copy, // Jack,Null
+    ) {
+      let long_x = this.long_x, long_y = this.long_y, long = this.long
+      let root_x = this.root_x, root_y = this.root_y
 
       if (lock_copy) {
-        jack_copy.lock = lock_copy
-        jack_copy.long_x = lock_copy.long_x
-        jack_copy.long_y = lock_copy.long_y
+        long_x = lock_copy.long_x
+        long_y = lock_copy.long_y
       }
       else {
-        if (jack_copy.editor) {
-          jack_copy.long_x = jack_copy.editor.spot_x - jack_copy.root_x
-          jack_copy.long_y = jack_copy.editor.spot_y - jack_copy.root_y
+        const radius = key_copy.constructor.radius
+        const lock_long = radius + this.lock.constructor.long
+
+        long = Math.sqrt(long_x * long_x + long_y * long_y)
+        if (long) {
+          long_x *= lock_long / long
+          long_y *= lock_long / long
         }
         else {
-          jack_copy.long_x = old_jack.long_x
-          jack_copy.long_y = old_jack.long_y
+          long_x = lock_long
+          long_y = 0
         }
-        const length = jack_lock_long / Math.sqrt(
-          jack_copy.long_x*jack_copy.long_x +
-          jack_copy.long_y*jack_copy.long_y
-        )
-        jack_copy.long_x *= length
-        jack_copy.long_y *= length
 
-        jack_copy.lock = lock_copy(
-          game_copy, old_jack.lock, jack_copy,
-          jack_copy.root_x + jack_copy.long_x,
-          jack_copy.root_y + jack_copy.long_y,
-          -jack_copy.long_x, -jack_copy.long_y,
+        lock_copy = this.lock.copy(
+          level_copy, null,
+          root_x + long_x, root_y + long_y,
+          -long_x, -long_y,
         )
       }
 
-      return jack_copy
+      if (!jack_copy) {
+        jack_copy = new Jack(
+          level_copy, key_copy, lock_copy,
+          root_x, root_y, long_x, long_y,
+        )
+      }
+
+      lock_copy.spot = jack_copy
+      return super.copy(level_copy, jack_copy)
     }
+  }
 
-    /* Copy Key (
-        game_copy: Game
-        old_key: Key
-        lock_copy: Lock,Null
-        root_x,root_y: Float
-      )
-      Return: Key
+  class Key extends Spot {
+    static names = 'keys'
+    static state = 'key'
 
-      Game: copy_game.Game
-      Spot: copy_editor.Spot
-      Lock: copy_lock.Lock
-      Jack: copy_jack.Jack
-      Key: Spot
-        jack: Jack,Null
-        lock: Lock,Null
-    */
-    function copy_key(game_copy, old_key, lock_copy, root_x, root_y ) {
-      const key_copy = {
-        root_x: root_x, root_y: root_y,
-        lock: lock_copy,
-      }
-      game_copy.keys.push(key_copy)
+    lock // Lock,Null
+    jack // Jack,Null
 
-      if (lock_copy) {
-        lock_copy.key = key_copy
-      }
+    static round_root = 0
+    static radius = 0.9
 
-      if (old_key.editor) {
-        copy_editor(game_copy, old_key.editor, key_copy)
-      }
-
-      if (old_key.jack) {
-        const jack_copy = copy_jack(
-          game_copy, old_key.jack, key_copy, lock_copy,
-        )
-        key_copy.is_open = jack_copy.is_open
-        key_copy.change_open = key_copy.is_open != old_key.is_open
-      }
-      else {
-        key_copy.is_open = old_key.is_open
-        key_copy.change_open = false
-      }
-
-      return key_copy
-    }
-
-    /* Copy Lock (
-        game_copy: Game
-        old_lock: Lock
-        spot_copy: Spot,Null
-        root_x,root_y,spot_x,spot_y,long: Float
-      )
-      Return: Lock
-
-      Game: copy_game.Game
-      Spot: copy_editor.Spot
-      Editor: copy_editor.Editor
-      Key: copy_key.Key
-      Lock: copy_wall.Wall
-        key: Key,Null
-        spot: Spot
-    */
-    function copy_lock(
-      game_copy, old_lock, spot_copy,
-      root_x, root_y, long_x, long_y,
+    constructor(
+      level, // Level
+      lock, // Lock,Null
+      root_x, root_y, // Float
+      is_open, // Boolean
     ) {
-      const lock_copy = {
-        spot: spot_copy,
-        root_x: root_x, root_y: root_y,
-        long_x: long_x, long_y: long_y,
-      }
-      game_copy.locks.push(lock_copy)
-
-      if (old_lock.editor) {
-        copy_editor(game_copy, old_lock.editor, lock_copy)
-      }
-
-      if (old_lock.key) {
-        const key_copy = copy_key(
-          game_copy, old_lock.key, lock_copy,
-          root_x, root_y,
-        )
-        lock_copy.is_open = key_copy.is_open
-      }
-      else {
-        lock_copy.is_open = false
-      }
-
-      lock_copy.change_open = lock_copy.is_open != old_lock.is_open
-      return lock_copy
+      super(
+        level,
+        lock ? lock.root_x : root_x,
+        lock ? lock.root_y : root_y,
+        is_open
+      )
+      this.lock = lock
     }
 
-    /* Copy Door (
-        game_copy: Game
-        old_door: Door
-      )
-      Return: Door
+    copy(
+      level_copy, // Level
+      lock_copy, // Lock,Null
+      key_copy, // Key,Null
+    ) {
 
-      Game: copy_game.Game
-      Lock: copy_lock.Lock
-      Path TODO
-      Door: copy_wall.Wall
-        short_x,short_y,long: Float
-        [door_lock_names]: Lock,Null
-    */
-    function copy_door(game_copy, old_door) {
-      const door_copy = {
-        root_x: old_door.root_x,
-        root_y: old_door.root_y,
-        is_open: true,
-      }
-      game_copy.doors.push(door_copy)
-
-      if (old_door.editor) {
-        copy_editor(game_copy, old_door.editor, door_copy)
+      if (!key_copy) {
+        key_copy = new Key( level_copy, lock_copy, root_x, root_y )
       }
 
-      if (Math.abs(old_door.long_x) < Math.abs(old_door.long_y)) {
-        door_copy.long_y = old_door.long_y > 0 ? 1 : -1
-        door_copy.long = door_copy.long_y * old_door.long_y * old_door.long
-        door_copy.short_x = old_door.short_x > 0 ? 1 : -1
-        door_copy.short_y = door_copy.long_x = 0
+      if (this.jack) {
+        const spot = this.jack.editor && {
+          long_x: this.jack.editor.spot_x - key_copy.root_x,
+          long_y: this.jack.editor.spot_y - key_copy.root_y,
+        } || lock_copy || this.jack
+
+        key_copy.jack = this.jack.copy(
+          level_copy, this, lock_copy,
+          spot.long_x, spot.long_y,
+        )
+      }
+
+      return super.copy(level_copy, key_copy)
+    }
+  }
+
+  class Lock extends Spot {
+    static names = 'locks'
+    static state = 'lock'
+
+    key // Key,Null
+    spot // Spot,Null
+    long_x;long_y // Float
+
+    static long = 2
+    static round_root = 0
+
+    constructor(
+      level, // Level
+      spot, // Spot,Null
+      root_x,root_y,long_x,long_y, // Float
+    ) {
+      super( level, root_x, root_y, false )
+      const long = this.constructor.long
+      this.spot = spot
+
+      const length = Math.sqrt(long_x*long_x + long_y*long_y)
+      if (length) {
+        this.long_x *= long / length
+        this.long_y *= long / length
       }
       else {
-        door_copy.long_x = old_door.long_x > 0 ? 1 : -1
-        door_copy.long = door_copy.long_x * old_door.long_x * old_door.long
-        door_copy.short_y = old_door.short_y > 0 ? 1 : -1
-        door_copy.short_x = door_copy.long_y = 0
+        this.long_x = long
+        this.long_y = 0
+      }
+    }
+
+    copy(
+      level_copy, // Level
+      spot_copy, // Spot,Null
+      lock_copy, // Lock,Null
+    ) {
+
+      if (!lock_copy) {
+        lock_copy = new Lock (
+          level_copy, spot_copy,
+          root_x, root_y, long_x, long_y,
+        )
       }
 
-      if (door_copy.long < min_door_long) {
-        door_copy.long = min_door_long
+      if (this.key) {
+        lock_copy.key = this.key.copy( level_copy, this, )
       }
 
-      for (const lock_name in door_lock_names) {
-        const old_lock = old_door[lock_name]
+      return super.copy(level_copy, lock_copy)
+    }
+  }
+
+  class Door extends Wall {
+    static names = 'doors'
+    static state = 'door'
+
+
+    short_x = 0;short_y = 0 // Float
+
+    static ceil_long = 6
+    static short = 2
+
+    // half_short, half_long, long, lock_short, lock_long
+    static lock_names = {
+      lock_short_root: [ 1, 0, 0, 0,-1 ],
+      lock_long_root:  [ 0, 1, 0,-1, 0 ],
+      lock_short_spot: [ 2,-1, 1, 1, 0 ],
+      lock_long_spot:  [ 1, 0, 1, 0, 1 ],
+    }
+
+    constructor(
+      level, // Level
+      root_x,root_y,short_x,short_y,long_x,long_y, // Float
+      long, // Float,Null
+    ) {
+      super( level, root_x,root_y,long_x,long_y, long )
+
+      if (this.long_x) {
+        this.short_y = short_y < 0 ? -1 : 1
+      }
+      else {
+        this.short_x = short_x < 0 ? -1 : 1
+      }
+
+      const lock_names = this.constructor.lock_names
+      for (const lock_name in lock_names) {
+        this[lock_name] = undefined
+      }
+    }
+
+    copy(
+      level_copy, // Level
+      door_copy, // Door,Null
+    ) {
+      const short = this.constructor.short
+      const half_short = short / 2
+      const lock_names = this.constructor.lock_names
+
+      if (!door_copy) {
+        door_copy = new this.constructor(
+          level_copy,
+          root_x,root_y,short_x, short_x, long_x, long_y, long,
+        )
+      }
+
+      door_copy.is_open = true
+      for (const lock_name in lock_names) {
+        const old_lock = this[lock_name]
         if (old_lock) {
-          const [ half, spot, short, long ] = door_lock_names[lock_name]
+          const lock_long = old_lock.constructor.long
+          const [ hs, hl, l, ls, ll ] = lock_names[lock_name]
 
-          const long_x = door_lock_long * (
-            door_copy.short_x * short + door_copy.long_x * long
-          )
-          const long_y = door_lock_long * (
-            door_copy.short_y * short + door_copy.long_y * long
-          )
-          const long_mul = half * half_door_short + spot * door_copy.long
+          const short_mul = hs * half_short + ls * lock_long
+          const long_mul = hl * half_short + l * long + ll * lock_long
 
-          const lock_copy = copy_lock(
-            game_copy, old_lock, door_copy, (
-              door_copy.root_x - long_x +
-              door_copy.short_x * half_door_short +
-              door_copy.long_x * long_mul +
+          const lock_copy = old_lock.copy(
+            level_copy, door_copy, (
+              root_x +
+              door_copy.short_x * short_mul + door_copy.long_x * long_mul
             ), (
-              door_copy.root_y - long_y +
-              door_copy.short_y * half_door_short +
-              door_copy.long_y * long_mul +
-            ), long_x, long_y,
+              root_y +
+              door_copy.short_y * short_mul + door_copy.long_y * long_mul
+            ),
+            -ls, -ll,
           )
           door_copy[lock_name] = lock_copy
           if (!lock_copy.is_open) {
@@ -391,216 +407,125 @@ module.exports = (project_name, Lib) => {
           }
         }
       }
-
-      door_copy.change_open = door_copy.is_open != old_door.is_open
-      return door_copy
-    }
-
-    /* Copy Portal (
-        game_copy: Game
-        old_portal: Portal
-      )
-      Return: Portal
-
-      Game: copy_game.Game
-      Lock: copy_lock.Lock
-      Portal: copy_wall.Wall
-        short_x,short_y: Float
-        root_lock,spot_lock: Lock,Null
-    */
-    function copy_portal(game_copy, old_door) {
-      const portal_copy = {
-        root_x: old_portal.root_x,
-        root_y: old_portal.root_y,
-        is_open: true,
-      }
-      game_copy.portals.push(portal_copy)
-
-      if (old_portal.editor) {
-        copy_editor(game_copy, old_portal.editor, portal_copy)
-      }
-
-      if (Math.abs(old_portal.long_x) < Math.abs(old_portal.long_y)) {
-        portal_copy.long_y = old_portal.long_y > 0 ? 1 : -1
-        portal_copy.short_x = old_portal.short_x > 0 ? 1 : -1
-        portal_copy.short_y = portal_copy.long_x = 0
-      }
-      else {
-        portal_copy.long_x = old_portal.long_x > 0 ? 1 : -1
-        portal_copy.short_y = old_portal.short_y > 0 ? 1 : -1
-        portal_copy.short_x = portal_copy.long_y = 0
-      }
-
-      const lock_root_x = (
-        portal_copy.root_x + portal_copy.long_x * half_portal_long
-      )
-      const lock_root_y = (
-        portal_copy.root_y + portal_copy.long_y * half_portal_long
-      )
-      const lock_long_x = -portal_copy.short_x * lock_long
-      const lock_long_y = -portal_copy.short_y * lock_long
-
-      if (old_portal.root_lock && old_portal.spot_lock) {
-
-        portal_copy.root_lock = copy_lock(
-          game_copy, old_portal.root_lock, portal_copy,
-          lock_root_x - portal_copy.long_x * quarter_portal_long,
-          lock_root_y - portal_copy.long_y * quarter_portal_long,
-          lock_long_x, lock_long_y,
-        )
-
-        portal_copy.spot_lock = copy_lock(
-          game_copy, old_portal.spot_lock, portal_copy,
-          lock_root_x + portal_copy.long_x * quarter_portal_long,
-          lock_root_y + portal_copy.long_y * quarter_portal_long,
-          lock_long_x, lock_long_y,
-        )
-
-        portal_copy.is_open = (
-          portal_copy.root_lock.is_open &&
-          portal_copy.spot_lock.is_open
-        )
-      }
-      else {
-
-        const old_lock = old_portal.root_lock || old_portal.spot_lock
-        if (old_lock) {
-          portal_copy.root_lock = copy_lock(
-            game_copy, old_lock, portal_copy
-            lock_root_x, lock_root_y, lock_long_x, lock_long_y,
-          )
-        }
-        else {
-
-          // NEW LOCK
-          const new_lock = {
-            root_x: lock_root_x, root_y: lock_root_y,
-            long_x: lock_long_x, long_y: lock_long_y,
-            spot: portal_copy, is_open: false, change_open: false,
-          }
-          portal_copy.root_lock = new_lock
-          game_copy.locks.push(new_lock)
-        }
-
-        portal_copy.is_open = portal_copy.root_lock.is_open
-      }
-
-      portal_copy.change_open = portal_copy.is_open != old_portal.is_open
-      return portal_copy
-    }
-
-    /* Copy Game (
-        old_game: Game
-      )
-      Return: Game
-
-      Spot: copy_editor.Spot
-      Wall: copy_wall.Wall
-      Door: copy_door.Door
-      Portal: copy_portal.Portal
-      Lock: copy_lock.Lock
-      Key: copy_key.Key
-      Jack: copy_jack.Jack
-      Editor: copy_editor.Editor
-      Game: Spot
-        walls: Wall[]
-        doors: Door[]
-        portals,open_portals: Portal[]
-        locks: Locks[]
-        keys: Key[]
-        jacks: Jack[]
-        editors: Editor{ID}
-    */
-    MazeGame.copy_game = copy_game
-    function copy_game(old_game, start_time, current_time) {
-
-      const game_copy = {
-        walls: [],
-        doors: [],
-        portals: [],
-        open_portals: [],
-        locks: [],
-        keys: [],
-        jacks: [],
-        editors: [],
-
-        is_open: true,
-      }
-
-      if (old_game.editor) {
-        copy_editor(game_copy, old_game.editor, game_copy)
-      }
-
-      // copy walls
-      for (const wall_idx in old_game.walls) {
-        const old_wall = old_game.walls[wall_idx]
-
-        copy_wall(game_copy, old_wall)
-      }
-
-      // copy doors
-      for (const door_idx in old_game.doors) {
-        const old_door = old_game.doors[door_idx]
-
-        copy_door(game_copy, old_door)
-      }
-
-      // copy portals
-      {
-        for (const portal_idx in old_game.portals) {
-          const old_portal = old_game.portals[portal_idx]
-
-          const portal_copy = copy_portal(game_copy, old_portal)
-          if (portal_copy.is_open) {
-            game_copy.open_portals.push(portal_copy)
-          }
-        }
-
-        if (game_copy.open_portals.length != 2) {
-          for (const portal_idx in game_copy.open_portals) {
-            const portal_copy = game_copy.open_portals[portal_idx]
-            portal_copy.is_open = false
-            portal_copy.change_open = !portal_copy.change_open
-          }
-        }
-      }
-
-      for (const lock_idx in old_game.locks) {
-        const old_lock = old_game.locks[lock_idx]
-
-        if (old_lock.spot == old_game) {
-          copy_lock(
-            game_copy, old_lock, game_copy,
-            old_lock.root_x, old_lock.root_y,
-            old_lock.long_x, old_lock.long_y,
-          )
-        }
-      }
-
-      for (const key_idx in old_game.keys) {
-        const old_key = old_game.keys[key_idx]
-
-        if (!old_key.lock) {
-          copy_key(game_copy, old_key, null, old_key.root_x, old_key.root_y)
-        }
-      }
-
-      for (const editor_idx in old_game.editors) {
-        const old_editor = old_game.editors[editor_idx]
-
-        if (!old_editor.spot) {
-          copy_editor(game_copy, old_editor)
-        }
-      }
-
-
+      return super.copy(level_copy, door_copy)
     }
   }
 
+  class Portal extends Door {
+    static names = 'portals'
+    static state = 'portal'
+
+    static short = 1
+    static ceil_long = 4
+    static long = 4
+
+    // quarterS, halfS, spotS, shortS, longS
+    static lock_names = {
+      lock_root: [ 0, 2, 0,-1, 0],
+      lock_cent: [ 0, 4, 0,-1, 0],
+      lock_spot: [ 0, 6, 0,-1, 0],
+    }
+
+    constructor(
+      level, // Level
+      root_x,root_y,short_x,short_y,long_x,long_y, // Float
+    ) {
+      super(
+        level,
+        root_x, root_y, short_x, short_y, long_x, long_y,
+      )
+      this.long = this.constructor.long
+    }
+  }
+
+  class Level extends Spot {
+    static names = 'levels'
+    static state = 'level'
+
+    walls = [] // Wall[]
+    doors = [] // Door[]
+    portals = []; active_portals = [] // Portal[]
+    locks = [] // Lock
+    keys = [] // Key
+    jacks = [] // Jack
+    editors = {} // Editor{ID}
+
+    constructor(
+      game, // Game
+      root_x,root_y, // Float
+    ) {
+      super( game, root_x, root_y, true )
+    }
+
+    copy(
+      game_copy, // Game
+      level_copy, // Level,Null
+    ) {
+
+      if (!level_copy) {
+        level_copy = new Level(game_copy, root_x, root_y)
+      }
+
+      for (const wall_idx in walls) {
+        const old_wall = walls[wall_idx]
+        old_wall.copy(level_copy,)
+      }
+
+      for (const door_idx in doors) {
+        const old_door = doors[door_idx]
+        old_door.copy(level_copy,)
+      }
+
+      for (const portal_idx in portals) {
+        const old_portal = portals[portal_idx]
+        old_portal.copy(level_copy,)
+      }
+
+      for (const key_idx in keys) {
+        const old_key = keys[key_idx]
+
+        if (!old_key.lock) {
+          old_key.copy(level_copy,)
+        }
+
+      }
+
+      return super.copy(game_copy, level_copy)
+    }
+  }
+
+  class Game {
+    static names = 'games'
+    static state = 'game'
+
+    levels = [] // Level
+
+    copy(
+      game_copy, // Game,Null
+    ) {
+      if (!game_copy) {
+        game_copy = new Game()
+      }
+
+      for (const level_idx in levels) {
+        const old_level = levels[level_idx]
+        old_level.copy(game_copy, old_level.x, old_level.y, )
+      }
+
+      return game_copy
+    }
+  }
+
+  MazeGame.classes = [
+    State,Spot,Editor,Wall,Jack,Key,Lock,Door,Portal,Level,Game,
+  ]
 
 
+  const log = console.log
 
-
+  const game = new Game()
+  const level = new Level(game, 0, 0, )
+  const key = new Key(level, null, 1,3, true)
 
   return MazeGame
 }
