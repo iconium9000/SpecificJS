@@ -3,16 +3,17 @@ module.exports = (project_name, Lib) => {
   class State {
     static names = 'states'
     static state = 'state'
+    static key_bind = undefined
+    get Class() { return this.constructor } // Class
 
     copy(
       state_copy,
     ) {
       if (!state_copy) {
-        state_copy = new State()
+        state_copy = new this.Class()
       }
       return state_copy
     }
-
   }
 
   class Spot extends State {
@@ -20,9 +21,13 @@ module.exports = (project_name, Lib) => {
     static state = 'spot'
     static round_root = 2 // Float
 
-    editor // Editor,Null
-    root_x;root_y // Float
-    is_open;change_open = false // Boolean
+    // editor: Editor,Null
+    // root_x;root_y: Float
+    // is_open;change_open: Boolean
+    // level: Level,Null
+    // game: Game,Null
+
+    change_open = false
 
     constructor(
       state, // State
@@ -31,8 +36,8 @@ module.exports = (project_name, Lib) => {
     ) {
       super()
 
-      const round_root = this.constructor.round_root
-      if (round_root) {
+      const round_root = this.Class.round_root
+      if (round_root > 0) {
         this.root_x = Math.round(root_x / round_root) * round_root
         this.root_y = Math.round(root_y / round_root) * round_root
       }
@@ -40,8 +45,8 @@ module.exports = (project_name, Lib) => {
         this.root_x = root_x; this.root_y = root_y
       }
       this.is_open = is_open
-      this[state.state] = state
-      state[this.constructor.names].push(this)
+      this[state.Class.state] = state
+      state[this.Class.names].push(this)
     }
 
     copy(
@@ -51,10 +56,10 @@ module.exports = (project_name, Lib) => {
       if (!spot_copy) {
         spot_copy = new Spot( level_copy, root_x, root_y, is_open )
       }
-      if (editor) {
+      if (this.editor) {
         spot_copy.editor = editor.copy( level_copy, spot_copy, )
       }
-      spot_copy.change_open = spot_copy.is_open != is_open
+      spot_copy.change_open = spot_copy.is_open != this.is_open
       return spot_copy
     }
   }
@@ -62,38 +67,43 @@ module.exports = (project_name, Lib) => {
   class Editor extends Spot {
     static names = 'editors'
     static state = 'editor'
+    static key_bind = 'e'
+    static round_root = 0 // Float
 
-    id // ID
-    name // String
-    spot_x;spot_y // Float
-    spot // Spot
-    state // State
-    level // Level
+    // id: ID
+    // name: String
+    // spot_x;spot_y: Float
+    // spot: Spot
+    // state: Class
 
     constructor(
       level, // Level
       id, // ID
       name, // String
-      state, // State
+      state, // Class
       root_x,root_y,spot_x,spot_y, // Float
       spot, // Spot,Null
     ) {
-      super()
+      super(level, root_x, root_y)
 
       this.id = id; this.name = name; this.state = state
-      this.spot_x = spot_x; this.spot_y = spot_y;
+      this.spot_x = spot_x; this.spot_y = spot_y
       this.spot = spot || level
-      this.level =
-      level[this.constructor.names][id] = this
+      level.game[this.Class.names][id] = this
     }
 
     copy(
       level_copy, // Level
       spot_copy, // Spot,Null
+      editor_copy, // Editor,Null
     ) {
-      const editor_copy = new Editor(
-        level_copy, id, name, state, spot_x,spot_y, spot_copy,
-      )
+      if (!editor_copy) {
+        editor_copy = new Editor(
+          level_copy, this.id, this.name, this.state,
+          this.root_x,this.root_y,this.spot_x,this.spot_y,
+          spot_copy,
+        )
+      }
       return editor_copy
     }
   }
@@ -101,9 +111,10 @@ module.exports = (project_name, Lib) => {
   class Wall extends Spot {
     static names = 'walls'
     static state = 'wall'
+    static key_bind = 'w'
     static ceil_long = 2
 
-    long_x;long_y;long // Float
+    // long_x;long_y;long: Float
 
     constructor(
       level, // Level
@@ -115,7 +126,7 @@ module.exports = (project_name, Lib) => {
       const abs_long_x = Math.abs(long_x)
       const abs_long_y = Math.abs(long_y)
 
-      const ceil_long = this.constructor.ceil_long
+      const ceil_long = this.Class.ceil_long
       if ( abs_long_x < abs_long_y ) {
         this.long = abs_long_y
         this.long_y = 1; this.long_x = 0
@@ -137,7 +148,8 @@ module.exports = (project_name, Lib) => {
     ) {
       if (!wall_copy) {
         wall_copy = new Wall (
-          level_copy, root_x, root_y, long_x, long_y, long
+          level_copy, this.root_x, this.root_y,
+          this.long_x, this.long_y, this.long,
         )
       }
       return super.copy(level_copy, wall_copy)
@@ -147,11 +159,12 @@ module.exports = (project_name, Lib) => {
   class Jack extends Spot {
     static names = 'jacks'
     static state = 'jack'
+    static key_bind = 'j'
     static round_root = 0
 
-    lock // Lock
-    key // Key
-    long_x; long_y // Float
+    // lock: Lock
+    // key: Key
+    // long_x;long_y: Float
 
     constructor(
       level, // Level
@@ -213,12 +226,12 @@ module.exports = (project_name, Lib) => {
   class Key extends Spot {
     static names = 'keys'
     static state = 'key'
+    static key_bind = 'k'
     static round_root = 0
     static radius = 0.9
 
-    lock // Lock,Null
-    jack // Jack,Null
-
+    // lock: Lock,Null
+    // jack: Jack,Null
 
     constructor(
       level, // Level
@@ -265,12 +278,13 @@ module.exports = (project_name, Lib) => {
   class Lock extends Spot {
     static names = 'locks'
     static state = 'lock'
+    static key_bind = 'l'
     static long = 2
     static round_root = 0
 
-    key // Key,Null
-    spot // Spot
-    long_x;long_y // Float
+    // key: Key,Null
+    // spot: Spot
+    // long_x;long_y: Float
 
     constructor(
       level, // Level
@@ -278,7 +292,7 @@ module.exports = (project_name, Lib) => {
       root_x,root_y,long_x,long_y, // Float
     ) {
       super( level, root_x, root_y, false )
-      const long = this.constructor.long
+      const long = this.Class.long
       this.spot = spot || level
 
       const length = Math.sqrt(long_x*long_x + long_y*long_y)
@@ -323,6 +337,7 @@ module.exports = (project_name, Lib) => {
   class Door extends Wall {
     static names = 'doors'
     static state = 'door'
+    static key_bind = 'd'
     static ceil_long = 6
     static short = 2
     // half_short, half_long, long, lock_short, lock_long
@@ -333,7 +348,10 @@ module.exports = (project_name, Lib) => {
       lock_long_spot:  [ 1, 0, 1, 0, 1 ],
     }
 
-    short_x = 0;short_y = 0 // Float
+    // short_x;short_y: Float
+
+    short_x = 0
+    short_y = 0
 
     constructor(
       level, // Level
@@ -349,7 +367,7 @@ module.exports = (project_name, Lib) => {
         this.short_x = short_x < 0 ? -1 : 1
       }
 
-      const lock_names = this.constructor.lock_names
+      const lock_names = this.Class.lock_names
       for (const lock_name in lock_names) {
         this[lock_name] = undefined
       }
@@ -359,11 +377,11 @@ module.exports = (project_name, Lib) => {
       level_copy, // Level
       door_copy, // Door,Null
     ) {
-      const half_short = this.constructor.short / 2
-      const lock_names = this.constructor.lock_names
+      const half_short = this.Class.short / 2
+      const lock_names = this.Class.lock_names
 
       if (!door_copy) {
-        door_copy = new this.constructor(
+        door_copy = new this.Class(
           level_copy, root_x,root_y,
           short_x,short_x, long_x,long_y, long,
         )
@@ -402,6 +420,7 @@ module.exports = (project_name, Lib) => {
   class Portal extends Door {
     static names = 'portals'
     static state = 'portal'
+    static key_bind = 'p'
 
     static short = 1
     static ceil_long = 4
@@ -422,28 +441,29 @@ module.exports = (project_name, Lib) => {
         level,
         root_x, root_y, short_x, short_y, long_x, long_y,
       )
-      this.long = this.constructor.long
+      this.long = this.Class.long
     }
   }
 
   class Level extends Spot {
     static names = 'levels'
     static state = 'level'
+    static key_bind = 'v'
 
     walls = [] // Wall[]
     doors = [] // Door[]
     portals = []; open_portals = [] // Portal[]
-    locks = [] // Lock
-    keys = [] // Key
-    jacks = [] // Jack
-    editors = {} // Editor{ID}
+    locks = [] // Lock[]
+    keys = [] // Key[]
+    jacks = [] // Jack[]
+    editors = [] // Editor[]
 
     constructor(
-      game, // Game
+      state, // State
       root_x,root_y, // Float
+      is_open, // Boolean
     ) {
-      super( game, root_x, root_y, true )
-      this.game = game
+      super(state, root_x, root_y, is_open, )
     }
 
     copy(
@@ -452,21 +472,21 @@ module.exports = (project_name, Lib) => {
     ) {
 
       if (!level_copy) {
-        level_copy = new Level(game_copy, root_x, root_y)
+        level_copy = new Level(game_copy, this.root_x, this.root_y)
       }
 
-      for (const wall_idx in walls) {
-        const this_wall = walls[wall_idx]
+      for (const wall_idx in this.walls) {
+        const this_wall = this.walls[wall_idx]
         this_wall.copy(level_copy,)
       }
 
-      for (const door_idx in doors) {
-        const this_door = doors[door_idx]
+      for (const door_idx in this.doors) {
+        const this_door = this.doors[door_idx]
         this_door.copy(level_copy,)
       }
 
-      for (const portal_idx in portals) {
-        const this_portal = portals[portal_idx]
+      for (const portal_idx in this.portals) {
+        const this_portal = this.portals[portal_idx]
         const portal_copy = this_portal.copy(level_copy,)
 
         if (portal_copy.is_open) {
@@ -481,8 +501,8 @@ module.exports = (project_name, Lib) => {
         }
       }
 
-      for (const lock_idx in locks) {
-        const this_lock = locks[lock_idx]
+      for (const lock_idx in this.locks) {
+        const this_lock = this.locks[lock_idx]
 
         if (this_lock.spot == level) {
           const lock_copy = this_lock.copy( level_copy )
@@ -492,16 +512,16 @@ module.exports = (project_name, Lib) => {
         }
       }
 
-      for (const key_idx in keys) {
-        const this_key = keys[key_idx]
+      for (const key_idx in this.keys) {
+        const this_key = this.keys[key_idx]
 
         if (!this_key.lock) {
           this_key.copy(level_copy, null, this_key.root_x, this_key.root_y)
         }
       }
 
-      for (const editor_id in editors) {
-        const this_editor = editors[editor_id]
+      for (const editor_idx in this.editors) {
+        const this_editor = this.editors[editor_idx]
 
         if (this_editor.spot == this) {
           this_editor.copy(level_copy)
@@ -515,8 +535,10 @@ module.exports = (project_name, Lib) => {
   class Game extends State {
     static names = 'games'
     static state = 'game'
+    static key_bind = 'g'
 
-    levels = [] // Level
+    editors = {} // Editor{ID}
+    levels = [] // Level[]
 
     copy(
       game_copy, // Game,Null
@@ -525,8 +547,8 @@ module.exports = (project_name, Lib) => {
         game_copy = new Game()
       }
 
-      for (const level_idx in levels) {
-        const this_level = levels[level_idx]
+      for (const level_idx in this.levels) {
+        const this_level = this.levels[level_idx]
         this_level.copy(game_copy, )
       }
 
@@ -534,7 +556,7 @@ module.exports = (project_name, Lib) => {
     }
   }
 
-  const MazeGroot_xame = {
+  const MazeGame = {
     State: State,
     Spot: Spot,
     Editor: Editor,
@@ -548,11 +570,6 @@ module.exports = (project_name, Lib) => {
     Game: Game,
   }
 
-  const log = console.log
-
-  const game = new Game()
-  const level = new Level(game, 0, 0, )
-  const key = new Key(level, null, 1,3, true)
 
   return MazeGame
 }

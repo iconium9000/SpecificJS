@@ -7,24 +7,12 @@ function MazeGame() {
 	const err = console.error
 	const pi2 = Math.PI * 2
 	const MazeGame = module.exports(project_name, Lib)
+	const key_bindings = {}
 
-	const state = MazeGame.Spot
-
-	switch (state) {
-		case MazeGame.Key:
-			log('Key')
-			break
-		case MazeGame.Jack:
-			log('jack')
-			break
-		case MazeGame.Spot:
-			log('spot')
-			break
-		default:
-			log('error')
-			break
+	for (const class_name in MazeGame) {
+		const Class = MazeGame[class_name]
+		key_bindings[Class.key_bind] = Class
 	}
-
 
 	const game_queue = []
 	const client = {
@@ -33,11 +21,23 @@ function MazeGame() {
 	  prev_now: start_time - max_deltaT,
 		name: null,
 		full_name: null,
-
-		// game: MazeGame.get_game(),
-
 		scale: 1,
 		x: 0, y: 0,
+
+		editor: null,
+
+	}
+	function copy_game() {
+		if (!client.editor) {
+			return
+		}
+
+		try {
+			client.editor = client.editor.level.game.copy().editors[client.socket.id]
+		}
+		catch (e) {
+			err(e)
+		}
 	}
 
 	const mouse = {
@@ -107,25 +107,16 @@ function MazeGame() {
 	$(document).keypress(e => {
     var c = String.fromCharCode(e.which | 0x20)
 
-		// let game = client.game
-		// const editor = MazeGame.get_editor(game, client)
-		// if (editor) {
-		// 	const state = null // MazeGame.state_keys[c]
-		// 	if (state) {
-		// 		// TODO
-		// 	}
-		// 	// Enter
-		// 	else if (e.which == 13) {
-		//
-		// 	}
-		// 	// Delete
-		// 	else if (e.which == 127) {
-		// 		client.socket.emit('update delete')
-		// 	}
-		// 	else if (c == ' ') {
-		//
-		// 	}
-		// }
+		if (client.editor) {
+			const Class = key_bindings[c]
+			if (Class) {
+				client.editor.state = Class
+				copy_game()
+			}
+			else if (c == ' ') {
+				log(client.editor)
+			}
+		}
   })
 
   $(document).keyup(e => {
@@ -152,7 +143,14 @@ function MazeGame() {
 
 	  log(client.full_name, 'connected to server')
 
-		// MazeGame.get_editor(client.game, client)
+		const new_game = new MazeGame.Game()
+		const new_level = new MazeGame.Level(new_game, 0, 0, true)
+		client.editor = new MazeGame.Editor(
+			new_level, client.socket.id, client.name,
+			MazeGame.Wall, 0,0,0,0,
+		)
+
+		log(client.editor)
 
 	  tick()
 	})
