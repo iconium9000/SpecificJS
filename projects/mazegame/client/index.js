@@ -22,24 +22,8 @@ function MazeGame() {
 		name: null,
 		full_name: null,
 		scale: 1,
-		x: 0, y: 0,
-
 		editor: null,
-
 	}
-	function copy_game() {
-		if (!client.editor) {
-			return
-		}
-
-		try {
-			client.editor = client.editor.level.game.copy().editors[client.socket.id]
-		}
-		catch (e) {
-			err(e)
-		}
-	}
-
 	const mouse = {
 		x: -1,
 		y: -1,
@@ -55,16 +39,10 @@ function MazeGame() {
 		mouse.x = (e.clientX - 7 - mouse.width / 2) / mouse.scale
     mouse.y = (e.clientY - 7 - mouse.height / 2) / mouse.scale
 
-		// const editor = MazeGame.get_editor(client.game, client)
-		//
-		// if (
-		// 	mouse.right_down &&
-		// 	(editor.state != 'game' || !editor.jack) &&
-		// 	!client.game.path
-		// ) {
-		// 	client.x += mouse.prev_x - mouse.x
-		// 	client.y += mouse.prev_y - mouse.y
-		// }
+		if ( mouse.right_down && client.editor ) {
+			client.editor.root_x += mouse.prev_x - mouse.x
+			client.editor.root_y += mouse.prev_y - mouse.y
+		}
 
 		mouse.prev_x = mouse.x
 		mouse.prev_y = mouse.y
@@ -88,9 +66,22 @@ function MazeGame() {
 		mouse.x = (e.clientX - 7 - mouse.width / 2) / mouse.scale
     mouse.y = (e.clientY - 7 - mouse.height / 2) / mouse.scale
 
-		if (mouse.left_down) {
+		if (mouse.left_down && client.editor) {
+			let editor_copy = client.editor.deep_copy()
 
-			log('left_down')
+			editor_copy.spot_x = mouse.x
+			editor_copy.spot_y = mouse.y
+			editor_copy = editor_copy.state.act(editor_copy,)
+
+			const invalid = editor_copy.level.game.is_valid()
+
+			if (invalid) {
+				log(invalid)
+			}
+			else {
+				log(editor_copy.action)
+				client.editor = editor_copy
+			}
 		}
 
 		if (e.button == 2) {
@@ -108,10 +99,10 @@ function MazeGame() {
     var c = String.fromCharCode(e.which | 0x20)
 
 		if (client.editor) {
-			const Class = key_bindings[c]
-			if (Class) {
-				client.editor.state = Class
-				copy_game()
+			const state = key_bindings[c]
+			if (state) {
+				client.editor = MazeGame.State.act(client.editor, state)
+				log(client.editor.action)
 			}
 			else if (c == ' ') {
 				log(client.editor)
@@ -146,8 +137,8 @@ function MazeGame() {
 		const new_game = new MazeGame.Game()
 		const new_level = new MazeGame.Level(new_game, 0, 0, true)
 		client.editor = new MazeGame.Editor(
-			new_level, client.socket.id, client.name,
-			MazeGame.Wall, 0,0,0,0,
+			new_level, client.socket.id, client.name, `new editor`,
+			MazeGame.Wall, null, 0,0,0,0, false,
 		)
 
 		log(client.editor)
