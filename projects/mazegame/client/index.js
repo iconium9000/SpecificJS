@@ -73,14 +73,13 @@ function MazeGame() {
 			editor_copy.spot_y = mouse.y
 			editor_copy = editor_copy.state.act(editor_copy,)
 
-			const invalid = editor_copy.level.game.is_valid()
-
-			if (invalid) {
-				log(invalid)
-			}
-			else {
-				log(editor_copy.action)
+			try {
+				editor_copy.level.game.check_valid()
 				client.editor = editor_copy
+				log(editor_copy.action)
+			}
+			catch (e) {
+				log(`INVALID GAME`, e)
 			}
 		}
 

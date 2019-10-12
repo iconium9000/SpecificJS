@@ -6,6 +6,7 @@ module.exports = (project_name, Lib) => {
     static key_bind = undefined
     get Class() { return this.constructor } // Class
 
+    check_valid() { return true }
     copy(
       state_copy,
     ) {
@@ -13,9 +14,6 @@ module.exports = (project_name, Lib) => {
         state_copy = new this.Class()
       }
       return state_copy
-    }
-    is_valid() {
-      return null
     }
 
     static get_spot(
@@ -36,6 +34,7 @@ module.exports = (project_name, Lib) => {
 
       if (editor.spot != editor.level) {
         editor.spot = editor.level
+        editor.is_open = false
         editor.action += `changed Editor spot to level, `
       }
 
@@ -201,6 +200,11 @@ module.exports = (project_name, Lib) => {
       this.long = Math.ceil(this.long / ceil_long) * ceil_long
     }
 
+    check_valid() {
+      // TODO linecross
+      return super.check_valid()
+    }
+
     copy(
       level_copy, // Level
       wall_copy, // Wall,Null
@@ -247,17 +251,29 @@ module.exports = (project_name, Lib) => {
     static act(
       editor, // Editor
     ) {
-      if (editor.spot.Class == this) {
+      let spot = editor.spot
 
+      if (spot.Class == this) {
+
+        if (!editor.is_open) {
+          spot.root_x += spot.long_x * spot.long
+          spot.root_y += spot.long_y * spot.long
+          editor.is_open = true
+          editor.action = `fliped ${this.name}, `
+        }
+        
+        spot.long_x = editor.spot_x - spot.root_x
+        spot.long_y = editor.spot_y - spot.root_y
+        return editor.deep_copy()
       }
       else {
-        editor.spot = this.get_spot(editor)
-        if (editor.spot == editor.level) {
-          editor.action = `no action`
-          return editor
+        spot = editor.spot = this.get_spot(editor)
+        if (spot == editor.level) {
+          editor.spot = new this(editor.level, spot_x, spot_y)
+          editor.is_open = true
+          editor.action = `new ${this.name}`
+          return editor.deep_copy()
         }
-
-        
       }
 
       return editor
@@ -283,6 +299,11 @@ module.exports = (project_name, Lib) => {
       super(level, root_x, root_y, false)
       this.key = key; this.lock = lock
       this.long_x = long_x; this.long_y = long_y
+    }
+
+    check_valid() {
+      if (this.lock.spot == this)
+      return super.check_valid()
     }
 
     copy(
@@ -368,6 +389,13 @@ module.exports = (project_name, Lib) => {
       this.lock = lock
     }
 
+    check_valid() {
+      if (this.jack) {
+        this.jack.check_valid()
+      }
+      return super.check_valid()
+    }
+
     copy(
       level_copy, // Level
       lock_copy, // Lock,Null
@@ -420,6 +448,13 @@ module.exports = (project_name, Lib) => {
       }
     }
 
+    check_valid() {
+      if (this.key) {
+        this.key.check_valid()
+      }
+      return super.check_valid()
+    }
+
     copy(
       level_copy, // Level
       spot_copy, // Spot,Null
@@ -468,6 +503,18 @@ module.exports = (project_name, Lib) => {
       long, // Float,Null
     ) {
       super( level, root_x,root_y,long_x,long_y, long, )
+    }
+
+    check_valid() {
+
+      for (const lock_name in this.Class.lock_names) {
+        const this_lock = this[lock_name]
+        if (this_lock) {
+          this_lock.check_valid()
+        }
+      }
+
+      return super.check_valid()
     }
 
     copy(
@@ -527,6 +574,13 @@ module.exports = (project_name, Lib) => {
       lock_spot: [ 0, 6, 0,-1, 0],
     }
 
+    check_valid() {
+      if (this.lock_cent && (this.lock_root || this.lock_spot)) {
+        throw `bad portal lock pairs`
+      }
+      return super.check_valid()
+    }
+
     constructor(
       level, // Level
       root_x,root_y,short_x,short_y,long_x,long_y, // Float
@@ -557,8 +611,57 @@ module.exports = (project_name, Lib) => {
       super(state, root_x, root_y, is_open, )
     }
 
-    is_valid() {
+    check_valid() {
 
+      for (const wall_idx in this.walls) {
+        const this_wall = this.walls[wall_idx]
+        this_wall.check_valid()
+      }
+
+      for (const door_idx in this.doors) {
+        const this_door = this.doors[door_idx]
+        this_door.check_valid()
+      }
+
+      this.open_portals = []
+      for (const portal_idx in this.portals) {
+        const this_portal = this.portals[portal_idx]
+
+        this_portal.check_valid()
+
+        if (this_portal.is_open) {
+          this.open_portals.push(this_portal.is_open)
+        }
+      }
+      if (this.open_portals.length != 0 && this.open_portals.length != 2) {
+        throw `${this.open_portals.length} open portals`
+      }
+
+      for (const lock_idx in this.locks) {
+        const this_lock = this.locks[lock_idx]
+
+        if (this_lock.spot == this) {
+          this_lock.check_valid()
+        }
+      }
+
+      for (const key_idx in this.keys) {
+        const this_key = this.keys[key_idx]
+
+        if (!this_key.lock) {
+          this_key.check_valid()
+        }
+      }
+
+      for (const editor_idx in this.editors) {
+        const this_editor = this.editors[editor_idx]
+
+        if (this_editor.spot == this) {
+          this_editor.check_valid()
+        }
+      }
+
+      return super.check_valid()
     }
 
     copy(
@@ -594,12 +697,13 @@ module.exports = (project_name, Lib) => {
           portal_copy.is_open = false
           portal_copy.change_open = !portal_copy.change_open
         }
+        level_copy.open_portals = []
       }
 
       for (const lock_idx in this.locks) {
         const this_lock = this.locks[lock_idx]
 
-        if (this_lock.spot == level) {
+        if (this_lock.spot == level_copy) {
           const lock_copy = this_lock.copy( level_copy )
           if (!lock_copy.key) {
             level_copy.is_open = false
@@ -650,17 +754,14 @@ module.exports = (project_name, Lib) => {
       return game_copy
     }
 
-    is_valid() {
+    check_valid() {
 
       for (const level_idx in this.levels) {
         const this_level = this.levels[level_idx]
-        const invalid = this_level.is_valid()
-        if (invalid) {
-          return invalid
-        }
+        this_level.check_valid()
       }
 
-      return null
+      return super.check_valid()
     }
   }
 
