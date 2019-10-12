@@ -1,5 +1,7 @@
 module.exports = (project_name, Lib) => {
 
+  const log = (...msg) => console.log(project_name, ...msg)
+
   class State {
     static names = 'states'
     static state = 'state'
@@ -7,6 +9,7 @@ module.exports = (project_name, Lib) => {
     get Class() { return this.constructor } // Class
 
     check_valid() { return true }
+
     copy(
       state_copy,
     ) {
@@ -15,6 +18,8 @@ module.exports = (project_name, Lib) => {
       }
       return state_copy
     }
+
+    draw() {}
 
     static get_spot(
       editor, // Editor
@@ -50,6 +55,23 @@ module.exports = (project_name, Lib) => {
     }
   }
 
+  class Mouse {
+    static names = 'mice'
+    static state = 'mouse'
+    static key_bind = undefined
+
+    // x,y,prev_x,prev_y: Float
+    // width,height,scale: Float
+    // right_down,left_down: Boolean
+
+    x = -1
+    y = -1
+
+    right_down = false
+    left_down = false
+
+  }
+
   class Spot extends State {
     static names = 'spots'
     static state = 'spot'
@@ -70,7 +92,7 @@ module.exports = (project_name, Lib) => {
     ) {
       super()
 
-      const round_root = this.Class.round_root
+      const round_root = 0 // TODO this.Class.round_root
       if (round_root > 0) {
         this.root_x = Math.round(root_x / round_root) * round_root
         this.root_y = Math.round(root_y / round_root) * round_root
@@ -131,6 +153,13 @@ module.exports = (project_name, Lib) => {
       level.game[this.Class.names][id] = this
     }
 
+    draw(
+      ctx, // CanvasRenderingContext2D
+      mouse, // Mouse
+    ) {
+      this.level.draw(ctx, mouse, this)
+    }
+
     copy(
       level_copy, // Level
       spot_copy, // Spot,Null
@@ -138,8 +167,11 @@ module.exports = (project_name, Lib) => {
     ) {
       if (!editor_copy) {
         editor_copy = new Editor(
-          level_copy, this.id, this.name,
-          this.action, this.state, spot_copy,
+          level_copy,
+          this.id,
+          this.name, this.action,
+          this.state,
+          spot_copy,
           this.root_x,this.root_y,this.spot_x,this.spot_y,
           this.is_open,
         )
@@ -167,6 +199,8 @@ module.exports = (project_name, Lib) => {
     static key_bind = 'w'
     static ceil_long = 2
     static short = 1
+    static line_width = 4
+    static color = '#ffffff'
 
     // short_x;short_y;long_x;long_y;long: Float
     short_x = 0; short_y = 0
@@ -197,12 +231,35 @@ module.exports = (project_name, Lib) => {
       if (long > 0) {
         this.long = long
       }
-      this.long = Math.ceil(this.long / ceil_long) * ceil_long
+      // TODO
+      // this.long = Math.ceil(this.long / ceil_long) * ceil_long
     }
 
     check_valid() {
       // TODO linecross
       return super.check_valid()
+    }
+
+    draw(
+      ctx, // CanvasRenderingContext2D
+      mouse, // Mouse
+      editor, // Editor
+    ) {
+
+      const root_x = this.root_x + mouse.width / 2 - editor.root_x
+      const root_y = this.root_y + mouse.height / 2 - editor.root_x
+
+      const spot_x = root_x + this.long_x * this.long
+      const spot_y = root_y + this.long_y * this.long
+
+      ctx.lineWidth = this.Class.line_width
+      ctx.strokeStyle = this.Class.color
+      ctx.beginPath()
+      ctx.moveTo(root_x, root_y)
+      ctx.lineTo(spot_x, spot_y)
+      ctx.stroke()
+
+      // TODO
     }
 
     copy(
@@ -251,25 +308,25 @@ module.exports = (project_name, Lib) => {
     static act(
       editor, // Editor
     ) {
-      let spot = editor.spot
 
-      if (spot.Class == this) {
+      if (editor.spot.Class == this) {
 
         if (!editor.is_open) {
-          spot.root_x += spot.long_x * spot.long
-          spot.root_y += spot.long_y * spot.long
+          editor.spot.root_x += editor.spot.long_x * editor.spot.long
+          editor.spot.root_y += editor.spot.long_y * editor.spot.long
           editor.is_open = true
           editor.action = `fliped ${this.name}, `
         }
-        
-        spot.long_x = editor.spot_x - spot.root_x
-        spot.long_y = editor.spot_y - spot.root_y
+
+        editor.spot.long_x = editor.spot_x - editor.spot.root_x
+        editor.spot.long_y = editor.spot_y - editor.spot.root_y
         return editor.deep_copy()
       }
       else {
-        spot = editor.spot = this.get_spot(editor)
-        if (spot == editor.level) {
-          editor.spot = new this(editor.level, spot_x, spot_y)
+        editor.spot = this.get_spot(editor)
+        if (editor.spot == editor.level) {
+          editor.spot = new this(editor.level, editor.spot_x, editor.spot_y)
+          editor.spot.editor = editor
           editor.is_open = true
           editor.action = `new ${this.name}`
           return editor.deep_copy()
@@ -664,6 +721,21 @@ module.exports = (project_name, Lib) => {
       return super.check_valid()
     }
 
+    draw(
+      ctx, // CanvasRenderingContext2D
+      mouse, // Mouse
+      editor, // Editor
+    ) {
+
+      for (const wall_idx in this.walls) {
+        const this_wall = this.walls[wall_idx]
+
+        this_wall.draw( ctx, mouse, editor, )
+      }
+
+      // TODO
+    }
+
     copy(
       game_copy, // Game
       level_copy, // Level,Null
@@ -767,6 +839,7 @@ module.exports = (project_name, Lib) => {
 
   const MazeGame = {
     State: State,
+    Mouse: Mouse,
     Spot: Spot,
     Editor: Editor,
     Wall: Wall,
@@ -778,7 +851,6 @@ module.exports = (project_name, Lib) => {
     Level: Level,
     Game: Game,
   }
-
 
   return MazeGame
 }

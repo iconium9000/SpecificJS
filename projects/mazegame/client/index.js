@@ -24,16 +24,7 @@ function MazeGame() {
 		scale: 1,
 		editor: null,
 	}
-	const mouse = {
-		x: -1,
-		y: -1,
-
-		right_down: false,
-		left_down: false,
-
-		prev_x: -1,
-		prev_y: -1,
-	}
+	const mouse = new MazeGame.Mouse()
 
 	$(document).mousemove(e => {
 		mouse.x = (e.clientX - 7 - mouse.width / 2) / mouse.scale
@@ -136,8 +127,13 @@ function MazeGame() {
 		const new_game = new MazeGame.Game()
 		const new_level = new MazeGame.Level(new_game, 0, 0, true)
 		client.editor = new MazeGame.Editor(
-			new_level, client.socket.id, client.name, `new editor`,
-			MazeGame.Wall, null, 0,0,0,0, false,
+			new_level,
+			client.socket.id,
+			client.name, `new editor`,
+			MazeGame.Wall,
+			new_level,
+			0,0,0,0,
+			false,
 		)
 
 		log(client.editor)
@@ -147,10 +143,6 @@ function MazeGame() {
 
 	function tick() {
 
-		// draw_game(client.game)
-	}
-
-	function draw_game(game)  {
 		const canvas = document.getElementById('canvas')
 		const ctx = canvas.getContext('2d')
 		mouse.width = canvas.width = window.innerWidth - 20
@@ -164,8 +156,7 @@ function MazeGame() {
 		client.prev_now = now
 		mouse.scale = mouse.width > mouse.height ? mouse.height : mouse.width
 
-		const scale = mouse.scale
-
+		client.editor.draw( ctx, mouse, )
 	}
 
 	log('index.js')
