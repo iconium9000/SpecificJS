@@ -1,24 +1,33 @@
 // -----------------------------------------------------------------------------
 // server setup
 
-const projects = {
-  menu: {
+const projects = [
+  {
+    name: 'menu',
     path: '',
     title: 'Iconium9000 Games Menu',
   },
-  blockade: {
+  {
+    name: 'blockade',
     path: 'blockade',
     title: 'Blockade',
   },
-  knifeline: {
+  {
+    name: 'knifeline',
     path: 'knifeline',
     title: 'Knifeline',
   },
-  mazegame: {
+  {
+    name: 'mazegame',
     path: 'mazegame',
     title: 'MazeGame',
   },
-}
+  {
+    name: '2048',
+    path: '2048',
+    title: '2048',
+  }
+]
 
 const jquery_dir = '/node_modules/jquery/dist/'
 const socket_io_dir = '/node_modules/socket.io-client/dist/'
@@ -38,19 +47,25 @@ const socket_io = require('socket.io')(serv, {})
 
 const Lib = require(`./projects/menu/client/lib.js`)
 
-for ( const name in projects ) {
-  const project = projects[name]
-  project.name = name
+for ( const project_idx in projects ) {
+  const project = projects[project_idx]
+
   project.socket = socket_io.of(`/${project.path}`)
 
-  app.get(`/${project.path}`, (req, res) => {
-    res.sendFile(__dirname + `/projects/${name}/client/index.html`)
-  })
-  app.use(`/${project.path}`, express.static(__dirname + `/projects/${name}/client`))
+  app.get(
+    `/${project.path}`,
+    (req, res) => {
+      res.sendFile(__dirname + `/projects/${project.name}/client/index.html`)
+    },
+  )
+  app.use(
+    `/${project.path}`,
+    express.static(__dirname + `/projects/${project.name}/client`),
+  )
 }
 
-for ( const name in projects ) {
-  const project = projects[name]
+for ( const project_idx in projects ) {
+  const project = projects[project_idx]
   require(`./projects/${project.name}/server.js`)(project, projects, Lib)
 }
 

@@ -32,8 +32,8 @@ client_socket.on('update', ({ projects }) => {
   log('update', projects)
 
   var menu = ''
-  for ( const project_name in projects ) {
-    const project = projects[ project_name ]
+  for ( const project_idx in projects ) {
+    const project = projects[ project_idx ]
 
     menu += `<p><a href="${project.path}">${project.title}</a>`
 

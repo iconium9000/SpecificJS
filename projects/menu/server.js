@@ -7,8 +7,8 @@ module.exports = (project, projects) => {
   log('server.js')
 
   // set up projects
-  for (const name in projects) {
-    const project = projects[name]
+  for (const project_idx in projects) {
+    const project = projects[project_idx]
     project.clients = {}
 
     project.socket.on('connection', (socket) => {
@@ -40,12 +40,14 @@ module.exports = (project, projects) => {
 
     // log('update_clients', project.title)
 
-    const new_projects = {}
+    const new_projects = []
 
-    for (const project_name in projects) {
-      const project = projects[ project_name ]
+    for (const project_idx in projects) {
+      const project = projects[ project_idx ]
+
       const new_project = {
         clients: {},
+        name: project.name,
         title: project.title,
         path: project.path,
         n_clients: 0,
@@ -61,7 +63,7 @@ module.exports = (project, projects) => {
         ++new_project.n_clients
       }
 
-      new_projects[ project_name ] = new_project
+      new_projects.push(new_project)
     }
 
     project.socket.emit('update', { projects: new_projects })

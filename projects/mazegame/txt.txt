@@ -1,0 +1,29 @@
+$(document).mousemove(e => {
+  mouse.x = (e.clientX - 7 - mouse.width / 2) / mouse.scale
+  mouse.y = (e.clientY - 7 - mouse.height / 2) / mouse.scale
+
+  const editor = MazeGame.get_editor(client.game, client)
+
+  if (
+    mouse.right_down &&
+    (editor.state != 'game' || !editor.jack) &&
+    !client.game.path
+  ) {
+    client.x += mouse.prev_x - mouse.x
+    client.y += mouse.prev_y - mouse.y
+  }
+
+  mouse.prev_x = mouse.x
+  mouse.prev_y = mouse.y
+})
+
+const {scale, width, height, x:mx, y:my} = mouse
+const {x: px, y: py} = client
+const fx = px + mx, fy = py + my
+
+const scale_bot = scale * bot_scale
+const shift_bot_x = width / 2 - px * scale_bot
+const shift_bot_y = height / 2 - py * scale_bot
+
+node.bot_x = node.x * scale_bot + shift_bot_x
+node.bot_y = node.y * scale_bot + shift_bot_y
