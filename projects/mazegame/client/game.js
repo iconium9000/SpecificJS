@@ -1,35 +1,20 @@
 module.exports = (project_name, Lib) => {
 
   const log = (...msg) => console.log(project_name, ...msg)
+  const err = console.error
 
   class State {
-    static names = 'states'
-    static state = 'state'
+    // name;plural_name;single_name: String
+    // state: State
+
+    static state = State
+    static plural_name = 'states'
+    static single_name  = 'state'
     static key_bind = undefined
-    get Class() { return this.constructor } // Class
-
-    check_valid() { return true }
-
-    copy(
-      state_copy,
-    ) {
-      if (!state_copy) {
-        state_copy = new this.Class()
-      }
-      return state_copy
-    }
-
-    draw() {}
-
-    static get_spot(
-      editor, // Editor
-    ) {
-      return editor.level
-    }
 
     static act(
       editor, // Editor
-      state, // Class,Null
+      state, // State,Null
     ) {
       if (!state) {
         state = editor.state
@@ -55,10 +40,9 @@ module.exports = (project_name, Lib) => {
     }
   }
 
-  class Mouse {
-    static names = 'mice'
-    static state = 'mouse'
-    static key_bind = undefined
+  class Mouse extends State {
+    static plural_name = 'mice'
+    static single_name = 'mouse'
 
     // x,y,prev_x,prev_y: Float
     // width,height,scale: Float
@@ -70,13 +54,22 @@ module.exports = (project_name, Lib) => {
     right_down = false
     left_down = false
 
+    static act() {}
   }
 
   class Spot extends State {
-    static names = 'spots'
-    static state = 'spot'
-    static round_root = 2 // Float
 
+    static plural_name = 'spots'
+    static single_name = 'spot'
+    static round_root = 2 // Float
+    static sel_color = '#ffff00'
+    static stroke_color = '#ffffff'
+    static fill_color = '#000000'
+    static radius = 1
+
+    get State() { return this.constructor } // State
+
+    // super_spot: Spot,Null
     // editor: Editor,Null
     // root_x;root_y: Float
     // is_open;change_open: Boolean
@@ -86,13 +79,13 @@ module.exports = (project_name, Lib) => {
     change_open = false
 
     constructor(
-      state, // State
+      super_spot, // Spot,Null
       root_x,root_y, // Float
       is_open, // Boolean
     ) {
       super()
 
-      const round_root = 0 // TODO this.Class.round_root
+      const round_root = this.State.round_root
       if (round_root > 0) {
         this.root_x = Math.round(root_x / round_root) * round_root
         this.root_y = Math.round(root_y / round_root) * round_root
@@ -101,46 +94,103 @@ module.exports = (project_name, Lib) => {
         this.root_x = root_x; this.root_y = root_y
       }
       this.is_open = is_open
-      this[state.Class.state] = state
-      state[this.Class.names].push(this)
+
+      if (super_spot) {
+        this.super_spot = super_spot
+        this[super_spot.State.single_name] = super_spot
+        super_spot[this.State.plural_name].push(this)
+      }
     }
 
     copy(
-      level_copy, // Level
+      super_spot_copy, // Spot,Null
       spot_copy, // Spot,Null
     ) {
       if (!spot_copy) {
         spot_copy = new Spot(
-          level_copy, this.root_x, this.root_y, this.is_open,
+          super_spot_copy, this.root_x, this.root_y, this.is_open,
         )
       }
       if (this.editor) {
-        spot_copy.editor = this.editor.copy( level_copy, spot_copy, )
+        spot_copy.editor = this.editor.copy( super_spot_copy, spot_copy, )
       }
       spot_copy.change_open = spot_copy.is_open != this.is_open
       return spot_copy
     }
+
+    remove() {
+      if (this.editor) {
+        // TODO this.State == Level or Game
+        this.editor.spot = this.editor.level
+        delete this.editor
+      }
+      if (this.super_spot) {
+        const spots = this.super_spot[this.State.plural_name]
+        const idx = spots.indexOf(this)
+        delete spots[idx]
+        delete this.super_spot
+        return idx >= 0
+      }
+      return false
+    }
+
+    draw() {}
+
+    static get_spot(
+      editor, // Editor
+    ) {
+      let ret_spot = editor.level
+      let min_dist2 = this.radius*this.radius
+
+      const spots = editor.level[this.plural_name]
+      for (const spot_idx in spots) {
+        const spot = spots[spot_idx]
+
+        const x = editor.spot_x - spot.root_x
+        const y = editor.spot_y - spot.root_y
+        const dist2 = x*x + y*y
+        if (dist2 < min_dist2) {
+          min_dist2 = dist2
+          ret_spot = spot
+        }
+      }
+
+      return ret_spot
+    }
+
+    static act(
+      editor, // Editor
+      now_time, // Float
+    ) {
+      return editor
+    }
   }
 
   class Editor extends Spot {
-    static names = 'editors'
-    static state = 'editor'
+    static plural_name = 'editors'
+    static single_name = 'editor'
     static key_bind = 'e'
     static round_root = 0 // Float
 
+    static scale = 200
+
     // id: ID
     // name: String
-    // spot_x;spot_y: Float
+    // spot_x;spot_y;scale;start_time;now_time: Float
     // spot: Spot
-    // state: Class
+    // state: State
+
+    remove() {
+      // TODO
+    }
 
     constructor(
       level, // Level
       id, // ID
       name,action, // String
-      state, // Class
+      state, // State
       spot, // Spot,Null
-      root_x,root_y,spot_x,spot_y, // Float
+      root_x,root_y,spot_x,spot_y,scale,start_time,now_time, // Float
       is_open, // Boolean
     ) {
       super(level, root_x, root_y, is_open, )
@@ -149,8 +199,9 @@ module.exports = (project_name, Lib) => {
       this.name = name; this.action = action
       this.state = state
       this.spot = spot || level
-      this.spot_x = spot_x; this.spot_y = spot_y
-      level.game[this.Class.names][id] = this
+      this.spot_x = spot_x; this.spot_y = spot_y; this.scale = scale
+      this.start_time = start_time; this.now_time = now_time
+      level.game[this.State.plural_name][id] = this
     }
 
     draw(
@@ -172,7 +223,8 @@ module.exports = (project_name, Lib) => {
           this.name, this.action,
           this.state,
           spot_copy,
-          this.root_x,this.root_y,this.spot_x,this.spot_y,
+          this.root_x,this.root_y,this.spot_x,this.spot_y,this.scale,
+          this.start_time,this.now_time,
           this.is_open,
         )
       }
@@ -194,13 +246,12 @@ module.exports = (project_name, Lib) => {
   }
 
   class Wall extends Spot {
-    static names = 'walls'
-    static state = 'wall'
+    static plural_name = 'walls'
+    static single_name = 'wall'
     static key_bind = 'w'
     static ceil_long = 2
     static short = 1
     static line_width = 4
-    static color = '#ffffff'
 
     // short_x;short_y;long_x;long_y;long: Float
     short_x = 0; short_y = 0
@@ -209,7 +260,6 @@ module.exports = (project_name, Lib) => {
     constructor(
       level, // Level
       root_x,root_y,long_x,long_y, // Float
-      long, // Float,Null
     ) {
       super( level, root_x,root_y, false, )
 
@@ -218,7 +268,7 @@ module.exports = (project_name, Lib) => {
       long_x = long_x < 0 ? -1 : 1
       long_y = long_y < 0 ? -1 : 1
 
-      const ceil_long = this.Class.ceil_long
+      const ceil_long = this.State.ceil_long
       if ( abs_long_x < abs_long_y ) {
         this.long = abs_long_y
         this.long_y = long_y; this.short_x = long_x
@@ -228,16 +278,7 @@ module.exports = (project_name, Lib) => {
         this.long_x = long_x; this.short_y = long_y
       }
 
-      if (long > 0) {
-        this.long = long
-      }
-      // TODO
-      // this.long = Math.ceil(this.long / ceil_long) * ceil_long
-    }
-
-    check_valid() {
-      // TODO linecross
-      return super.check_valid()
+      this.long = Math.ceil(this.long / ceil_long) * ceil_long
     }
 
     draw(
@@ -245,21 +286,21 @@ module.exports = (project_name, Lib) => {
       mouse, // Mouse
       editor, // Editor
     ) {
+      const root_x = mouse.width/2 + (this.root_x - editor.root_x) * mouse.scale
+      const root_y = mouse.height/2+ (this.root_y - editor.root_y) * mouse.scale
 
-      const root_x = this.root_x + mouse.width / 2 - editor.root_x
-      const root_y = this.root_y + mouse.height / 2 - editor.root_x
+      const spot_x = root_x + this.long_x * this.long * mouse.scale
+      const spot_y = root_y + this.long_y * this.long * mouse.scale
 
-      const spot_x = root_x + this.long_x * this.long
-      const spot_y = root_y + this.long_y * this.long
+      ctx.lineWidth = this.State.line_width
+      ctx.strokeStyle = this == editor.spot ?
+        this.State.sel_color :
+        this.State.stroke_color
 
-      ctx.lineWidth = this.Class.line_width
-      ctx.strokeStyle = this.Class.color
       ctx.beginPath()
       ctx.moveTo(root_x, root_y)
       ctx.lineTo(spot_x, spot_y)
       ctx.stroke()
-
-      // TODO
     }
 
     copy(
@@ -267,13 +308,13 @@ module.exports = (project_name, Lib) => {
       wall_copy, // Wall,Null
     ) {
       if (!wall_copy) {
-        wall_copy = new this.Class (
+        wall_copy = new this.State (
           level_copy, this.root_x, this.root_y,
           this.long_x * this.long + this.short_x,
           this.long_y * this.long + this.short_y,
-          this.long,
         )
       }
+
       return super.copy(level_copy, wall_copy)
     }
 
@@ -281,10 +322,10 @@ module.exports = (project_name, Lib) => {
       editor, // Editor
     ) {
       const level = editor.level
-      const walls = level[this.names]
+      const walls = level[this.plural_name]
       const this_short = this.short
 
-      let min_dist = 1
+      let min_dist = this_short
       let spot = level
       editor.is_open = false
 
@@ -293,23 +334,32 @@ module.exports = (project_name, Lib) => {
         const spot_x = editor.spot_x - wall.root_x
         const spot_y = editor.spot_y - wall.root_y
         const long = (spot_x*wall.long_x + spot_y*wall.long_y) / wall.long
-        const short = (spot_x*wall.short_x + spot_y*wall.short_x) / this_short
+        const short = Math.abs(
+          spot_x*wall.short_x + spot_y*wall.short_y
+        ) / this_short
 
         if ( 0 < long && long < 1 && 0 < short && short < min_dist ) {
           min_dist = short
           spot = wall
           editor.is_open = long > 0.5
+          spot.idx = wall_idx
         }
       }
+
 
       return spot
     }
 
     static act(
       editor, // Editor
+      now_time, // Float
     ) {
+      editor.start_time = now_time
+      editor.now_time = now_time
 
-      if (editor.spot.Class == this) {
+      if (editor.spot.State == this) {
+
+        editor.action = ''
 
         if (!editor.is_open) {
           editor.spot.root_x += editor.spot.long_x * editor.spot.long
@@ -318,28 +368,36 @@ module.exports = (project_name, Lib) => {
           editor.action = `fliped ${this.name}, `
         }
 
-        editor.spot.long_x = editor.spot_x - editor.spot.root_x
-        editor.spot.long_y = editor.spot_y - editor.spot.root_y
-        return editor.deep_copy()
+        editor.spot.long_x = (editor.spot_x - editor.spot.root_x)
+        editor.spot.long_y = (editor.spot_y - editor.spot.root_y)
+        editor.spot.long = 1
+        delete editor.spot.editor
+        editor.spot = editor.level
+
+        editor.action += `resized and deselected ${this.name}`
       }
       else {
+        delete editor.spot.editor
         editor.spot = this.get_spot(editor)
+        editor.spot.editor = editor
+        editor.action = `selected ${this.name}`
+
         if (editor.spot == editor.level) {
-          editor.spot = new this(editor.level, editor.spot_x, editor.spot_y)
+          delete editor.spot.editor
+          editor.spot = new this( editor.level, editor.spot_x, editor.spot_y )
           editor.spot.editor = editor
           editor.is_open = true
           editor.action = `new ${this.name}`
-          return editor.deep_copy()
         }
       }
 
-      return editor
+      return editor.deep_copy()
     }
   }
 
   class Jack extends Spot {
-    static names = 'jacks'
-    static state = 'jack'
+    static plural_name = 'jacks'
+    static single_name = 'jack'
     static key_bind = 'j'
     static round_root = 0
 
@@ -356,11 +414,6 @@ module.exports = (project_name, Lib) => {
       super(level, root_x, root_y, false)
       this.key = key; this.lock = lock
       this.long_x = long_x; this.long_y = long_y
-    }
-
-    check_valid() {
-      if (this.lock.spot == this)
-      return super.check_valid()
     }
 
     copy(
@@ -384,8 +437,8 @@ module.exports = (project_name, Lib) => {
           long_y = this.editor.spot_y - root_y
         }
 
-        const radius = key_copy.Class.radius
-        const lock_long = radius + this.lock.Class.long
+        const radius = key_copy.State.radius
+        const lock_long = radius + this.lock.State.long
         const long = Math.sqrt(long_x * long_x + long_y * long_y)
 
         if (long) {
@@ -422,8 +475,8 @@ module.exports = (project_name, Lib) => {
   }
 
   class Key extends Spot {
-    static names = 'keys'
-    static state = 'key'
+    static plural_name = 'keys'
+    static single_name = 'key'
     static key_bind = 'k'
     static round_root = 0
     static radius = 0.9
@@ -444,13 +497,6 @@ module.exports = (project_name, Lib) => {
         is_open
       )
       this.lock = lock
-    }
-
-    check_valid() {
-      if (this.jack) {
-        this.jack.check_valid()
-      }
-      return super.check_valid()
     }
 
     copy(
@@ -475,11 +521,12 @@ module.exports = (project_name, Lib) => {
   }
 
   class Lock extends Spot {
-    static names = 'locks'
-    static state = 'lock'
+    static plural_name = 'locks'
+    static single_name = 'lock'
     static key_bind = 'l'
     static long = 2
     static round_root = 0
+    static radius = 0.5
 
     // key: Key,Null
     // spot: Spot
@@ -491,7 +538,7 @@ module.exports = (project_name, Lib) => {
       root_x,root_y,long_x,long_y, // Float
     ) {
       super( level, root_x, root_y, false )
-      const long = this.Class.long
+      const long = this.State.long
       this.spot = spot || level
 
       const length = Math.sqrt(long_x*long_x + long_y*long_y)
@@ -503,13 +550,6 @@ module.exports = (project_name, Lib) => {
         this.long_x = long
         this.long_y = 0
       }
-    }
-
-    check_valid() {
-      if (this.key) {
-        this.key.check_valid()
-      }
-      return super.check_valid()
     }
 
     copy(
@@ -538,69 +578,123 @@ module.exports = (project_name, Lib) => {
 
       return super.copy(level_copy, lock_copy, )
     }
+
+    draw(
+      ctx, // CanvasRenderingContext2D
+      mouse, // Mouse
+      editor, // Editor
+    ) {
+      let root_x = mouse.width/2 + (this.root_x - editor.root_x) * mouse.scale
+      let root_y = mouse.height/2+ (this.root_y - editor.root_y) * mouse.scale
+
+      ctx.strokeStyle = this == editor.spot ?
+        this.State.sel_color :
+        this.State.stroke_color
+      ctx.beginPath()
+      ctx.moveTo(root_x, root_y)
+      ctx.lineTo(
+        root_x + this.long_x * mouse.scale,
+        root_y + this.long_y * mouse.scale,
+      )
+      ctx.closePath()
+
+      ctx.fillStyle = this.State.fill_color
+      ctx.beginPath()
+      ctx.arc(root_x, root_y, this.State.radius * mouse.scale, 0, pi2)
+      ctx.closePath()
+      ctx.fill()
+
+      ctx.beginPath()
+      ctx.arc(root_x, root_y, this.State.radius * mouse.scale, 0, pi2)
+      ctx.closePath()
+      ctx.stroke()
+    }
+
+    static act(
+      editor, // Editor
+      now_time, // Float
+    ) {
+      editor.start_time = now_time
+      editor.now_time = now_time
+
+      const spot = this.get_spot(editor)
+      if (spot.State == this) {
+        editor.spot = spot
+        return editor.deep_copy()
+      }
+      const door = Door.get_spot(editor)
+      if (door.State == Door) {
+        const spot_x = editor.spot_x - door.root_x
+        const spot_y = editor.spot_y - door.root_y
+        const lock_name = Door.lock_name_array[Math.floor(
+          (spot_x*door.long_x + spot_y*door.long_y) *
+          Door.lock_name_array.length / door.long
+        )]
+        if (lock_name && !door[lock_name]) {
+          const new_lock = new Lock(editor.level, door)
+          door[lock_name] = new_lock
+          editor.spot = new_lock
+          new_lock.editor = editor
+          return editor.deep_copy()
+        }
+      }
+
+
+      return editor
+    }
   }
 
   class Door extends Wall {
-    static names = 'doors'
-    static state = 'door'
+    static plural_name = 'doors'
+    static single_name = 'door'
     static key_bind = 'd'
-    static ceil_long = 6
+    static round_root = 2
+    static ceil_long = 12
     static short = 2
     // half_short, half_long, long, lock_short, lock_long
     static lock_names = {
-      lock_short_root: [ 1, 0, 0, 0,-1 ],
-      lock_long_root:  [ 0, 1, 0,-1, 0 ],
-      lock_short_spot: [ 2,-1, 1, 1, 0 ],
+      lock_short_root: [ 0, 0, 0, 0,-1 ],
+      lock_long_root:  [ -1, 1, 0,-1, 0 ],
+      lock_short_spot: [ 0,-1, 1, 1, 0 ],
       lock_long_spot:  [ 1, 0, 1, 0, 1 ],
     }
+    static lock_name_array = [
+      'lock_short_root', 'lock_long_root',
+      'lock_short_spot', 'lock_long_spot',
+    ]
 
     constructor(
       level, // Level
       root_x,root_y,long_x,long_y, // Float
-      long, // Float,Null
     ) {
-      super( level, root_x,root_y,long_x,long_y, long, )
-    }
-
-    check_valid() {
-
-      for (const lock_name in this.Class.lock_names) {
-        const this_lock = this[lock_name]
-        if (this_lock) {
-          this_lock.check_valid()
-        }
-      }
-
-      return super.check_valid()
+      super( level, root_x,root_y,long_x,long_y, )
     }
 
     copy(
       level_copy, // Level
       door_copy, // Door,Null
     ) {
-      const half_short = this.Class.short / 2
-      const lock_names = this.Class.lock_names
+      const half_short = this.State.short
+      const lock_names = this.State.lock_names
 
-      if (!door_copy) {
-        door_copy = super.copy(level_copy)
-      }
+      door_copy = super.copy(level_copy, door_copy)
 
       door_copy.is_open = true
       for (const lock_name in lock_names) {
         const this_lock = this[lock_name]
         if (this_lock) {
-          const lock_long = this_lock.Class.long
+          const lock_long = this_lock.State.long
           const [ hs, hl, l, ls, ll ] = lock_names[lock_name]
 
           const short_mul = hs * half_short + ls * lock_long
-          const long_mul = hl * half_short + l * long + ll * lock_long
+          const long_mul = hl * half_short + l * door_copy.long + ll * lock_long
 
           const lock_copy = this_lock.copy(
             level_copy, door_copy, (
-              root_x +
+              door_copy.root_x +
               door_copy.short_x * short_mul + door_copy.long_x * long_mul
             ), (
-              root_y +
+              door_copy.root_y +
               door_copy.short_y * short_mul + door_copy.long_y * long_mul
             ),
             -ls, -ll,
@@ -613,11 +707,86 @@ module.exports = (project_name, Lib) => {
       }
       return door_copy
     }
+
+    remove(
+      doors, // Door[]
+    ) {
+
+      const lock_names = this.State.lock_names
+
+      for (const lock_name in lock_names) {
+        const this_lock = this[lock_name]
+        if (this_lock) {
+
+        }
+      }
+
+
+      return super.remove(doors)
+    }
+
+    draw(
+      ctx, // CanvasRenderingContext2D
+      mouse, // Mouse
+      editor, // Editor
+    ) {
+      let root_x = mouse.width/2 + (this.root_x - editor.root_x) * mouse.scale
+      let root_y = mouse.height/2+ (this.root_y - editor.root_y) * mouse.scale
+      let short = this.State.short * mouse.scale
+      let long = this.long * mouse.scale
+
+      ctx.lineWidth = this.State.line_width
+      ctx.strokeStyle = this == editor.spot ?
+        this.State.sel_color :
+        this.State.stroke_color
+      ctx.lineJoin = 'round'
+      ctx.beginPath()
+      ctx.moveTo(
+        root_x + this.short_x * short,
+        root_y + this.short_y * short,
+      )
+      ctx.lineTo(
+        root_x - this.short_x * short,
+        root_y - this.short_y * short,
+      )
+      ctx.lineTo(
+        root_x + (this.long_x * 2 - this.short_x) * short,
+        root_y + (this.long_y * 2 - this.short_y) * short,
+      )
+      ctx.lineTo(
+        root_x + this.short_x * short,
+        root_y + this.short_y * short,
+      )
+      ctx.stroke()
+
+      root_x += this.long_x * long
+      root_y += this.long_y * long
+      long = -long
+      short = -short
+
+      ctx.beginPath()
+      ctx.moveTo(
+        root_x + this.short_x * short,
+        root_y + this.short_y * short,
+      )
+      ctx.lineTo(
+        root_x - this.short_x * short,
+        root_y - this.short_y * short,
+      )
+      ctx.lineTo(
+        root_x + (this.long_x * 2 - this.short_x) * short,
+        root_y + (this.long_y * 2 - this.short_y) * short,
+      )
+      ctx.closePath()
+      ctx.stroke()
+
+      // TODO
+    }
   }
 
   class Portal extends Door {
-    static names = 'portals'
-    static state = 'portal'
+    static plural_name = 'portals'
+    static single_name = 'portal'
     static key_bind = 'p'
 
     static short = 1
@@ -630,26 +799,20 @@ module.exports = (project_name, Lib) => {
       lock_cent: [ 0, 4, 0,-1, 0],
       lock_spot: [ 0, 6, 0,-1, 0],
     }
-
-    check_valid() {
-      if (this.lock_cent && (this.lock_root || this.lock_spot)) {
-        throw `bad portal lock pairs`
-      }
-      return super.check_valid()
-    }
+    static lock_name_array = [ 'lock_root', 'lock_cent', 'lock_spot',  ]
 
     constructor(
       level, // Level
-      root_x,root_y,short_x,short_y,long_x,long_y, // Float
+      root_x,root_y,long_x,long_y, // Float
     ) {
       super( level, root_x, root_y, long_x, long_y, )
-      this.long = this.Class.long
+      this.long = this.State.long
     }
   }
 
   class Level extends Spot {
-    static names = 'levels'
-    static state = 'level'
+    static plural_name = 'levels'
+    static single_name = 'level'
     static key_bind = 'v'
 
     walls = [] // Wall[]
@@ -661,64 +824,11 @@ module.exports = (project_name, Lib) => {
     editors = [] // Editor[]
 
     constructor(
-      state, // State
+      game, // Game
       root_x,root_y, // Float
       is_open, // Boolean
     ) {
-      super(state, root_x, root_y, is_open, )
-    }
-
-    check_valid() {
-
-      for (const wall_idx in this.walls) {
-        const this_wall = this.walls[wall_idx]
-        this_wall.check_valid()
-      }
-
-      for (const door_idx in this.doors) {
-        const this_door = this.doors[door_idx]
-        this_door.check_valid()
-      }
-
-      this.open_portals = []
-      for (const portal_idx in this.portals) {
-        const this_portal = this.portals[portal_idx]
-
-        this_portal.check_valid()
-
-        if (this_portal.is_open) {
-          this.open_portals.push(this_portal.is_open)
-        }
-      }
-      if (this.open_portals.length != 0 && this.open_portals.length != 2) {
-        throw `${this.open_portals.length} open portals`
-      }
-
-      for (const lock_idx in this.locks) {
-        const this_lock = this.locks[lock_idx]
-
-        if (this_lock.spot == this) {
-          this_lock.check_valid()
-        }
-      }
-
-      for (const key_idx in this.keys) {
-        const this_key = this.keys[key_idx]
-
-        if (!this_key.lock) {
-          this_key.check_valid()
-        }
-      }
-
-      for (const editor_idx in this.editors) {
-        const this_editor = this.editors[editor_idx]
-
-        if (this_editor.spot == this) {
-          this_editor.check_valid()
-        }
-      }
-
-      return super.check_valid()
+      super(game, root_x, root_y, is_open, )
     }
 
     draw(
@@ -727,10 +837,34 @@ module.exports = (project_name, Lib) => {
       editor, // Editor
     ) {
 
+      for (const lock_idx in this.locks) {
+        const this_lock = this.locks[lock_idx]
+
+        this_lock.draw( ctx, mouse, editor, )
+      }
+
+      for (const jack_idx in this.jacks) {
+        const this_jack = this.jacks[jack_idx]
+
+        this_jack.draw( ctx, mouse, editor, )
+      }
+
+      for (const key_idx in this.keys) {
+        const this_key = this.keys[key_idx]
+
+        this_key.draw( ctx, mouse, editor, )
+      }
+
       for (const wall_idx in this.walls) {
         const this_wall = this.walls[wall_idx]
 
         this_wall.draw( ctx, mouse, editor, )
+      }
+
+      for (const door_idx in this.doors) {
+        const this_door = this.doors[door_idx]
+
+        this_door.draw( ctx, mouse, editor, )
       }
 
       // TODO
@@ -799,17 +933,25 @@ module.exports = (project_name, Lib) => {
         }
       }
 
+      delete game_copy.editor
       return super.copy(game_copy, level_copy)
+    }
+
+    remove() {
+      // TODO
+      return false
     }
   }
 
-  class Game extends State {
-    static names = 'games'
-    static state = 'game'
+  class Game extends Spot {
+    static plural_name = 'games'
+    static single_name = 'game'
     static key_bind = 'g'
 
     editors = {} // Editor{ID}
     levels = [] // Level[]
+
+    constructor() { super(null, 0, 0, false) }
 
     copy(
       game_copy, // Game,Null
@@ -823,17 +965,13 @@ module.exports = (project_name, Lib) => {
         this_level.copy(game_copy, )
       }
 
+      delete game_copy.editor
       return game_copy
     }
 
-    check_valid() {
-
-      for (const level_idx in this.levels) {
-        const this_level = this.levels[level_idx]
-        this_level.check_valid()
-      }
-
-      return super.check_valid()
+    remove() {
+      // TODO
+      return false
     }
   }
 
