@@ -69,6 +69,8 @@ function MazeGame() {
 		mouse.x = (e.clientX-7 - mouse.width/2)/mouse.scale - client.editor.root_x
 		mouse.y = (e.clientY-7 - mouse.height/2)/mouse.scale - client.editor.root_y
 
+		log(mouse.scale)
+
 		if (mouse.left_down) {
 
 			let editor_copy = client.editor.deep_copy()
@@ -78,6 +80,7 @@ function MazeGame() {
 
 			const now_time = Lib.now()
 			editor_copy = editor_copy.state.act(editor_copy, now_time)
+			log(editor_copy.spot)
 			client.editor = editor_copy
 		}
 
@@ -157,7 +160,6 @@ function MazeGame() {
 
 	  tick()
 	})
-
 
 	function tick() {
 
