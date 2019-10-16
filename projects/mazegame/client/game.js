@@ -37,7 +37,6 @@ module.exports = (project_name, Lib) => {
       if (!editor.action) {
         editor.action = `no action`
       }
-      return editor
     }
   }
 
@@ -55,7 +54,12 @@ module.exports = (project_name, Lib) => {
     right_down = false
     left_down = false
 
-    static act() {}
+    static act(
+      editor, // Editor
+      now_time, // Float
+    ) {
+      // TODO
+    }
   }
 
   class Spot extends State {
@@ -168,7 +172,7 @@ module.exports = (project_name, Lib) => {
       editor, // Editor
       now_time, // Float
     ) {
-      return editor
+      // TODO
     }
   }
 
@@ -400,8 +404,6 @@ module.exports = (project_name, Lib) => {
           editor.action = `new ${this.name}`
         }
       }
-
-      return editor.deep_copy()
     }
   }
 
@@ -764,7 +766,7 @@ module.exports = (project_name, Lib) => {
 
         editor.spot = spot
         spot.editor = editor
-        return editor.deep_copy()
+        return
       }
 
       const door = Door.get_spot(editor)
@@ -781,7 +783,7 @@ module.exports = (project_name, Lib) => {
           editor.spot.editor = null
           editor.spot = new_lock
           new_lock.editor = editor
-          return editor.deep_copy()
+          return
         }
       }
 
@@ -799,11 +801,9 @@ module.exports = (project_name, Lib) => {
           editor.spot.editor = null
           editor.spot = new_lock
           new_lock.editor = editor
-          return editor.deep_copy()
+          return
         }
       }
-
-      return editor
     }
   }
 
@@ -902,11 +902,13 @@ module.exports = (project_name, Lib) => {
       editor.spot.editor = null
 
       let lock = Lock.get_spot(editor, 2 * this.radius)
-      const key = lock.State == Lock && lock.key || this.get_spot(editor)
+      const key = lock.State == Lock && lock.key || this.get_spot(
+        editor, 2*this.radius
+      )
       if (key.State == this) {
         editor.spot = key
         editor.spot.editor = editor
-        return editor.deep_copy()
+        return
       }
       else if (editor.spot.State == this) {
         if (editor.spot.lock) {
@@ -934,7 +936,6 @@ module.exports = (project_name, Lib) => {
       }
 
       editor.spot = editor.level
-      return editor.deep_copy()
     }
   }
 
@@ -943,7 +944,7 @@ module.exports = (project_name, Lib) => {
     static single_name = 'jack'
     static key_bind = 'j'
     static round_root = 0
-    static radius = 1.5
+    static radius = 3
 
     // lock: Lock
     // key: Key
@@ -968,7 +969,6 @@ module.exports = (project_name, Lib) => {
     ) {
       let long_x = this.long_x, long_y = this.long_y
       let root_x = key_copy.root_x, root_y = key_copy.root_y
-
 
       if (lock_copy) {
         long_x = lock_copy.long_x
@@ -1022,6 +1022,17 @@ module.exports = (project_name, Lib) => {
         this.lock.remove()
       }
       return super.remove()
+    }
+
+    static act(
+      editor, // Editor
+      now_time, // Float
+    ) {
+
+      editor = Key.act(editor, now_time)
+      if (editor.spot == )
+
+      editor.spot = editor.level
     }
   }
 

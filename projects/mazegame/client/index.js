@@ -79,7 +79,8 @@ function MazeGame() {
 			editor_copy.spot_y = mouse.y + editor_copy.root_y
 
 			const now_time = Lib.now()
-			editor_copy = editor_copy.state.act(editor_copy, now_time)
+			editor_copy.state.act(editor_copy, now_time)
+			editor_copy = editor_copy.deep_copy()
 			log(editor_copy.spot)
 			client.editor = editor_copy
 		}
@@ -101,8 +102,9 @@ function MazeGame() {
 		if (client.editor) {
 			const state = key_bindings[c]
 			if (state) {
-				client.editor = MazeGame.State.act(client.editor, state)
+				MazeGame.State.act(client.editor, state)
 				log(client.editor.action)
+				client.editor = client.editor.deep_copy()
 			}
 			else if (c == ' ') {
 				log(client.editor)
@@ -184,7 +186,8 @@ function MazeGame() {
 		editor_copy.now_time = now
 		editor_copy.spot_x = mouse.x + editor_copy.root_x
 		editor_copy.spot_y = mouse.y + editor_copy.root_y
-		editor_copy = editor_copy.state.act(editor_copy,)
+		editor_copy.state.act(editor_copy, now)
+		editor_copy = editor_copy.deep_copy()
 		editor_copy.draw( ctx, mouse, )
 	}
 
