@@ -30,8 +30,8 @@ function MazeGame() {
 			return
 		}
 
-		mouse.x = (e.clientX-7 - mouse.width/2)/mouse.scale - client.editor.root_x
-		mouse.y = (e.clientY-7 - mouse.height/2)/mouse.scale - client.editor.root_y
+		mouse.x = (e.clientX-7 - mouse.width/2)/mouse.scale
+		mouse.y = (e.clientY-7 - mouse.height/2)/mouse.scale
 
 		if ( mouse.right_down && client.editor ) {
 			client.editor.root_x += mouse.prev_x - mouse.x
@@ -47,8 +47,8 @@ function MazeGame() {
 			return
 		}
 
-		mouse.x = (e.clientX-7 - mouse.width/2)/mouse.scale - client.editor.root_x
-		mouse.y = (e.clientY-7 - mouse.height/2)/mouse.scale - client.editor.root_y
+		mouse.x = (e.clientX-7 - mouse.width/2)/mouse.scale
+		mouse.y = (e.clientY-7 - mouse.height/2)/mouse.scale
 
 		if (e.button == 2) {
 			mouse.right_down = true
@@ -66,21 +66,26 @@ function MazeGame() {
 			return
 		}
 
-		mouse.x = (e.clientX-7 - mouse.width/2)/mouse.scale - client.editor.root_x
-		mouse.y = (e.clientY-7 - mouse.height/2)/mouse.scale - client.editor.root_y
+		mouse.x = (e.clientX-7 - mouse.width/2)/mouse.scale
+		mouse.y = (e.clientY-7 - mouse.height/2)/mouse.scale
 
 		if (mouse.left_down) {
 
-			let editor_copy = client.editor.deep_copy()
+			try {
+				const now = Lib.now()
+				let editor_copy = client.editor.deep_copy(now)
 
-			editor_copy.spot_x = mouse.x + editor_copy.root_x
-			editor_copy.spot_y = mouse.y + editor_copy.root_y
+				editor_copy.spot_x = mouse.x + editor_copy.root_x
+				editor_copy.spot_y = mouse.y + editor_copy.root_y
 
-			const now_time = Lib.now()
-			editor_copy.type.act(editor_copy, now_time)
-			editor_copy = editor_copy.deep_copy()
-			log(editor_copy.spot)
-			client.editor = editor_copy
+				editor_copy.type.act(editor_copy)
+				editor_copy = editor_copy.deep_copy(now)
+				log(editor_copy.spot.Type.name)
+				client.editor = editor_copy
+			}
+			catch (e) {
+				log(`error 'mouseup'`, e)
+			}
 		}
 
 		if (e.button == 2) {
@@ -102,16 +107,27 @@ function MazeGame() {
 			if (type) {
 				MazeGame.Type.act(client.editor, type)
 				log(client.editor.action)
-				client.editor = client.editor.deep_copy()
+				try {
+					client.editor = client.editor.deep_copy(Lib.now())
+				}
+				catch (e) {
+					log(`error '${c}'`, e)
+				}
 			}
 			else if (c == ' ') {
 				log(client.editor)
 			}
 			// delete
 			else if (e.which == 127) {
-				const editor_copy = client.editor.deep_copy()
-				if (editor_copy.spot.remove()) {
-					client.editor = editor_copy
+
+				try {
+					const editor_copy = client.editor.deep_copy(Lib.now())
+					if (editor_copy.spot.remove()) {
+						client.editor = editor_copy
+					}
+				}
+				catch (e) {
+					log(`error ' '`, e)
 				}
 			}
 		}
@@ -141,9 +157,9 @@ function MazeGame() {
 
 	  log(client.full_name, 'connected to server')
 
-		const new_game = new MazeGame.Game()
-		const new_level = new MazeGame.Level(new_game, 0, 0, true)
 		const now = Lib.now()
+		const new_game = new MazeGame.Game(now)
+		const new_level = new MazeGame.Level(new_game, 0, 0, true)
 		client.editor = new MazeGame.Editor(
 			new_level,
 			client.socket.id,
@@ -152,7 +168,6 @@ function MazeGame() {
 			new_level,
 			0,0,0,0,
 			MazeGame.Editor.scale,
-			now,now,
 			false,
 		)
 
@@ -180,12 +195,18 @@ function MazeGame() {
 
 
 		let editor_copy = client.editor
-		editor_copy = editor_copy.deep_copy()
-		editor_copy.now_time = now
-		editor_copy.spot_x = mouse.x + editor_copy.root_x
-		editor_copy.spot_y = mouse.y + editor_copy.root_y
-		editor_copy.type.act(editor_copy, now)
-		editor_copy = editor_copy.deep_copy()
+		try {
+			// throw `e`
+			editor_copy = editor_copy.deep_copy(now)
+			editor_copy.spot_x = mouse.x + editor_copy.root_x
+			editor_copy.spot_y = mouse.y + editor_copy.root_y
+			editor_copy.type.act(editor_copy)
+			editor_copy = editor_copy.deep_copy(now)
+		}
+		catch (e) {
+			editor_copy = client.editor
+		}
+		mouse.now_time = now
 		editor_copy.draw( ctx, mouse, )
 	}
 

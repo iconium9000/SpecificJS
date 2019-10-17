@@ -44,7 +44,7 @@ module.exports = (project_name, Lib) => {
     static plural_name = 'mice'
     static single_name = 'mouse'
 
-    // x,y,prev_x,prev_y: Float
+    // x,y,prev_x,prev_y,now_time: Float
     // width,height,scale: Float
     // right_down,left_down: Boolean
 
@@ -53,12 +53,11 @@ module.exports = (project_name, Lib) => {
 
     right_down = false
     left_down = false
-
     static act(
       editor, // Editor
-      now_time, // Float
     ) {
       // TODO
+      editor.action = `TODO action`
     }
   }
 
@@ -77,7 +76,7 @@ module.exports = (project_name, Lib) => {
 
     // super_spot: Spot,Null
     // editor: Editor,Null
-    // root_x;root_y: Float
+    // root_x;root_y;change_time: Float
     // is_open;change_open: Boolean
     // level: Level,Null
     // game: Game,Null
@@ -88,6 +87,7 @@ module.exports = (project_name, Lib) => {
       super_spot, // Spot,Null
       root_x,root_y, // Float,Null
       is_open, // Boolean
+      change_time, // Float,Null
     ) {
       super()
 
@@ -106,8 +106,12 @@ module.exports = (project_name, Lib) => {
 
       if (super_spot) {
         this.super_spot = super_spot
+        this.change_time = super_spot.change_time
         this[super_spot.Type.single_name] = super_spot
         super_spot[this.Type.plural_name].push(this)
+      }
+      else {
+        this.change_time = change_time > 0 ? change_time : 0
       }
     }
 
@@ -127,18 +131,29 @@ module.exports = (project_name, Lib) => {
       return spot_copy
     }
 
-    remove() {
+    remove(
+      this_Type, // Type
+    ) {
+
       if (this.editor) {
         // TODO this.Type == Level or Game
         this.editor.spot = this.editor.level
         delete this.editor
       }
       if (this.super_spot) {
-        const spots = this.super_spot[this.Type.plural_name]
-        const idx = spots.indexOf(this)
-        delete spots[idx]
+        const spot1s = this.super_spot[this.Type.plural_name]
+        const idx1 = spot1s.indexOf(this)
+        delete spot1s[idx1]
+
+        let idx2 = -1
+        if (this_Type) {
+          const spot2s = this.super_spot[this_Type.plural_name]
+          idx2 = spot2s.indexOf(this)
+          delete spot2s[idx2]
+        }
+
         delete this.super_spot
-        return idx >= 0
+        return idx1 >= 0 || idx2 >= 0
       }
       return false
     }
@@ -173,9 +188,9 @@ module.exports = (project_name, Lib) => {
 
     static act(
       editor, // Editor
-      now_time, // Float
     ) {
       // TODO
+      editor.action = `TODO action`
     }
   }
 
@@ -185,11 +200,11 @@ module.exports = (project_name, Lib) => {
     static key_bind = 'e'
     static round_root = 0 // Float
 
-    static scale = 100
+    static scale = 90
 
     // id: ID
     // name: String
-    // spot_x;spot_y;scale;start_time;now_time: Float
+    // spot_x;spot_y;scale: Float
     // spot: Spot
     // type: Type
 
@@ -203,7 +218,7 @@ module.exports = (project_name, Lib) => {
       name,action, // String
       type, // Type
       spot, // Spot,Null
-      root_x,root_y,spot_x,spot_y,scale,start_time,now_time, // Float
+      root_x,root_y,spot_x,spot_y,scale, // Float
       is_open, // Boolean
     ) {
       super(level, root_x, root_y, is_open, )
@@ -213,7 +228,6 @@ module.exports = (project_name, Lib) => {
       this.type = type
       this.spot = spot || level
       this.spot_x = spot_x; this.spot_y = spot_y; this.scale = scale
-      this.start_time = start_time; this.now_time = now_time
       level.game[this.Type.plural_name][id] = this
     }
 
@@ -245,11 +259,12 @@ module.exports = (project_name, Lib) => {
     }
 
     deep_copy(
+      change_time, // Float
       game_copy, // Game,Null
       editor_copy, // Editor,Null
     ) {
       if (!game_copy) {
-        game_copy = this.level.game.copy()
+        game_copy = this.level.game.copy(change_time)
       }
       if (!editor_copy) {
         editor_copy = game_copy.editors[this.id]
@@ -267,8 +282,7 @@ module.exports = (project_name, Lib) => {
     static get_abs = true
 
     // short_x;short_y;long_x;long_y;long: Float
-    short_x = 0; short_y = 0
-    long_x = 0; long_y = 0
+
 
     constructor(
       level, // Level
@@ -285,10 +299,12 @@ module.exports = (project_name, Lib) => {
       if ( abs_long_x < abs_long_y ) {
         this.long = abs_long_y
         this.long_y = long_y; this.short_x = long_x
+        this.long_x = this.short_y = 0
       }
       else {
         this.long = abs_long_x || ceil_long
         this.long_x = long_x; this.short_y = long_y
+        this.short_x = this.long_y = 0
       }
 
       this.long = Math.ceil(this.long / ceil_long) * ceil_long
@@ -311,7 +327,7 @@ module.exports = (project_name, Lib) => {
         this.Type.stroke_color
 
       ctx.beginPath()
-      ctx.moveTo(root_x, root_y)
+      ctx.lineTo(root_x, root_y)
       ctx.lineTo(spot_x, spot_y)
       ctx.stroke()
     }
@@ -369,11 +385,7 @@ module.exports = (project_name, Lib) => {
 
     static act(
       editor, // Editor
-      now_time, // Float
     ) {
-      editor.start_time = now_time
-      editor.now_time = now_time
-
       if (editor.spot.Type == this) {
 
         editor.action = ''
@@ -452,11 +464,10 @@ module.exports = (project_name, Lib) => {
       for (const lock_name in lock_names) {
         const this_lock = this[lock_name]
         if (this_lock) {
-          const lock_long = this_lock.Type.long
           const [ hs, hl, l, ls, ll ] = lock_names[lock_name]
 
-          const short_mul = hs * half_short + ls * lock_long
-          const long_mul = hl * half_short + l * door_copy.long + ll * lock_long
+          const short_mul = hs * half_short
+          const long_mul = hl * half_short + l * door_copy.long
 
           const lock_copy = this_lock.copy(
             level_copy, door_copy, (
@@ -468,8 +479,8 @@ module.exports = (project_name, Lib) => {
               door_copy.short_y * short_mul +
               door_copy.long_y * long_mul
             ),
-            -ls * this.short_x - ll * this.long_x,
-            -ls * this.short_y - ll * this.long_y,
+            ls * this.short_x + ll * this.long_x,
+            ls * this.short_y + ll * this.long_y,
           )
           door_copy[lock_name] = lock_copy
           if (!lock_copy.is_open) {
@@ -510,8 +521,30 @@ module.exports = (project_name, Lib) => {
       this.Type.stroke_color
       ctx.lineJoin = 'round'
       ctx.lineCap = 'round'
+
+      let open_long = this.is_open ? 0 : long / 2
       ctx.beginPath()
-      ctx.moveTo(root_x,root_y)
+      ctx.lineTo(
+        root_x + this.long_x * short,
+        root_y + this.long_y * short,
+      )
+      ctx.lineTo(
+        root_x + this.long_x * open_long,
+        root_y + this.long_y * open_long,
+      )
+      ctx.lineTo(
+        root_x + this.long_x * open_long + this.short_x * short,
+        root_y + this.long_y * open_long + this.short_y * short,
+      )
+      ctx.lineTo(
+        root_x + this.short_x * short,
+        root_y + this.short_y * short,
+      )
+      ctx.closePath()
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.lineTo(root_x,root_y)
       ctx.lineTo(root_x + this.short_x * short,root_y + this.short_y * short)
       ctx.lineTo(root_x + this.long_x * short,root_y + this.long_y * short)
       ctx.closePath()
@@ -521,9 +554,30 @@ module.exports = (project_name, Lib) => {
       root_y += this.short_y * short + this.long_y * long
       long = -long
       short = -short
+      open_long = -open_long
 
       ctx.beginPath()
-      ctx.moveTo(root_x,root_y)
+      ctx.lineTo(
+        root_x + this.long_x * short,
+        root_y + this.long_y * short,
+      )
+      ctx.lineTo(
+        root_x + this.long_x * open_long,
+        root_y + this.long_y * open_long,
+      )
+      ctx.lineTo(
+        root_x + this.long_x * open_long + this.short_x * short,
+        root_y + this.long_y * open_long + this.short_y * short,
+      )
+      ctx.lineTo(
+        root_x + this.short_x * short,
+        root_y + this.short_y * short,
+      )
+      ctx.closePath()
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.lineTo(root_x,root_y)
       ctx.lineTo(root_x + this.short_x * short,root_y + this.short_y * short)
       ctx.lineTo(root_x + this.long_x * short,root_y + this.long_y * short)
       ctx.closePath()
@@ -647,7 +701,8 @@ module.exports = (project_name, Lib) => {
     static plural_name = 'locks'
     static single_name = 'lock'
     static key_bind = 'l'
-    static long = 3
+    static min_long = 3
+    static ceil_long = 3
     static round_root = 0
     static radius = 0.5
 
@@ -659,20 +714,30 @@ module.exports = (project_name, Lib) => {
       level, // Level
       spot, // Spot,Null
       root_x,root_y,long_x,long_y, // Float,Null
+      long, // Float,Null
     ) {
       super( level, root_x, root_y, false )
-      const long = this.Type.long
+
+      this.long = (
+        long > this.Type.min_long ?
+        Math.ceil(long / this.Type.ceil_long) * this.Type.ceil_long :
+        this.Type.min_long
+      )
       this.spot = spot || level
 
+      long_x = long_x || 0; long_y = long_y || 0
       const length = Math.sqrt(long_x*long_x + long_y*long_y)
       if (length) {
-        this.long_x = long_x / length * long
-        this.long_y = long_y / length * long
+        this.long_x = -long_x / length
+        this.long_y = -long_y / length
       }
       else {
-        this.long_x = long
+        this.long_x = 1
         this.long_y = 0
       }
+
+      this.root_x -= this.long_x * this.long
+      this.root_y -= this.long_y * this.long
     }
 
     copy(
@@ -683,20 +748,20 @@ module.exports = (project_name, Lib) => {
     ) {
 
       if (!spot_copy) {
-        spot_copy = level_copy
-        root_x = this.root_x; root_y = this.root_y
-        long_x = this.long_x; long_y = this.long_y
+        throw `TODO game lock`
       }
 
       if (!lock_copy) {
         lock_copy = new this.Type(
           level_copy, spot_copy,
           root_x, root_y, long_x, long_y,
+          this.long,
         )
       }
 
       if (this.key) {
         lock_copy.key = this.key.copy( level_copy, lock_copy, )
+        lock_copy.is_open = lock_copy.key.is_open
       }
 
       return super.copy(level_copy, lock_copy, )
@@ -704,13 +769,15 @@ module.exports = (project_name, Lib) => {
 
     remove() {
 
-      const lock_names = this.spot.Type.lock_names
-
-      for (const lock_name in lock_names) {
-        const spot_lock = this.spot[lock_name]
-        if (spot_lock == this) {
-          delete this.spot[lock_name]
-          delete this.spot
+      if (this.spot) {
+        const lock_names = this.spot.Type.lock_names
+        for (const lock_name in lock_names) {
+          const spot_lock = this.spot[lock_name]
+          if (spot_lock == this) {
+            delete this.spot[lock_name]
+            delete this.spot
+            break
+          }
         }
       }
 
@@ -734,10 +801,10 @@ module.exports = (project_name, Lib) => {
         this.Type.sel_color :
         this.Type.stroke_color
       ctx.beginPath()
-      ctx.moveTo(root_x, root_y)
+      ctx.lineTo(root_x, root_y)
       ctx.lineTo(
-        root_x + this.long_x * mouse.scale,
-        root_y + this.long_y * mouse.scale,
+        root_x + this.long_x * this.long * mouse.scale,
+        root_y + this.long_y * this.long * mouse.scale,
       )
       ctx.closePath()
       ctx.stroke()
@@ -756,17 +823,13 @@ module.exports = (project_name, Lib) => {
 
     static act(
       editor, // Editor
-      now_time, // Float
     ) {
-      editor.start_time = now_time
-      editor.now_time = now_time
 
-      const spot = this.get_spot(editor)
+      const spot = this.get_spot(editor, 2 * this.radius)
       if (spot.Type == this) {
-        editor.spot.editor = null
-
         editor.spot = spot
         spot.editor = editor
+        editor.action = `selected ${this.name}`
         return
       }
 
@@ -779,11 +842,12 @@ module.exports = (project_name, Lib) => {
           Door.lock_name_array.length / door.long
         )]
         if (lock_name && !door[lock_name]) {
-          const new_lock = new Lock(editor.level, door)
+          const new_lock = new this(editor.level, door)
           door[lock_name] = new_lock
+
           editor.spot.editor = null
-          editor.spot = new_lock
-          new_lock.editor = editor
+          editor.spot = editor.level
+          editor.action = `added ${this.name} as ${lock_name} to Door`
           return
         }
       }
@@ -797,14 +861,70 @@ module.exports = (project_name, Lib) => {
           Portal.lock_name_array.length / portal.long
         )]
         if (lock_name && !portal[lock_name]) {
-          const new_lock = new Lock(editor.level, portal)
+          const new_lock = new this(editor.level, portal)
           portal[lock_name] = new_lock
+
           editor.spot.editor = null
-          editor.spot = new_lock
-          new_lock.editor = editor
+          editor.spot = editor.level
+          editor.action = `added ${this.name} as ${lock_name} to Portal`
           return
         }
       }
+
+      editor.action = `no action`
+    }
+  }
+
+  class Laser extends Lock {
+    static plural_name = 'lasers'
+    static single_name = 'laser'
+    static key_bind = 'z'
+    static ceil_long = 3
+    static min_long = 9
+
+    constructor(
+      level, // Level
+      spot, // Spot,Null
+      root_x,root_y,long_x,long_y, // Float,Null
+      long, // Float,Null
+    ) {
+      super(level,spot,root_x,root_y,long_x,long_y,long)
+      level[Lock.plural_name].push(this)
+    }
+
+    remove() {
+      return super.remove(Lock)
+    }
+
+    static act(
+      editor, // Editor
+    ) {
+
+      const editor_laser = editor.spot
+
+      super.act(editor)
+
+      if (editor.spot == editor_laser && editor_laser.Type == this) {
+
+        const spot_x = (
+          editor.spot_x - editor_laser.root_x -
+          editor_laser.long_x * editor_laser.long
+        )
+        const spot_y = (
+          editor.spot_y - editor_laser.root_y -
+          editor_laser.long_y * editor_laser.long
+        )
+        editor_laser.long = -(
+          spot_x * editor_laser.long_x +
+          spot_y * editor_laser.long_y
+        )
+
+        delete editor_laser.editor
+        editor.spot = editor.level
+
+        editor.action = `resized and deselected ${this.name}`
+      }
+
     }
   }
 
@@ -813,7 +933,7 @@ module.exports = (project_name, Lib) => {
     static single_name = 'key'
     static key_bind = 'k'
     static round_root = 0
-    static radius = 2
+    static radius = 1.5
     static center_radius = Lock.radius
 
     // lock: Lock,Null
@@ -863,7 +983,6 @@ module.exports = (project_name, Lib) => {
       let root_y = mouse.height/2+ (this.root_y - editor.root_y) * mouse.scale
 
       ctx.lineWidth = this.Type.line_width * mouse.scale
-
       ctx.lineJoin = 'round'
       ctx.lineCap = 'round'
 
@@ -873,13 +992,11 @@ module.exports = (project_name, Lib) => {
       ctx.closePath()
       ctx.fill()
 
-      ctx.fillStyle = ctx.strokeStyle = this == editor.spot ?
-      this.Type.sel_color :
-      this.Type.stroke_color
-
-      ctx.beginPath()
-      ctx.arc(root_x, root_y, this.Type.radius * mouse.scale, 0, pi2)
-      ctx.closePath()
+      ctx.fillStyle = ctx.strokeStyle = (
+        this == editor.spot ?
+        this.Type.sel_color :
+        this.Type.stroke_color
+      )
       ctx.stroke()
 
       ctx.beginPath()
@@ -897,13 +1014,13 @@ module.exports = (project_name, Lib) => {
 
     static act(
       editor, // Editor
-      now_time, // Float
-      is_jack, // Boolean,Null
+      jack_Type, // Jack.Type,Null
     ) {
 
       let lock = Lock.get_spot(editor, 2 * this.radius)
+
       const key = (
-        lock.Type == Lock && lock.key || this.get_spot(editor, 2*this.radius)
+        lock.Type != Level && lock.key || this.get_spot(editor, 2*this.radius)
       )
       const jack = key.Type == this && key.jack || editor.level
 
@@ -920,12 +1037,13 @@ module.exports = (project_name, Lib) => {
       if (key.Type == this) {
         editor.spot = key
         editor.spot.editor = editor
+        editor.action = `selected ${this.name}`
         return
       }
       else if (editor_key.Type == this) {
 
         if (editor_jack.Type == Jack) {
-          if (lock.Type == Lock) {
+          if (lock.Type != Level) {
             if (editor_jack.lock != editor_lock) {
               editor_jack.lock.remove()
             }
@@ -940,25 +1058,33 @@ module.exports = (project_name, Lib) => {
           editor_lock.key = null
           editor_key.lock = null
         }
-        if (lock.Type == Lock) {
+        if (lock.Type != Level) {
           lock.key = editor_key
           editor_key.lock = lock
         }
         editor_key.root_x = editor.spot_x
         editor_key.root_y = editor.spot_y
+
+        editor.action = `moved ${this.name}`
       }
       else {
+        lock = lock.Type != Level ? lock : null
+
         const new_key = new this(
-          editor.level, lock.Type == Lock ? lock : null,
+          editor.level, lock,
           editor.spot_x, editor.spot_y, true,
         )
-        if (lock.Type == Lock) {
+        if (lock) {
           lock.key = new_key
         }
 
-        if (is_jack) {
+        editor.action = `created new ${this.name}`
 
+        if (jack_Type) {
+          new_key.jack = new jack_Type( editor.level, new_key, lock, )
+          editor.action += ` and ${jack_Type.name}`
         }
+
       }
 
       editor.spot = editor.level
@@ -970,7 +1096,8 @@ module.exports = (project_name, Lib) => {
     static single_name = 'jack'
     static key_bind = 'j'
     static round_root = 0
-    static radius = 3
+    static radius = 2
+    static wheel_radius = 1
 
     // lock: Lock
     // key: Key
@@ -985,25 +1112,26 @@ module.exports = (project_name, Lib) => {
       super(level, key.root_x, key.root_y, false)
       this.key = key
 
-      if (lock) {
-        this.lock = lock
-        this.long_x = lock.long_x
-        this.long_y = lock.long_y
+      long_x = long_x || 0; long_y = long_y || 0
+      const long = Math.sqrt(long_x*long_x + long_y*long_y)
+      if (long) {
+        this.long_x = long_x / long
+        this.long_y = long_y / long
       }
       else {
-        const long = Math.sqrt(long_x*long_x + long_y*long_y)
-        if (long) {
-          this.long_x *= Lock.long / long
-          this.long_y *= Lock.long / long
-        }
-        else {
-          this.long_x = Lock.long
-          this.long_y = 0
-        }
+        this.long_x = 0
+        this.long_y = 1
+      }
+
+      if (lock) {
+        this.lock = lock
+      }
+      else {
         this.lock = new Lock(
           level, this,
-          this.root_x + this.long_x, this.root_y + this.long_y,
-          -this.long_x, -this.long_y,
+          key.root_x + this.long_x * key.Type.radius,
+          key.root_y + this.long_y * key.Type.radius,
+          this.long_x, this.long_y,
         )
       }
     }
@@ -1016,9 +1144,10 @@ module.exports = (project_name, Lib) => {
     ) {
 
       let long_x = this.long_x, long_y = this.long_y
-      if (this.editor) {
-        long_x = this.editor.spot_x - root_x
-        long_y = this.editor.spot_y - root_y
+      const editor = this.editor || this.key.editor
+      if (editor) {
+        long_x = editor.spot_x - key_copy.root_x
+        long_y = editor.spot_y - key_copy.root_y
       }
 
       if (!jack_copy) {
@@ -1028,10 +1157,9 @@ module.exports = (project_name, Lib) => {
         )
       }
       if (!lock_copy) {
-        const {root_x,root_y,long_x,long_y} = jack_copy.lock
         jack_copy.lock = this.lock.copy(
           level_copy, jack_copy,
-          root_x,root_y,long_x,long_y,
+          null,null,null,null,
           jack_copy.lock,
         )
       }
@@ -1046,12 +1174,54 @@ module.exports = (project_name, Lib) => {
       return super.remove()
     }
 
+    draw(
+      ctx, // CanvasRenderingContext2D
+      mouse, // Mouse
+      editor, // Editor
+    ) {
+      let root_x = mouse.width/2 + (this.root_x - editor.root_x) * mouse.scale
+      let root_y = mouse.height/2+ (this.root_y - editor.root_y) * mouse.scale
+
+      const scale = mouse.scale * this.Type.radius
+
+      ctx.lineWidth = this.Type.line_width * mouse.scale
+      ctx.lineJoin = 'round'
+      ctx.lineCap = 'round'
+
+      ctx.strokeStyle = (
+        this == editor.spot || this.key == editor.spot ?
+        this.Type.sel_color :
+        this.Type.stroke_color
+      )
+      ctx.beginPath()
+      ctx.lineTo(
+        root_x + (-this.long_y - this.long_x/2) * scale,
+        root_y + ( this.long_x - this.long_y/2) * scale,
+      )
+      ctx.lineTo(
+        root_x + ( this.long_y - this.long_x/2) * scale,
+        root_y + (-this.long_x - this.long_y/2) * scale,
+      )
+      ctx.closePath()
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.lineTo(
+        root_x + (-this.long_y + this.long_x/2) * scale,
+        root_y + ( this.long_x + this.long_y/2) * scale,
+      )
+      ctx.lineTo(
+        root_x + ( this.long_y + this.long_x/2) * scale,
+        root_y + (-this.long_x + this.long_y/2) * scale,
+      )
+      ctx.closePath()
+      ctx.stroke()
+    }
+
     static act(
       editor, // Editor
-      now_time, // Float
     ) {
-
-      Key.act(editor, now_time, true, )
+      Key.act(editor, this, )
     }
   }
 
@@ -1064,6 +1234,7 @@ module.exports = (project_name, Lib) => {
     doors = [] // Door[]
     portals = []; open_portals = [] // Portal[]
     locks = [] // Lock[]
+    lasers = [] // Laser[]
     keys = [] // Key[]
     jacks = [] // Jack[]
     editors = [] // Editor[]
@@ -1086,6 +1257,12 @@ module.exports = (project_name, Lib) => {
         const this_lock = this.locks[lock_idx]
 
         this_lock.draw( ctx, mouse, editor, )
+      }
+
+      for (const laser_idx in this.lasers) {
+        const this_laser = this.lasers[laser_idx]
+
+        this_laser.draw( ctx, mouse, editor, )
       }
 
       for (const jack_idx in this.jacks) {
@@ -1197,17 +1374,23 @@ module.exports = (project_name, Lib) => {
     static plural_name = 'games'
     static single_name = 'game'
     static key_bind = 'g'
+    static radius = 2 * Key.radius
 
     editors = {} // Editor{ID}
     levels = [] // Level[]
 
-    constructor() { super(null, 0, 0, false) }
+    constructor(
+      change_time, // Float
+    ) {
+      super(null, 0, 0, false, change_time)
+    }
 
     copy(
+      change_time, // Float
       game_copy, // Game,Null
     ) {
       if (!game_copy) {
-        game_copy = new this.Type()
+        game_copy = new this.Type(change_time,)
       }
 
       for (const level_idx in this.levels) {
@@ -1223,6 +1406,39 @@ module.exports = (project_name, Lib) => {
       // TODO
       return false
     }
+
+    static act(
+      editor, // Editor
+    ) {
+      const key = Key.get_spot(editor, this.radius)
+      const lock = Lock.get_spot(editor, this.radius)
+      const editor_jack = editor.spot
+
+
+      if (key.Type != Level) {
+        if (key.jack) {
+          if (key.editor) {
+            editor.spot.editor = null
+            editor.spot = editor.level
+            editor.action = `deselected ${key.Type}`
+          }
+          else {
+            editor.spot.editor = null
+            key.editor = editor
+            editor.spot = key
+            editor.action = `selected ${key.Type}`
+          }
+        }
+        else {
+          editor.spot_x = key.root_x
+          editor.spot_y = key.root_y
+          
+        }
+      }
+      else if (lock.Type != Level) {
+
+      }
+    }
   }
 
   const MazeGame = {
@@ -1234,6 +1450,7 @@ module.exports = (project_name, Lib) => {
     Jack: Jack,
     Key: Key,
     Lock: Lock,
+    Laser: Laser,
     Door: Door,
     Portal: Portal,
     Level: Level,
