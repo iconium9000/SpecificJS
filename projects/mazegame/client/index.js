@@ -9,9 +9,9 @@ function MazeGame() {
 	const MazeGame = module.exports(project_name, Lib)
 	const key_bindings = {}
 
-	for (const state_name in MazeGame) {
-		const State = MazeGame[state_name]
-		key_bindings[State.key_bind] = State
+	for (const type_name in MazeGame) {
+		const Type = MazeGame[type_name]
+		key_bindings[Type.key_bind] = Type
 	}
 
 	const game_queue = []
@@ -69,8 +69,6 @@ function MazeGame() {
 		mouse.x = (e.clientX-7 - mouse.width/2)/mouse.scale - client.editor.root_x
 		mouse.y = (e.clientY-7 - mouse.height/2)/mouse.scale - client.editor.root_y
 
-		log(mouse.scale)
-
 		if (mouse.left_down) {
 
 			let editor_copy = client.editor.deep_copy()
@@ -79,7 +77,7 @@ function MazeGame() {
 			editor_copy.spot_y = mouse.y + editor_copy.root_y
 
 			const now_time = Lib.now()
-			editor_copy.state.act(editor_copy, now_time)
+			editor_copy.type.act(editor_copy, now_time)
 			editor_copy = editor_copy.deep_copy()
 			log(editor_copy.spot)
 			client.editor = editor_copy
@@ -100,9 +98,9 @@ function MazeGame() {
     var c = String.fromCharCode(e.which | 0x20)
 
 		if (client.editor) {
-			const state = key_bindings[c]
-			if (state) {
-				MazeGame.State.act(client.editor, state)
+			const type = key_bindings[c]
+			if (type) {
+				MazeGame.Type.act(client.editor, type)
 				log(client.editor.action)
 				client.editor = client.editor.deep_copy()
 			}
@@ -186,7 +184,7 @@ function MazeGame() {
 		editor_copy.now_time = now
 		editor_copy.spot_x = mouse.x + editor_copy.root_x
 		editor_copy.spot_y = mouse.y + editor_copy.root_y
-		editor_copy.state.act(editor_copy, now)
+		editor_copy.type.act(editor_copy, now)
 		editor_copy = editor_copy.deep_copy()
 		editor_copy.draw( ctx, mouse, )
 	}
