@@ -80,7 +80,7 @@ function MazeGame() {
 
 				editor_copy.type.act(editor_copy)
 				editor_copy = editor_copy.deep_copy(now)
-				log(editor_copy.spot.Type.name)
+				log(editor_copy.level.game)
 				client.editor = editor_copy
 			}
 			catch (e) {
