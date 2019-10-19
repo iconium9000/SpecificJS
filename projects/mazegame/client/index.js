@@ -80,7 +80,7 @@ function MazeGame() {
 
 				editor_copy.type.act(editor_copy)
 				editor_copy = editor_copy.deep_copy(now)
-				log(editor_copy.level.game)
+				log(editor_copy.action, editor_copy.level.game)
 				client.editor = editor_copy
 			}
 			catch (e) {
@@ -208,6 +208,28 @@ function MazeGame() {
 		}
 		mouse.now_time = now
 		editor_copy.draw( ctx, mouse, )
+
+		ctx.strokeStyle = `#202020`
+		ctx.lineWidth = editor_copy.Type.line_width * mouse.scale * 0.2
+
+
+		const lines = editor_copy.level.lines
+		for (let i = 0; i < lines.length; i += 2) {
+			const p0 = lines[i], p1 = lines[i+1]
+
+			ctx.beginPath()
+			ctx.lineTo(
+				mouse.width/2 + (p0.x - editor_copy.root_x) * mouse.scale,
+				mouse.height/2+ (p0.y - editor_copy.root_y) * mouse.scale,
+			)
+			ctx.lineTo(
+				mouse.width/2 + (p1.x - editor_copy.root_x) * mouse.scale,
+				mouse.height/2+ (p1.y - editor_copy.root_y) * mouse.scale,
+			)
+			ctx.closePath()
+			ctx.stroke()
+
+		}
 	}
 
 	log('index.js')

@@ -167,6 +167,10 @@ module.exports = (project_name, Lib) => {
 
     draw() {}
 
+    get lines() {
+      return []
+    }
+
     static get_spot(
       editor, // Editor
       radius, // Float,Null
@@ -366,6 +370,16 @@ module.exports = (project_name, Lib) => {
       }
 
       return super.copy(level_copy, wall_copy)
+    }
+
+    get lines() {
+      const {root_x,root_y,long_x,long_y,long,} = this
+      const p0 = { x: root_x, y: root_y, }
+      const p1 = {
+        x: p0.x + long_x * long,
+        y: p0.y + long_y * long,
+      }
+      return [ p0, p1 ]
     }
 
     static get_spot(
@@ -642,6 +656,84 @@ module.exports = (project_name, Lib) => {
 
       // TODO
     }
+
+    /*
+      9   8 7  65
+       ___   ___
+      |\__| |__\|
+      01  2 3   4
+    */
+    get lines() {
+      const {short} = this.Type
+      const {
+        root_x,root_y,
+        short_x,short_y,
+        long_x,long_y,
+        long,open_long,
+      } = this
+
+      const p0 = {x: root_x, y: root_y}
+      const p1 = {
+        x: p0.x + long_x * short,
+        y: p0.y + long_y * short,
+      }
+      const p2 = {
+        x: p0.x + long_x * open_long,
+        y: p0.y + long_y * open_long,
+      }
+      const p4 = {
+        x: p0.x + long_x * long,
+        y: p0.y + long_y * long,
+      }
+      const p3 = {
+        x: p4.x - long_x * open_long,
+        y: p4.y - long_y * open_long,
+      }
+      const p5 = {
+        x: p4.x + short_x * short,
+        y: p4.y + short_y * short,
+      }
+      const p6 = {
+        x: p5.x - long_x * short,
+        y: p5.y - long_y * short,
+      }
+      const p7 = {
+        x: p5.x - long_x * open_long,
+        y: p5.y - long_y * open_long,
+      }
+      const p9 = {
+        x: p0.x + short_x * short,
+        y: p0.y + short_y * short,
+      }
+      const p8 = {
+        x: p9.x + long_x * open_long,
+        y: p9.y + long_y * open_long,
+      }
+
+      if (open_long <= 0) {
+        return [
+          p0,p9, p0,p1, p1,p9,
+          p4,p5, p5,p6, p6,p4,
+        ]
+      }
+      else if (open_long < short) {
+        return [
+          p9,p0, p0,p1, p1,p9, p9,p8, p8,p2,
+          p4,p5, p5,p6, p6,p4, p4,p3, p3,p7,
+        ]
+      }
+      else if (open_long < long/2) {
+        return [
+          p0,p2, p2,p8, p8,p9, p9,p0,
+          p5,p7, p7,p3, p3,p4, p4,p5,
+        ]
+      }
+      else {
+        return [
+          p0,p4, p4,p5, p5,p9, p9,p0
+        ]
+      }
+    }
   }
 
   class Portal extends Door {
@@ -797,6 +889,72 @@ module.exports = (project_name, Lib) => {
 
       // TODO
     }
+
+    /*
+      7 6  5 4
+       _    _
+      |_|__|_|
+      0 1  2 3
+    */
+    get lines() {
+
+      const {short,long} = this.Type
+      const {
+        root_x,root_y,
+        short_x,short_y,
+        long_x,long_y,
+        open_long,
+      } = this
+
+      const p0 = { x: root_x, y: root_y, }
+      const p1 = {
+        x: p0.x + long_x * open_long,
+        y: p0.y + long_y * open_long,
+      }
+      const p3 = {
+        x: p0.x + long_x * long,
+        y: p0.y + long_y * long,
+      }
+      const p2 = {
+        x: p3.x - long_x * open_long,
+        y: p3.y - long_y * open_long,
+      }
+      const p4 = {
+        x: p3.x + short_x * short,
+        y: p3.y + short_y * short,
+      }
+      const p5 = {
+        x: p4.x - long_x * open_long,
+        y: p4.y - long_y * open_long,
+      }
+      const p7 = {
+        x: p0.x + short_x * short,
+        y: p0.y + short_y * short,
+      }
+      const p6 = {
+        x: p7.x + long_x * open_long,
+        y: p7.y + long_y * open_long,
+      }
+
+
+      if (open_long <= 0) {
+        return [
+          p7,p0, p0,p3, p3,p4,
+        ]
+      }
+      else if (open_long < long/2) {
+        return [
+          p0,p1, p1,p6, p6,p7, p7,p0,
+          p3,p2, p2,p5, p5,p4, p4,p3,
+          p0,p3,
+        ]
+      }
+      else {
+        return [
+          p0,p3, p3,p4, p4,p7, p7,p0,
+        ]
+      }
+    }
   }
 
   class Lock extends Spot {
@@ -810,7 +968,7 @@ module.exports = (project_name, Lib) => {
 
     // key: Key,Null
     // spot: Spot
-    // long_x;long_y: Float
+    // long_x;long_y;long: Float
 
     constructor(
       level, // Level
@@ -829,7 +987,6 @@ module.exports = (project_name, Lib) => {
       root_x,root_y,long_x,long_y, // Float,Null
       long, // Float,Null
     ) {
-      super.set_root(root_x, root_y, )
 
       this.long = (
         long > this.Type.min_long ?
@@ -848,8 +1005,14 @@ module.exports = (project_name, Lib) => {
         this.long_y = 0
       }
 
+
+      super.set_root( root_x, root_y, )
       this.root_x -= this.long_x * this.long
       this.root_y -= this.long_y * this.long
+
+      if (this.key) {
+        this.key.set_root( this.root_x, this.root_y, )
+      }
     }
 
     copy(
@@ -863,7 +1026,13 @@ module.exports = (project_name, Lib) => {
         throw `TODO game lock`
       }
 
-      if (!lock_copy) {
+      if (lock_copy) {
+        lock_copy.set_root(
+          root_x, root_y, long_x, long_y,
+          this.long,
+        )
+      }
+      else {
         lock_copy = new this.Type(
           level_copy, spot_copy,
           root_x, root_y, long_x, long_y,
@@ -942,6 +1111,16 @@ module.exports = (project_name, Lib) => {
       ctx.stroke()
     }
 
+    get lines() {
+      const {root_x,root_y,long_x,long_y,long,} = this
+      const p0 = { x: root_x, y: root_y, }
+      const p1 = {
+        x: p0.x + long_x * long,
+        y: p0.y + long_y * long,
+      }
+      return [ p0,p1 ]
+    }
+
     static act(
       editor, // Editor
     ) {
@@ -1017,6 +1196,25 @@ module.exports = (project_name, Lib) => {
       return super.remove(Lock)
     }
 
+    get lines() {
+      const {min_long,ceil_long} = this.Type
+      const {root_x,root_y,long_x,long_y,long,} = this
+      const p0 = { x: root_x, y: root_y, }
+      const p1 = {
+        x: p0.x + long_x * ceil_long,
+        y: p0.y + long_y * ceil_long,
+      }
+      const p2 = {
+        x: p0.x + long_x * long,
+        y: p0.y + long_y * long,
+      }
+      const p3 = {
+        x: p2.x - long_x * ceil_long,
+        y: p2.y - long_y * ceil_long,
+      }
+      return [ p0,p1, p2,p3 ]
+    }
+
     static act(
       editor, // Editor
     ) {
@@ -1072,15 +1270,14 @@ module.exports = (project_name, Lib) => {
     }
 
     set_root(
-      root_x,root_y,long_x,long_y, // Float,Null
+      root_x,root_y, // Float,Null
     ) {
-      super.set_root(
-        this.lock ? this.lock.root_x : root_x,
-        this.lock ? this.lock.root_y : root_y,
-      )
-
+      if (this.lock) {
+        root_x = this.lock.root_x; root_y = this.lock.root_y
+      }
+      super.set_root(root_x, root_y)
       if (this.jack) {
-        this.jack.set_root(long_x,long_y,)
+        this.jack.set_root(this.jack.long_x, this.jack.long_y,)
       }
     }
 
@@ -1265,7 +1462,7 @@ module.exports = (project_name, Lib) => {
       spot_x, spot_y, // Float
     ) {
       super.set_root(this.jack.root_x, this.jack.root_y,)
-      this.spot_x = spot_x; this.spot_y = this.spot_y
+      this.spot_x = spot_x; this.spot_y = spot_y
     }
 
     copy(
@@ -1284,9 +1481,7 @@ module.exports = (project_name, Lib) => {
       return super.copy(level_copy, path_copy,)
     }
 
-    do_path(
-      prev_time, // Float
-    ) {
+    do_path() {
 
     }
 
@@ -1306,14 +1501,14 @@ module.exports = (project_name, Lib) => {
           if (key.editor) {
             editor.spot.editor = null
             editor.spot = editor.level
-            editor.action = `deselected ${key.jack.Type}`
+            editor.action = `deselected ${key.jack.Type.name}`
             return
           }
           else {
             editor.spot.editor = null
             key.jack.editor = editor
             editor.spot = key.jack
-            editor.action = `selected ${key.jack.Type}`
+            editor.action = `selected ${key.jack.Type.name}`
             return
           }
         }
@@ -1327,8 +1522,11 @@ module.exports = (project_name, Lib) => {
         editor.spot_y = lock.root_y
       }
 
-      if (editor.spot.Type != Level) {
-        // editor.spot.set_path()
+      if (editor.spot.Type != Level && !editor.spot.path) {
+        editor.spot.path = new Path(
+          editor.level, editor.spot,
+          editor.spot_x, editor.spot_y,
+        )
         editor.action = `set new path for ${editor.spot.Type.name}`
         return
       }
@@ -1418,10 +1616,15 @@ module.exports = (project_name, Lib) => {
         jack_copy.path = this.path.copy(level_copy, jack_copy, jack_copy.path,)
       }
 
+      const radius = key_copy.Type.radius
+      const lock_root_x = jack_copy.root_x + jack_copy.long_x * radius
+      const lock_root_y = jack_copy.root_y + jack_copy.long_y * radius
+
       if (!lock_copy) {
         jack_copy.lock = this.lock.copy(
           level_copy, jack_copy,
-          null,null,null,null,
+          lock_root_x, lock_root_y,
+          jack_copy.long_x, jack_copy.long_y,
           jack_copy.lock,
         )
       }
@@ -1455,17 +1658,6 @@ module.exports = (project_name, Lib) => {
         this.Type.sel_color :
         this.Type.stroke_color
       )
-      ctx.beginPath()
-      ctx.lineTo(
-        root_x + (-this.long_y - this.long_x/2) * scale,
-        root_y + ( this.long_x - this.long_y/2) * scale,
-      )
-      ctx.lineTo(
-        root_x + ( this.long_y - this.long_x/2) * scale,
-        root_y + (-this.long_x - this.long_y/2) * scale,
-      )
-      ctx.closePath()
-      ctx.stroke()
 
       ctx.beginPath()
       ctx.lineTo(
@@ -1478,6 +1670,32 @@ module.exports = (project_name, Lib) => {
       )
       ctx.closePath()
       ctx.stroke()
+
+      ctx.beginPath()
+      ctx.lineTo(
+        root_x + (-this.long_y - this.long_x/2) * scale,
+        root_y + ( this.long_x - this.long_y/2) * scale,
+      )
+      ctx.lineTo(
+        root_x + ( this.long_y - this.long_x/2) * scale,
+        root_y + (-this.long_x - this.long_y/2) * scale,
+      )
+      ctx.closePath()
+      ctx.stroke()
+    }
+
+    get lines() {
+      const {radius,} = this.Type
+      const {root_x,root_y,long_x,long_y,} = this
+      const p0 = {
+        x: root_x + (-long_y - long_x/2) * radius,
+        y: root_y + ( long_x - long_y/2) * radius,
+      }
+      const p1 = {
+        x: root_x + ( long_y - long_x/2) * radius,
+        y: root_y + (-long_x - long_y/2) * radius,
+      }
+      return [ p0,p1, ]
     }
 
     static act(
@@ -1625,6 +1843,11 @@ module.exports = (project_name, Lib) => {
         }
       }
 
+      for (const path_idx in level_copy.paths) {
+        const path_copy = level_copy.paths[path_idx]
+        path_copy.do_path()
+      }
+
       for (const editor_idx in this.editors) {
         const this_editor = this.editors[editor_idx]
 
@@ -1634,6 +1857,37 @@ module.exports = (project_name, Lib) => {
       }
 
       return super.copy(game_copy, level_copy)
+    }
+
+    get lines() {
+  		let lines = []
+
+  		for (const wall_idx in this.walls) {
+  			const this_wall = this.walls[wall_idx]
+  			lines = lines.concat(this_wall.lines)
+  		}
+  		for (const door_idx in this.doors) {
+  			const this_door = this.doors[door_idx]
+  			lines = lines.concat(this_door.lines)
+  		}
+  		for (const portal_idx in this.portals) {
+  			const this_portal = this.portals[portal_idx]
+  			lines = lines.concat(this_portal.lines)
+  		}
+  		for (const lock_idx in this.locks) {
+  			const this_lock = this.locks[lock_idx]
+  			lines = lines.concat(this_lock.lines)
+  		}
+  		for (const laser_idx in this.lasers) {
+  			const this_laser = this.lasers[laser_idx]
+  			lines = lines.concat(this_laser.lines)
+  		}
+      for (const jack_idx in this.jacks) {
+  			const this_jack = this.jacks[jack_idx]
+  			lines = lines.concat(this_jack.lines)
+  		}
+
+      return lines
     }
 
     remove() {
