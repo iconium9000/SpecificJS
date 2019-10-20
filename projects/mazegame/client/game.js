@@ -40,7 +40,139 @@ module.exports = (project_name, Lib) => {
     }
   }
 
-  class Mouse extends Type {
+  class Point extends Type {
+    static plural_name = 'points'
+    static single_name = 'point'
+
+    constructor(
+      x,y,scale, // Float
+    ) {
+      super()
+      // this.x = x * scale; this.y = y * scale
+      if (scale < 0) {
+        x = -x; y = -y; scale = -scale
+      }
+
+      this._x = x || 0; this._y = y || 0
+      this.scale = scale
+    }
+
+    get x() { return this._x * this.scale }
+    get y() { return this._y * this.scale }
+
+    set x(x) { this._x = x / this.scale }
+    set y(y) { this._y = y / this.scale }
+
+    round(
+      round, // Float,Null
+    ) {
+      return (
+        round > 0 ?
+        new Point(
+          Math.round(this.x / round) * round,
+          Math.round(this.y / round) * round,
+          1
+        ) : this.copy(this.scale)
+      )
+    }
+
+    copy(
+      scale // Float
+    ) {
+      return new Point(this._x, this._y, scale)
+    }
+
+    long_short(
+      short,ceil_long, // Float
+    ) {
+      const abs_x = Math.abs(this.x)
+      const abs_y = Math.abs(this.y)
+      const x = this.x < 0 ? -1 : 1
+      const y = this.y < 0 ? -1 : 1
+
+      let long = abs_x < abs_y ? abs_y : abs_x || ceil_long
+      long = Math.ceil(long / ceil_long) * ceil_long
+
+      return abs_x < abs_y ? {
+        short: new Point(x, 0, short),
+        long:  new Point(0, y, long ),
+      } : {
+        short: new Point(0, y, short),
+        long:  new Point(x, 0, long ),
+      }
+    }
+
+    sum(
+      point, // Point
+      scale, // Float
+    ) {
+      return new Point( this.x + point.x * scale, this.y + point.y * scale, 1)
+    }
+
+    usum(
+      point, // Point
+      scale, // Float
+    ) {
+      return new Point( this.x + point._x * scale, this.y + point._y * scale, 1)
+    }
+
+    sub(
+      point, // Point
+      scale, // Float
+    ) {
+      return new Point( this.x - point.x * scale, this.y - point.y * scale, 1)
+    }
+
+    dot(
+      point, // Point
+    ) {
+      return this._x * point._x + this._y * point._y
+    }
+
+    mul(
+      scale, // Float
+    ) {
+      return new Point(this._x, this._y, this.scale * scale, )
+    }
+
+    unit(
+      scale, // Float
+      x,y, // Float
+    ) {
+      const length = Math.sqrt(this._x*this._x + this._y*this._y)
+      if (length) {
+        x = this._x / length; y = this._y / length
+      }
+      return new Point(x, y, scale)
+    }
+
+    invert(
+      scale // Float
+    ) {
+      return new Point(-this._y, this._x, scale)
+    }
+
+    atan2(
+      point
+    ) {
+      return Math.atan2( point.y - this.y, point.x - this.x, )
+    }
+
+    lineTo(
+      ctx, // CanvasRenderingContext2D
+    ) {
+      ctx.lineTo(this.x, this.y)
+    }
+
+    arc(
+      ctx, // CanvasRenderingContext2D
+      radius,angle_root,angle_spot, // Float
+    ) {
+      ctx.arc( this.x, this.y, radius, angle_root, angle_spot )
+    }
+  }
+
+  class Mouse extends Point {
     static plural_name = 'mice'
     static single_name = 'mouse'
 
@@ -48,8 +180,13 @@ module.exports = (project_name, Lib) => {
     // width,height,scale: Float
     // right_down,left_down: Boolean
 
-    x = -1
-    y = -1
+    constructor() {
+      super(-1,-1,1)
+    }
+
+    get center() {
+      return new Point( this.width, this.height, 1/2, )
+    }
 
     right_down = false
     left_down = false
@@ -106,18 +243,9 @@ module.exports = (project_name, Lib) => {
     }
 
     set_root(
-      root_x,root_y, // Float,Null
+      _root, // Point
     ) {
-      root_x = root_x || 0; root_y = root_y || 0
-
-      const round_root = this.Type.round_root
-      if (round_root > 0) {
-        this.root_x = Math.round(root_x / round_root) * round_root
-        this.root_y = Math.round(root_y / round_root) * round_root
-      }
-      else {
-        this.root_x = root_x; this.root_y = root_y
-      }
+      this._root = _root ? _root.round(this.Type.round_root) : new Point(0,0,1)
     }
 
     copy(
@@ -125,9 +253,7 @@ module.exports = (project_name, Lib) => {
       spot_copy, // Spot,Null
     ) {
       if (!spot_copy) {
-        spot_copy = new this.Type(
-          super_spot_copy, this.root_x, this.root_y, this.is_open,
-        )
+        spot_copy = new this.Type( super_spot_copy, this.is_open, )
       }
       if (this.editor) {
         spot_copy.editor = this.editor.copy(
@@ -185,9 +311,8 @@ module.exports = (project_name, Lib) => {
       for (const spot_idx in spots) {
         const spot = spots[spot_idx]
 
-        const x = editor.spot_x - spot.root_x
-        const y = editor.spot_y - spot.root_y
-        const dist2 = x*x + y*y
+        const sub = editor._spot.sum(spot._root, -1)
+        const dist2 = sub.dot(sub) * sub.scale * sub.scale
         if (dist2 < min_dist2) {
           min_dist2 = dist2
           ret_spot = spot
@@ -215,7 +340,8 @@ module.exports = (project_name, Lib) => {
 
     // id: ID
     // name: String
-    // spot_x;spot_y;scale: Float
+    // _spot: Point
+    // scale: Float
     // spot: Spot
     // type: Type
 
@@ -229,12 +355,13 @@ module.exports = (project_name, Lib) => {
       name,action, // String
       type, // Type
       spot, // Spot,Null
-      root_x,root_y,spot_x,spot_y,scale, // Float
+      scale, // Float
       is_open, // Boolean
+      _root,_spot, // Point,Null
     ) {
       super(level, is_open, )
 
-      this.set_root(root_x, root_y, spot_x, spot_y, )
+      this.set_root(_root, _spot)
 
       this.id = id
       this.name = name; this.action = action
@@ -245,10 +372,10 @@ module.exports = (project_name, Lib) => {
     }
 
     set_root(
-      root_x,root_y,spot_x,spot_y, // Float
+      _root,_spot, // Point,Null
     ) {
-      super.set_root(root_x, root_y,)
-      this.spot_x = spot_x; this.spot_y = spot_y
+      super.set_root(_root || new Point(0,0,1))
+      this._spot = _spot && _spot.copy(1) || new Point(0,0,1)
     }
 
     draw(
@@ -270,8 +397,10 @@ module.exports = (project_name, Lib) => {
           this.name, this.action,
           this.type,
           spot_copy,
-          this.root_x,this.root_y,this.spot_x,this.spot_y,this.scale,
+          this.scale,
           this.is_open,
+          this._root,
+          this._spot,
         )
       }
       return editor_copy
@@ -300,39 +429,34 @@ module.exports = (project_name, Lib) => {
     static short = 2
     static get_abs = true
 
-    // short_x;short_y;long_x;long_y;long: Float
+    // get short_x() { return this._short._x }
+    // get short_y() { return this._short._y }
+    // get short() { return this._short.scale }
+    // set short_x(x) { this._short._x = x }
+    // set short_y(y) { this._short._y = y }
+    // set short(short) { this._short.scale = short }
+
+    // short_x;short_y: Float
+    // long_x;long_y;long: Float
 
     constructor(
       level, // Level
-      root_x,root_y,long_x,long_y, // Float,Null
+      _root,_long, // Point,Null
     ) {
       super( level, false, )
-      this.set_root(root_x,root_y,long_x,long_y,)
+      this.set_root(_root,_long,)
     }
 
     set_root(
-      root_x,root_y,long_x,long_y, // Float,Null
+      _root,_long, // Point,Null
     ) {
-      super.set_root(root_x,root_y,)
+      super.set_root(_root || new Point(0,0,1))
+      _long = _long || new Point(0, 0, 1)
 
-      const abs_long_x = Math.abs(long_x)
-      const abs_long_y = Math.abs(long_y)
-      long_x = long_x < 0 ? -1 : 1
-      long_y = long_y < 0 ? -1 : 1
-
-      const ceil_long = this.Type.ceil_long
-      if ( abs_long_x < abs_long_y ) {
-        this.long = abs_long_y
-        this.long_y = long_y; this.short_x = long_x
-        this.long_x = this.short_y = 0
-      }
-      else {
-        this.long = abs_long_x || ceil_long
-        this.long_x = long_x; this.short_y = long_y
-        this.short_x = this.long_y = 0
-      }
-
-      this.long = Math.ceil(this.long / ceil_long) * ceil_long
+      const {long,short} = _long.long_short(
+        this.Type.short, this.Type.ceil_long
+      )
+      this._long = long; this._short = short
     }
 
     draw(
@@ -340,11 +464,9 @@ module.exports = (project_name, Lib) => {
       mouse, // Mouse
       editor, // Editor
     ) {
-      const root_x = mouse.width/2 + (this.root_x - editor.root_x) * mouse.scale
-      const root_y = mouse.height/2+ (this.root_y - editor.root_y) * mouse.scale
 
-      const spot_x = root_x + this.long_x * this.long * mouse.scale
-      const spot_y = root_y + this.long_y * this.long * mouse.scale
+      const root = mouse.center.sum(this._root.sum(editor._root,-1), mouse.scale)
+      const spot = root.usum(this._long, this._long.scale * mouse.scale)
 
       ctx.lineWidth = this.Type.line_width * mouse.scale
       ctx.strokeStyle = this == editor.spot ?
@@ -352,8 +474,8 @@ module.exports = (project_name, Lib) => {
         this.Type.stroke_color
 
       ctx.beginPath()
-      ctx.lineTo(root_x, root_y)
-      ctx.lineTo(spot_x, spot_y)
+      root.lineTo(ctx)
+      spot.lineTo(ctx)
       ctx.stroke()
     }
 
@@ -362,10 +484,11 @@ module.exports = (project_name, Lib) => {
       wall_copy, // Wall,Null
     ) {
       if (!wall_copy) {
+        const long = this._long.usum(this._short, 1)
         wall_copy = new this.Type(
-          level_copy, this.root_x, this.root_y,
-          this.long_x * this.long + this.short_x,
-          this.long_y * this.long + this.short_y,
+          level_copy,
+          this._root,
+          long,
         )
       }
 
@@ -373,13 +496,7 @@ module.exports = (project_name, Lib) => {
     }
 
     get lines() {
-      const {root_x,root_y,long_x,long_y,long,} = this
-      const p0 = { x: root_x, y: root_y, }
-      const p1 = {
-        x: p0.x + long_x * long,
-        y: p0.y + long_y * long,
-      }
-      return [ p0, p1 ]
+      return [ this._root, this._root.usum(this._long, this._long.scale) ]
     }
 
     static get_spot(
@@ -394,15 +511,12 @@ module.exports = (project_name, Lib) => {
 
       for (const wall_idx in walls) {
         const wall = walls[wall_idx]
-        const spot_x = editor.spot_x - wall.root_x
-        const spot_y = editor.spot_y - wall.root_y
-        const long = (spot_x*wall.long_x + spot_y*wall.long_y) / wall.long
-        let short = (
-          spot_x*wall.short_x + spot_y*wall.short_y
-        )
+        const p_spot = editor._spot.sum(wall._root, -1)
 
-        if (this.get_abs) {
-          short = Math.abs(short)
+        const long = p_spot.dot(wall._long) * p_spot.scale / wall._long.scale
+        let short = p_spot.dot(wall._short) * p_spot.scale
+        if (this.get_abs && short < 0) {
+          short = -short
         }
 
         if ( 0 < long && long < 1 && 0 < short && short < min_dist ) {
@@ -424,15 +538,12 @@ module.exports = (project_name, Lib) => {
         editor.action = ''
 
         if (!editor.is_open) {
-          editor.spot.root_x += editor.spot.long_x * editor.spot.long
-          editor.spot.root_y += editor.spot.long_y * editor.spot.long
+          editor.spot._root = editor.spot._root.sum( editor.spot._long, 1)
           editor.is_open = true
           editor.action = `fliped ${this.name}, `
         }
 
-        editor.spot.long_x = (editor.spot_x - editor.spot.root_x)
-        editor.spot.long_y = (editor.spot_y - editor.spot.root_y)
-        editor.spot.long = 1
+        editor.spot._long = editor._spot.sum(editor.spot._root, -1)
         delete editor.spot.editor
         editor.spot = editor.level
 
@@ -446,7 +557,10 @@ module.exports = (project_name, Lib) => {
 
         if (editor.spot == editor.level) {
           delete editor.spot.editor
-          editor.spot = new this( editor.level, editor.spot_x, editor.spot_y )
+          editor.spot = new this(
+            editor.level,
+            editor._spot,
+          )
           editor.spot.editor = editor
           editor.is_open = true
           editor.action = `new ${this.name}`
@@ -475,22 +589,24 @@ module.exports = (project_name, Lib) => {
       'lock_short_spot', 'lock_long_spot',
     ]
 
+    get short() { return this.Type.short }
+    set short(short) { this._short.scale = this.short }
+
     // open_long: Float
 
     constructor(
       level, // Level
-      root_x,root_y,long_x,long_y, // Float,Null
+      _root,_long, // Point,Null
     ) {
-      super( level, root_x,root_y,long_x,long_y, )
-
+      super( level, _root,_long, )
     }
 
     set_root(
-      root_x,root_y,long_x,long_y, // Float,Null
+      _root,_long, // Point,Null
     ) {
-      super.set_root(root_x,root_y,long_x,long_y,)
+      super.set_root(_root,_long,)
       this.is_open = true
-      this.open_long = this.long / 2
+      this.open_long = this._long.scale / 2
     }
 
     copy(
@@ -502,26 +618,20 @@ module.exports = (project_name, Lib) => {
 
       door_copy = super.copy(level_copy, door_copy)
 
+      const {_root,_short,_long} = door_copy
       for (const lock_name in lock_names) {
         const this_lock = this[lock_name]
         if (this_lock) {
           const [ hs, hl, l, ls, ll ] = lock_names[lock_name]
 
-          const short_mul = hs * half_short
-          const long_mul = hl * half_short + l * door_copy.long
+          const lock_long = _short.copy(ls).usum(_long, ll)
+          const lock_root = (
+            _root.usum(_short, hs * half_short)
+            .usum(_long, hl * half_short + l * _long.scale)
+          )
 
           const lock_copy = this_lock.copy(
-            level_copy, door_copy, (
-              door_copy.root_x +
-              door_copy.short_x * short_mul +
-              door_copy.long_x * long_mul
-            ), (
-              door_copy.root_y +
-              door_copy.short_y * short_mul +
-              door_copy.long_y * long_mul
-            ),
-            ls * this.short_x + ll * this.long_x,
-            ls * this.short_y + ll * this.long_y,
+            level_copy, door_copy, lock_root, lock_long,
             door_copy[lock_name],
           )
           door_copy[lock_name] = lock_copy
@@ -552,8 +662,8 @@ module.exports = (project_name, Lib) => {
       if (door_copy.open_long < 0) {
         door_copy.open_long = 0
       }
-      else if (door_copy.long / 2 < door_copy.open_long) {
-        door_copy.open_long = door_copy.long / 2
+      else if (door_copy._long.scale / 2 < door_copy.open_long) {
+        door_copy.open_long = door_copy._long.scale / 2
       }
     }
 
@@ -576,85 +686,57 @@ module.exports = (project_name, Lib) => {
       mouse, // Mouse
       editor, // Editor
     ) {
-      let root_x = mouse.width/2 + (this.root_x - editor.root_x) * mouse.scale
-      let root_y = mouse.height/2+ (this.root_y - editor.root_y) * mouse.scale
-      let short = this.Type.short * mouse.scale
-      let long = this.long * mouse.scale
+      const root = mouse.center.sum(this._root.sum(editor._root,-1), mouse.scale)
+
+      const open_long = this.open_long * mouse.scale
+      const short = this.Type.short * mouse.scale
+      const long = this._long.scale * mouse.scale
+
+      const spot = root.usum(this._long, long).usum(this._short,short)
 
       ctx.lineWidth = this.Type.line_width * mouse.scale
       ctx.fillStyle = this.Type.fill_color
-      ctx.strokeStyle = this == editor.spot ?
-      this.Type.sel_color :
-      this.Type.stroke_color
+      ctx.strokeStyle = (
+        this == editor.spot ?
+        this.Type.sel_color :
+        this.Type.stroke_color
+      )
       ctx.lineJoin = 'round'
       ctx.lineCap = 'round'
 
-      let open_long = this.open_long * mouse.scale
       ctx.beginPath()
-      ctx.lineTo(
-        root_x + this.long_x * short,
-        root_y + this.long_y * short,
-      )
-      ctx.lineTo(
-        root_x + this.long_x * open_long,
-        root_y + this.long_y * open_long,
-      )
-      ctx.lineTo(
-        root_x + this.long_x * open_long + this.short_x * short,
-        root_y + this.long_y * open_long + this.short_y * short,
-      )
-      ctx.lineTo(
-        root_x + this.short_x * short,
-        root_y + this.short_y * short,
-      )
+      root.usum(this._long, short).lineTo(ctx)
+      root.usum(this._long, open_long).lineTo(ctx)
+      root.usum(this._long, open_long).usum(this._short,short).lineTo(ctx)
+      root.usum(this._short, short).lineTo(ctx)
       ctx.closePath()
       ctx.fill()
       ctx.stroke()
 
       ctx.beginPath()
-      ctx.lineTo(root_x,root_y)
-      ctx.lineTo(root_x + this.short_x * short,root_y + this.short_y * short)
-      ctx.lineTo(root_x + this.long_x * short,root_y + this.long_y * short)
-      ctx.closePath()
-      ctx.fill()
-      ctx.stroke()
-
-      root_x += this.short_x * short + this.long_x * long
-      root_y += this.short_y * short + this.long_y * long
-      long = -long
-      short = -short
-      open_long = -open_long
-
-      ctx.beginPath()
-      ctx.lineTo(
-        root_x + this.long_x * short,
-        root_y + this.long_y * short,
-      )
-      ctx.lineTo(
-        root_x + this.long_x * open_long,
-        root_y + this.long_y * open_long,
-      )
-      ctx.lineTo(
-        root_x + this.long_x * open_long + this.short_x * short,
-        root_y + this.long_y * open_long + this.short_y * short,
-      )
-      ctx.lineTo(
-        root_x + this.short_x * short,
-        root_y + this.short_y * short,
-      )
+      root.lineTo(ctx)
+      root.usum(this._short, short).lineTo(ctx)
+      root.usum(this._long,short).lineTo(ctx)
       ctx.closePath()
       ctx.fill()
       ctx.stroke()
 
       ctx.beginPath()
-      ctx.lineTo(root_x,root_y)
-      ctx.lineTo(root_x + this.short_x * short,root_y + this.short_y * short)
-      ctx.lineTo(root_x + this.long_x * short,root_y + this.long_y * short)
+      spot.usum(this._long, -short).lineTo(ctx)
+      spot.usum(this._long, -open_long).lineTo(ctx)
+      spot.usum(this._long, -open_long).usum(this._short, -short).lineTo(ctx)
+      spot.usum(this._short, -short).lineTo(ctx)
       ctx.closePath()
       ctx.fill()
       ctx.stroke()
 
-      // TODO
+      ctx.beginPath()
+      spot.lineTo(ctx)
+      spot.usum(this._short, -short).lineTo(ctx)
+      spot.usum(this._long, -short).lineTo(ctx)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
     }
 
     /*
@@ -664,65 +746,32 @@ module.exports = (project_name, Lib) => {
       01  2 3   4
     */
     get lines() {
-      const {short} = this.Type
-      const {
-        root_x,root_y,
-        short_x,short_y,
-        long_x,long_y,
-        long,open_long,
-      } = this
 
-      const p0 = {x: root_x, y: root_y}
-      const p1 = {
-        x: p0.x + long_x * short,
-        y: p0.y + long_y * short,
-      }
-      const p2 = {
-        x: p0.x + long_x * open_long,
-        y: p0.y + long_y * open_long,
-      }
-      const p4 = {
-        x: p0.x + long_x * long,
-        y: p0.y + long_y * long,
-      }
-      const p3 = {
-        x: p4.x - long_x * open_long,
-        y: p4.y - long_y * open_long,
-      }
-      const p5 = {
-        x: p4.x + short_x * short,
-        y: p4.y + short_y * short,
-      }
-      const p6 = {
-        x: p5.x - long_x * short,
-        y: p5.y - long_y * short,
-      }
-      const p7 = {
-        x: p5.x - long_x * open_long,
-        y: p5.y - long_y * open_long,
-      }
-      const p9 = {
-        x: p0.x + short_x * short,
-        y: p0.y + short_y * short,
-      }
-      const p8 = {
-        x: p9.x + long_x * open_long,
-        y: p9.y + long_y * open_long,
-      }
 
-      if (open_long <= 0) {
+      const p0 = this._root
+      const p1 = p0.usum(this._long, this._short.scale)
+      const p2 = p0.usum(this._long, this.open_long)
+      const p4 = p0.usum(this._long, this._long.scale)
+      const p3 = p4.usum(this._long, -this.open_long)
+      const p5 = p4.usum(this._short, this._short.scale)
+      const p6 = p5.usum(this._long, -this._short.scale)
+      const p7 = p5.usum(this._long, -this.open_long)
+      const p9 = p0.usum(this._short, this._short.scale)
+      const p8 = p9.usum(this._long, this.open_long)
+
+      if (this.open_long <= 0) {
         return [
           p0,p9, p0,p1, p1,p9,
           p4,p5, p5,p6, p6,p4,
         ]
       }
-      else if (open_long < short) {
+      else if (this.open_long < this._short.scale) {
         return [
           p9,p0, p0,p1, p1,p9, p9,p8, p8,p2,
           p4,p5, p5,p6, p6,p4, p4,p3, p3,p7,
         ]
       }
-      else if (open_long < long/2) {
+      else if (this.open_long < this._long.scale/2) {
         return [
           p0,p2, p2,p8, p8,p9, p9,p0,
           p5,p7, p7,p3, p3,p4, p4,p5,
@@ -770,16 +819,16 @@ module.exports = (project_name, Lib) => {
 
     constructor(
       level, // Level
-      root_x,root_y,long_x,long_y, // Float,Null
+      _root,_long, // Point,Null
     ) {
-      super( level, root_x,root_y,long_x,long_y, )
+      super( level, _root,_long, )
     }
 
     set_root(
-      root_x,root_y,long_x,long_y, // Float,Null
+      _root,_long, // Point,Null
     ) {
-      super.set_root(root_x,root_y,long_x,long_y,)
-      this.long = this.Type.long
+      super.set_root(_root,_long,)
+      this._long.scale = this.Type.long
     }
 
     draw(
@@ -787,19 +836,23 @@ module.exports = (project_name, Lib) => {
       mouse, // Mouse
       editor, // Editor
     ) {
-      let root_x = mouse.width/2 + (this.root_x - editor.root_x) * mouse.scale
-      let root_y = mouse.height/2+ (this.root_y - editor.root_y) * mouse.scale
-      let short = this.Type.short * mouse.scale
-      let long = this.Type.long * mouse.scale
+      const root = mouse.center.sum(this._root.sum(editor._root,-1), mouse.scale)
 
-      const center_x = root_x + mouse.scale * (
-        this.Type.center_short * this.short_x +
-        this.Type.center_long * this.long_x
+      const long = this._long.scale * mouse.scale
+      const short = this._short.scale * mouse.scale
+      const open_long = this.open_long * mouse.scale
+      const radius = this.Type.radius * mouse.scale
+
+      const center = (
+        root
+        .usum(this._short, mouse.scale * this.Type.center_short)
+        .usum(this._long, mouse.scale * this.Type.center_long)
       )
-      const center_y = root_y + mouse.scale * (
-        this.Type.center_short * this.short_y +
-        this.Type.center_long * this.long_y
-      )
+      const p_root = root.usum(this._short, short)
+      const p_spot = p_root.usum(this._long, long)
+
+      const angle_root = center.atan2(p_root)
+      const angle_spot = center.atan2(p_spot)
 
       ctx.lineWidth = this.Type.line_width * mouse.scale
       ctx.fillStyle = this.Type.fill_color
@@ -811,77 +864,43 @@ module.exports = (project_name, Lib) => {
       ctx.lineJoin = 'round'
       ctx.lineCap = 'round'
 
-      const p_root_x = root_x + this.short_x * short
-      const p_root_y = root_y + this.short_y * short
-      const p_spot_x = p_root_x + this.long_x * long
-      const p_spot_y = p_root_y + this.long_y * long
-
-      const angle_root = Math.atan2( p_root_y - center_y, p_root_x - center_x)
-      const angle_spot = Math.atan2( p_spot_y - center_y, p_spot_x - center_x)
-
-      let open_long = this.open_long * mouse.scale
-
       ctx.beginPath()
-      ctx.lineTo( root_x, root_y )
-      ctx.lineTo( p_root_x, p_root_y )
-      ctx.lineTo(
-        p_root_x + this.long_x * open_long,
-        p_root_y + this.long_y * open_long,
-      )
-      ctx.lineTo(
-        root_x + this.long_x * open_long,
-        root_y + this.long_y * open_long,
-      )
+      root.lineTo(ctx)
+      p_root.lineTo(ctx)
+      p_root.usum(this._long, open_long).lineTo(ctx)
+      root.usum(this._long, open_long).lineTo(ctx)
       ctx.closePath()
       ctx.fill()
       ctx.stroke()
 
       ctx.beginPath()
-      ctx.lineTo(
-        root_x + this.long_x * long,
-        root_y + this.long_y * long,
-      )
-      ctx.lineTo( p_spot_x, p_spot_y )
-      ctx.lineTo(
-        p_spot_x - this.long_x * open_long,
-        p_spot_y - this.long_y * open_long,
-      )
-      ctx.lineTo(
-        root_x + this.long_x * (long - open_long),
-        root_y + this.long_y * (long - open_long),
-      )
+      root.usum(this._long, long).lineTo(ctx)
+      p_spot.lineTo(ctx)
+      const open_spot = p_spot.usum(this._long, -open_long)
+      open_spot.lineTo(ctx)
+      open_spot.usum(this._short, -short).lineTo(ctx)
       ctx.closePath()
       ctx.fill()
       ctx.stroke()
 
       ctx.beginPath()
       if (
-        (this.long_x + this.short_x) > 0 ^
-        (this.long_y + this.short_y) > 0 ^
-        this.long_x == 0
+        (this._long._x + this._short._x) > 0 ^
+        (this._long._y + this._short._y) > 0 ^
+        this._long._x == 0
       ) {
-        ctx.lineTo( p_root_x, p_root_y )
-        ctx.lineTo( root_x, root_y )
-        ctx.lineTo( root_x + this.long_x * long, root_y + this.long_y * long )
-        ctx.lineTo( p_spot_x, p_spot_y )
-        ctx.arc(
-          center_x,center_y,
-          this.Type.radius * mouse.scale,
-          angle_spot,
-          angle_root,
-        )
+        p_root.lineTo(ctx)
+        root.lineTo(ctx)
+        root.usum(this._long, long).lineTo(ctx)
+        p_spot.lineTo(ctx)
+        center.arc( ctx, radius, angle_spot, angle_root, )
       }
       else {
-        ctx.arc(
-          center_x,center_y,
-          this.Type.radius * mouse.scale,
-          angle_root,
-          angle_spot,
-        )
-        ctx.lineTo( p_spot_x, p_spot_y, )
-        ctx.lineTo( root_x + this.long_x * long, root_y + this.long_y * long )
-        ctx.lineTo( root_x, root_y )
-        ctx.lineTo( p_root_x, p_root_y, )
+        center.arc( ctx, radius, angle_root, angle_spot, )
+        p_spot.lineTo(ctx)
+        root.usum(this._long, long).lineTo(ctx)
+        root.lineTo(ctx)
+        p_root.lineTo(ctx)
       }
       ctx.closePath()
       ctx.fill()
@@ -898,51 +917,21 @@ module.exports = (project_name, Lib) => {
     */
     get lines() {
 
-      const {short,long} = this.Type
-      const {
-        root_x,root_y,
-        short_x,short_y,
-        long_x,long_y,
-        open_long,
-      } = this
+      const p0 = this._root
+      const p1 = p0.usum(this._long, this.open_long)
+      const p3 = p0.usum(this._long, this._long.scale)
+      const p2 = p3.usum(this._long,-this.open_long)
+      const p4 = p3.usum(this._short, this._short.scale)
+      const p5 = p4.usum(this._long,-this.open_long)
+      const p7 = p0.usum(this._short, this._short.scale)
+      const p6 = p7.usum(this._long, this.open_long)
 
-      const p0 = { x: root_x, y: root_y, }
-      const p1 = {
-        x: p0.x + long_x * open_long,
-        y: p0.y + long_y * open_long,
-      }
-      const p3 = {
-        x: p0.x + long_x * long,
-        y: p0.y + long_y * long,
-      }
-      const p2 = {
-        x: p3.x - long_x * open_long,
-        y: p3.y - long_y * open_long,
-      }
-      const p4 = {
-        x: p3.x + short_x * short,
-        y: p3.y + short_y * short,
-      }
-      const p5 = {
-        x: p4.x - long_x * open_long,
-        y: p4.y - long_y * open_long,
-      }
-      const p7 = {
-        x: p0.x + short_x * short,
-        y: p0.y + short_y * short,
-      }
-      const p6 = {
-        x: p7.x + long_x * open_long,
-        y: p7.y + long_y * open_long,
-      }
-
-
-      if (open_long <= 0) {
+      if (this.open_long <= 0) {
         return [
           p7,p0, p0,p3, p3,p4,
         ]
       }
-      else if (open_long < long/2) {
+      else if (this.open_long < this._long.scale/2) {
         return [
           p0,p1, p1,p6, p6,p7, p7,p0,
           p3,p2, p2,p5, p5,p4, p4,p3,
@@ -968,57 +957,44 @@ module.exports = (project_name, Lib) => {
 
     // key: Key,Null
     // spot: Spot
-    // long_x;long_y;long: Float
+    // long: Point
 
     constructor(
       level, // Level
       spot, // Spot,Null
-      root_x,root_y,long_x,long_y, // Float,Null
-      long, // Float,Null
+      _root,_long, // Point,Null
+      long, // Float
     ) {
       super( level, false, )
       this.spot = spot || level
-      this.set_root(
-        root_x,root_y,long_x,long_y,long,
-      )
+      this.set_root( _root, _long, long, )
     }
 
     set_root(
-      root_x,root_y,long_x,long_y, // Float,Null
+      _root,_long, // Point,Null
       long, // Float,Null
     ) {
+      _long = _long || new Point(0,0,1)
+      long = long > 0 ? long : _long.scale
 
-      this.long = (
+      this._long = _long.unit(-(
         long > this.Type.min_long ?
         Math.ceil(long / this.Type.ceil_long) * this.Type.ceil_long :
         this.Type.min_long
-      )
+      ), 0, 1)
 
-      long_x = long_x || 0; long_y = long_y || 0
-      const length = Math.sqrt(long_x*long_x + long_y*long_y)
-      if (length) {
-        this.long_x = -long_x / length
-        this.long_y = -long_y / length
-      }
-      else {
-        this.long_x = 1
-        this.long_y = 0
-      }
-
-
-      super.set_root( root_x, root_y, )
-      this.root_x -= this.long_x * this.long
-      this.root_y -= this.long_y * this.long
+      super.set_root( _root )
+      this._root = this._root.sum(this._long, -1)
 
       if (this.key) {
-        this.key.set_root( this.root_x, this.root_y, )
+        this.key.set_root( this._root, )
       }
     }
 
     copy(
       level_copy, // Level
       spot_copy, // Spot,Null
-      root_x,root_y,long_x,long_y, // Float,Null
+      _root,_long, // Point,Null
       lock_copy, // Lock,Null
     ) {
 
@@ -1026,24 +1002,25 @@ module.exports = (project_name, Lib) => {
         throw `TODO game lock`
       }
 
+
       if (lock_copy) {
         lock_copy.set_root(
-          root_x, root_y, long_x, long_y,
-          this.long,
+          _root, _long,
+          this._long.scale,
         )
       }
       else {
         lock_copy = new this.Type(
           level_copy, spot_copy,
-          root_x, root_y, long_x, long_y,
-          this.long,
+          _root, _long,
+          this._long.scale,
         )
       }
 
       if (this.key) {
         const key_copy = this.key.copy(
           level_copy, lock_copy,
-          lock_copy.root_x, lock_copy.root_y,
+          lock_copy._root,
           lock_copy.key,
         )
         if (key_copy.lock) {
@@ -1081,8 +1058,9 @@ module.exports = (project_name, Lib) => {
       mouse, // Mouse
       editor, // Editor
     ) {
-      let root_x = mouse.width/2 + (this.root_x - editor.root_x) * mouse.scale
-      let root_y = mouse.height/2+ (this.root_y - editor.root_y) * mouse.scale
+      const root = mouse.center.sum(this._root.sum(editor._root,-1), mouse.scale)
+      const long = this._long.scale * mouse.scale
+      const radius = this.Type.radius * mouse.scale
 
       ctx.lineWidth = this.Type.line_width * mouse.scale
       ctx.strokeStyle = (
@@ -1091,34 +1069,25 @@ module.exports = (project_name, Lib) => {
         this.Type.stroke_color
       )
       ctx.beginPath()
-      ctx.lineTo(root_x, root_y)
-      ctx.lineTo(
-        root_x + this.long_x * this.long * mouse.scale,
-        root_y + this.long_y * this.long * mouse.scale,
-      )
+      root.lineTo(ctx)
+      root.usum(this._long, long).lineTo(ctx)
       ctx.closePath()
       ctx.stroke()
 
       ctx.fillStyle = this.Type.fill_color
       ctx.beginPath()
-      ctx.arc(root_x, root_y, this.Type.radius * mouse.scale, 0, pi2)
+      root.arc(ctx, radius, 0, pi2)
       ctx.closePath()
       ctx.fill()
 
       ctx.beginPath()
-      ctx.arc(root_x, root_y, this.Type.radius * mouse.scale, 0, pi2)
+      root.arc(ctx, radius, 0, pi2)
       ctx.closePath()
       ctx.stroke()
     }
 
     get lines() {
-      const {root_x,root_y,long_x,long_y,long,} = this
-      const p0 = { x: root_x, y: root_y, }
-      const p1 = {
-        x: p0.x + long_x * long,
-        y: p0.y + long_y * long,
-      }
-      return [ p0,p1 ]
+      return [ this._root, this._root.sum(this._long, 1) ]
     }
 
     static act(
@@ -1135,11 +1104,10 @@ module.exports = (project_name, Lib) => {
 
       const door = Door.get_spot(editor)
       if (door.Type == Door) {
-        const spot_x = editor.spot_x - door.root_x
-        const spot_y = editor.spot_y - door.root_y
+        const spot = editor._spot.sum(door._root, -1)
         const lock_name = Door.lock_name_array[Math.floor(
-          (spot_x*door.long_x + spot_y*door.long_y) *
-          Door.lock_name_array.length / door.long
+          spot.dot(door._long) * spot.scale / door._long.scale *
+          Door.lock_name_array.length
         )]
         if (lock_name && !door[lock_name]) {
           const new_lock = new this(editor.level, door)
@@ -1154,11 +1122,10 @@ module.exports = (project_name, Lib) => {
 
       const portal = Portal.get_spot(editor)
       if (portal.Type == Portal) {
-        const spot_x = editor.spot_x - portal.root_x
-        const spot_y = editor.spot_y - portal.root_y
+        const spot = editor._spot.sum(portal._root, -1)
         const lock_name = Portal.lock_name_array[Math.floor(
-          (spot_x*portal.long_x + spot_y*portal.long_y) *
-          Portal.lock_name_array.length / portal.long
+          spot.dot(portal._long) * spot.scale / portal._long.scale *
+          Portal.lock_name_array.length
         )]
         if (lock_name && !portal[lock_name]) {
           const new_lock = new this(editor.level, portal)
@@ -1185,10 +1152,10 @@ module.exports = (project_name, Lib) => {
     constructor(
       level, // Level
       spot, // Spot,Null
-      root_x,root_y,long_x,long_y, // Float,Null
+      _root,_long, // Point,Null
       long, // Float,Null
     ) {
-      super(level,spot,root_x,root_y,long_x,long_y,long)
+      super(level,spot,_root,_long,long)
       level[Lock.plural_name].push(this)
     }
 
@@ -1198,20 +1165,11 @@ module.exports = (project_name, Lib) => {
 
     get lines() {
       const {min_long,ceil_long} = this.Type
-      const {root_x,root_y,long_x,long_y,long,} = this
-      const p0 = { x: root_x, y: root_y, }
-      const p1 = {
-        x: p0.x + long_x * ceil_long,
-        y: p0.y + long_y * ceil_long,
-      }
-      const p2 = {
-        x: p0.x + long_x * long,
-        y: p0.y + long_y * long,
-      }
-      const p3 = {
-        x: p2.x - long_x * ceil_long,
-        y: p2.y - long_y * ceil_long,
-      }
+
+      const p0 = this._root
+      const p1 = this._root.usum(this._long, ceil_long)
+      const p2 = this._root.sum(this._long, 1)
+      const p3 = p2.usum(this._long, -ceil_long)
       return [ p0,p1, p2,p3 ]
     }
 
@@ -1225,18 +1183,12 @@ module.exports = (project_name, Lib) => {
 
       if (editor.spot == editor_laser && editor_laser.Type == this) {
 
-        const spot_x = (
-          editor.spot_x - editor_laser.root_x -
-          editor_laser.long_x * editor_laser.long
+        const spot = (
+          editor._spot
+          .sum(editor_laser._root, -1)
+          .sum(editor_laser._long, -1)
         )
-        const spot_y = (
-          editor.spot_y - editor_laser.root_y -
-          editor_laser.long_y * editor_laser.long
-        )
-        editor_laser.long = -(
-          spot_x * editor_laser.long_x +
-          spot_y * editor_laser.long_y
-        )
+        editor_laser._long.scale = -spot.dot(editor_laser._long) * spot.scale
 
         delete editor_laser.editor
         editor.spot = editor.level
@@ -1261,36 +1213,36 @@ module.exports = (project_name, Lib) => {
     constructor(
       level, // Level
       lock, // Lock,Null
-      root_x, root_y, // Null,Float
+      _root, // Null,Point
       is_open, // Boolean
     ) {
       super( level, is_open, )
       this.lock = lock
-      this.set_root( root_x, root_y, )
+      this.set_root( _root, )
     }
 
     set_root(
-      root_x,root_y, // Float,Null
+      _root, // Point,Null
     ) {
-      if (this.lock) {
-        root_x = this.lock.root_x; root_y = this.lock.root_y
-      }
-      super.set_root(root_x, root_y)
+      _root = this.lock ? this.lock._root : _root
+      super.set_root( _root )
       if (this.jack) {
-        this.jack.set_root(this.jack.long_x, this.jack.long_y,)
+        this.jack.set_root( this.jack._long, )
       }
     }
 
     copy(
       level_copy, // Level
       lock_copy, // Lock,Null
-      root_x, root_y, // Null,Float
+      _root, // Null,Point
       key_copy, // Key,Null
     ) {
 
       if (!key_copy) {
         key_copy = new this.Type(
-          level_copy, lock_copy, root_x, root_y, this.is_open,
+          level_copy, lock_copy,
+          _root,
+          this.is_open,
         )
       }
 
@@ -1309,8 +1261,7 @@ module.exports = (project_name, Lib) => {
       mouse, // Mouse
       editor, // Editor
     ) {
-      let root_x = mouse.width/2 + (this.root_x - editor.root_x) * mouse.scale
-      let root_y = mouse.height/2+ (this.root_y - editor.root_y) * mouse.scale
+      const root = mouse.center.sum(this._root.sum(editor._root,-1), mouse.scale)
 
       ctx.lineWidth = this.Type.line_width * mouse.scale
       ctx.lineJoin = 'round'
@@ -1319,7 +1270,7 @@ module.exports = (project_name, Lib) => {
       let radius = this.Type.radius * mouse.scale
       ctx.fillStyle = this.Type.fill_color
       ctx.beginPath()
-      ctx.arc(root_x, root_y, radius, 0, pi2)
+      root.arc(ctx, radius, 0, pi2)
       ctx.closePath()
       ctx.fill()
 
@@ -1334,20 +1285,20 @@ module.exports = (project_name, Lib) => {
 
       if (this.is_open) {
         ctx.beginPath()
-        ctx.arc(root_x, root_y, radius, 0, pi2)
+        root.arc(ctx, radius, 0, pi2)
         ctx.closePath()
         ctx.fill()
       }
       else {
         ctx.beginPath()
-        ctx.lineTo(root_x + radius, root_y + radius)
-        ctx.lineTo(root_x - radius, root_y - radius)
+        ctx.lineTo(root.x + radius, root.y + radius)
+        ctx.lineTo(root.x - radius, root.y - radius)
         ctx.closePath()
         ctx.stroke()
 
         ctx.beginPath()
-        ctx.lineTo(root_x - radius, root_y + radius)
-        ctx.lineTo(root_x + radius, root_y - radius)
+        ctx.lineTo(root.x - radius, root.y + radius)
+        ctx.lineTo(root.x + radius, root.y - radius)
         ctx.closePath()
         ctx.stroke()
       }
@@ -1410,8 +1361,7 @@ module.exports = (project_name, Lib) => {
           lock.key = editor_key
           editor_key.lock = lock
         }
-        editor_key.root_x = editor.spot_x
-        editor_key.root_y = editor.spot_y
+        editor_key._root = editor._spot.copy(editor._spot.scale)
 
         editor.action = `moved ${this.name}`
       }
@@ -1420,7 +1370,8 @@ module.exports = (project_name, Lib) => {
 
         const new_key = new this(
           editor.level, lock,
-          editor.spot_x, editor.spot_y, true,
+          editor._spot,
+          true,
         )
         if (lock) {
           lock.key = new_key
@@ -1451,18 +1402,18 @@ module.exports = (project_name, Lib) => {
     constructor(
       level, // Level
       jack, // Jack
-      spot_x,spot_y, // Float
+      _spot, // Point
     ) {
       super(level, false, )
       this.jack = jack
-      this.set_root(spot_x, spot_y,)
+      this.set_root(_spot)
     }
 
     set_root(
-      spot_x, spot_y, // Float
+      _spot, // Point
     ) {
-      super.set_root(this.jack.root_x, this.jack.root_y,)
-      this.spot_x = spot_x; this.spot_y = spot_y
+      super.set_root(this.jack._root,)
+      this._spot = _spot.copy(1)
     }
 
     copy(
@@ -1474,14 +1425,16 @@ module.exports = (project_name, Lib) => {
       if (!path_copy) {
         path_copy = new this.Type(
           level_copy, jack_copy,
-          this.spot_x, this.spot_y,
+          this._spot,
         )
       }
 
       return super.copy(level_copy, path_copy,)
     }
 
-    do_path() {
+    do_path(lines) {
+
+
 
     }
 
@@ -1513,23 +1466,44 @@ module.exports = (project_name, Lib) => {
           }
         }
         else {
-          editor.spot_x = key.root_x
-          editor.spot_y = key.root_y
+          editor._spot = key._root
         }
       }
       else if (lock.Type != Level) {
-        editor.spot_x = lock.root_x
-        editor.spot_y = lock.root_y
+        editor._spot = lock._root
       }
 
       if (editor.spot.Type != Level && !editor.spot.path) {
         editor.spot.path = new Path(
           editor.level, editor.spot,
-          editor.spot_x, editor.spot_y,
+          editor._spot,
         )
         editor.action = `set new path for ${editor.spot.Type.name}`
         return
       }
+    }
+
+
+    static valid_sub_path(
+      root,spot, // Point
+      lines, // [Point,Point, Point,Point, ...]
+    ) {
+      const { x:point_root_x, y:point_root_y } = root
+      const { x:point_spot_x, y:point_spot_y } = spot
+
+      for (let idx = 0; idx < lines.length; idx += 2) {
+        const { x:line_root_x, y:line_root_y } = lines[idx]
+        const { x:line_spot_x, y:line_spot_y } = lines[idx+1]
+
+        if (Lib.line_cross(
+          point_root_x, point_root_y, point_spot_x, point_spot_y,
+          line_root_x, line_root_y, line_spot_x, line_spot_y,
+        )) {
+          return false
+        }
+      }
+
+      return true
     }
   }
 
@@ -1543,49 +1517,39 @@ module.exports = (project_name, Lib) => {
 
     // lock: Lock
     // key: Key
-    // long_x;long_y: Float
+    // _long: Point
     // path: Path,Null
 
     constructor(
       level, // Level
       key, // Key
       lock, // Lock,Null
-      long_x, long_y, // Float,Null
+      _long, // Point,Null
     ) {
       super(level, false, )
       this.key = key
       this.lock = lock
-      this.set_root(long_x, long_y,)
+      this.set_root(_long,)
     }
 
     set_root(
-      long_x, long_y, // Float,Null
+      _long, // Point,Null
     ) {
-      super.set_root(this.key.root_x, this.key.root_y)
-      long_x = long_x || 0; long_y = long_y || 0
-
-      const long = Math.sqrt(long_x*long_x + long_y*long_y)
-      if (long) {
-        this.long_x = long_x / long
-        this.long_y = long_y / long
-      }
-      else {
-        this.long_x = 0
-        this.long_y = 1
-      }
-
-      const lock_root_x = this.key.root_x + this.long_x * this.key.Type.radius
-      const lock_root_y = this.key.root_y + this.long_y * this.key.Type.radius
+      super.set_root(this.key._root)
+      this._long = _long ? _long.unit(1,0,1) : new Point(0,1,1)
+      const lock_root = this.key._root.usum(this._long, this.key.Type.radius)
 
       if (!this.lock) {
         this.lock = new Lock(
           this.level, this,
-          lock_root_x, lock_root_y, this.long_x, this.long_y,
+          lock_root,
+          this._long,
         )
       }
       else if (this.lock.spot == this) {
         this.lock.set_root(
-          lock_root_x, lock_root_y, this.long_x, this.long_y,
+          lock_root,
+          this._long,
         )
       }
     }
@@ -1597,18 +1561,16 @@ module.exports = (project_name, Lib) => {
       jack_copy, // Jack,Null
     ) {
 
-      let long_x = this.long_x, long_y = this.long_y
       const editor = this.editor
+      const _long = editor ? editor._spot.sum(key_copy._root, -1) : this._long
 
-      if (editor) {
-        long_x = editor.spot_x - key_copy.root_x
-        long_y = editor.spot_y - key_copy.root_y
+      if (jack_copy) {
+        jack_copy.set_root(_long,)
       }
-
-      if (!jack_copy) {
+      else {
         jack_copy = new this.Type(
           level_copy, key_copy, lock_copy,
-          long_x, long_y,
+          _long
         )
       }
 
@@ -1616,15 +1578,15 @@ module.exports = (project_name, Lib) => {
         jack_copy.path = this.path.copy(level_copy, jack_copy, jack_copy.path,)
       }
 
-      const radius = key_copy.Type.radius
-      const lock_root_x = jack_copy.root_x + jack_copy.long_x * radius
-      const lock_root_y = jack_copy.root_y + jack_copy.long_y * radius
 
       if (!lock_copy) {
+        const radius = key_copy.Type.radius
+        const lock_root = jack_copy._root.usum(jack_copy._long, radius)
+
         jack_copy.lock = this.lock.copy(
           level_copy, jack_copy,
-          lock_root_x, lock_root_y,
-          jack_copy.long_x, jack_copy.long_y,
+          lock_root,
+          jack_copy._long,
           jack_copy.lock,
         )
       }
@@ -1644,10 +1606,10 @@ module.exports = (project_name, Lib) => {
       mouse, // Mouse
       editor, // Editor
     ) {
-      let root_x = mouse.width/2 + (this.root_x - editor.root_x) * mouse.scale
-      let root_y = mouse.height/2+ (this.root_y - editor.root_y) * mouse.scale
-
+      const root = mouse.center.sum(this._root.sum(editor._root,-1), mouse.scale)
       const scale = mouse.scale * this.Type.radius
+      const i_long = this._long.invert( scale )
+      const h_long = this._long.copy(scale * this._long.scale / 2)
 
       ctx.lineWidth = this.Type.line_width * mouse.scale
       ctx.lineJoin = 'round'
@@ -1660,42 +1622,26 @@ module.exports = (project_name, Lib) => {
       )
 
       ctx.beginPath()
-      ctx.lineTo(
-        root_x + (-this.long_y + this.long_x/2) * scale,
-        root_y + ( this.long_x + this.long_y/2) * scale,
-      )
-      ctx.lineTo(
-        root_x + ( this.long_y + this.long_x/2) * scale,
-        root_y + (-this.long_x + this.long_y/2) * scale,
-      )
+      root.sum(i_long, 1).sum(h_long, 1).lineTo(ctx)
+      root.sum(i_long,-1).sum(h_long, 1).lineTo(ctx)
       ctx.closePath()
       ctx.stroke()
 
       ctx.beginPath()
-      ctx.lineTo(
-        root_x + (-this.long_y - this.long_x/2) * scale,
-        root_y + ( this.long_x - this.long_y/2) * scale,
-      )
-      ctx.lineTo(
-        root_x + ( this.long_y - this.long_x/2) * scale,
-        root_y + (-this.long_x - this.long_y/2) * scale,
-      )
+      root.sum(i_long, 1).sum(h_long,-1).lineTo(ctx)
+      root.sum(i_long,-1).sum(h_long,-1).lineTo(ctx)
       ctx.closePath()
       ctx.stroke()
     }
 
     get lines() {
       const {radius,} = this.Type
-      const {root_x,root_y,long_x,long_y,} = this
-      const p0 = {
-        x: root_x + (-long_y - long_x/2) * radius,
-        y: root_y + ( long_x - long_y/2) * radius,
-      }
-      const p1 = {
-        x: root_x + ( long_y - long_x/2) * radius,
-        y: root_y + (-long_x - long_y/2) * radius,
-      }
-      return [ p0,p1, ]
+      const i_long = this._long.invert( radius )
+      const h_long = this._long.copy(radius * this._long.scale / 2)
+      return [
+        this._root.sum(i_long, 1).sum(h_long,-1),
+        this._root.sum(i_long,-1).sum(h_long,-1),
+      ]
     }
 
     static act(
@@ -1722,11 +1668,11 @@ module.exports = (project_name, Lib) => {
 
     constructor(
       game, // Game
-      root_x,root_y, // Float
       is_open, // Boolean
+      _root, // Point,Null
     ) {
       super(game, is_open, )
-      this.set_root( root_x, root_y, )
+      this.set_root( _root || new Point(0,0,1) )
     }
 
     draw(
@@ -1786,7 +1732,7 @@ module.exports = (project_name, Lib) => {
     ) {
 
       if (!level_copy) {
-        level_copy = new this.Type(game_copy, this.root_x, this.root_y)
+        level_copy = new this.Type(game_copy, this._root )
       }
 
       for (const wall_idx in this.walls) {
@@ -1839,13 +1785,14 @@ module.exports = (project_name, Lib) => {
         const this_key = this.keys[key_idx]
 
         if (!this_key.lock) {
-          this_key.copy(level_copy, null, this_key.root_x, this_key.root_y)
+          this_key.copy(level_copy, null, this_key._root)
         }
       }
 
+      const lines = level_copy.lines
       for (const path_idx in level_copy.paths) {
         const path_copy = level_copy.paths[path_idx]
-        path_copy.do_path()
+        path_copy.do_path(lines)
       }
 
       for (const editor_idx in this.editors) {
@@ -1907,7 +1854,7 @@ module.exports = (project_name, Lib) => {
       change_time, // Float
     ) {
       super(null, false, change_time)
-      this.set_root( 0, 0, )
+      this.set_root()
     }
 
     copy(
@@ -1937,6 +1884,7 @@ module.exports = (project_name, Lib) => {
   const MazeGame = {
     Type: Type,
     Mouse: Mouse,
+    Point: Point,
     Spot: Spot,
     Editor: Editor,
     Wall: Wall,

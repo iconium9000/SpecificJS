@@ -34,8 +34,8 @@ function MazeGame() {
 		mouse.y = (e.clientY-7 - mouse.height/2)/mouse.scale
 
 		if ( mouse.right_down && client.editor ) {
-			client.editor.root_x += mouse.prev_x - mouse.x
-			client.editor.root_y += mouse.prev_y - mouse.y
+			client.editor._root._x += mouse.prev_x - mouse.x
+			client.editor._root._y += mouse.prev_y - mouse.y
 		}
 
 		mouse.prev_x = mouse.x
@@ -75,8 +75,7 @@ function MazeGame() {
 				const now = Lib.now()
 				let editor_copy = client.editor.deep_copy(now)
 
-				editor_copy.spot_x = mouse.x + editor_copy.root_x
-				editor_copy.spot_y = mouse.y + editor_copy.root_y
+				editor_copy._spot = mouse.sum(editor_copy._root, 1)
 
 				editor_copy.type.act(editor_copy)
 				editor_copy = editor_copy.deep_copy(now)
@@ -159,14 +158,13 @@ function MazeGame() {
 
 		const now = Lib.now()
 		const new_game = new MazeGame.Game(now)
-		const new_level = new MazeGame.Level(new_game, 0, 0, true)
+		const new_level = new MazeGame.Level(new_game, true)
 		client.editor = new MazeGame.Editor(
 			new_level,
 			client.socket.id,
 			client.name, `new editor`,
 			MazeGame.Wall,
 			new_level,
-			0,0,0,0,
 			MazeGame.Editor.scale,
 			false,
 		)
@@ -198,8 +196,7 @@ function MazeGame() {
 		try {
 			// throw `e`
 			editor_copy = editor_copy.deep_copy(now)
-			editor_copy.spot_x = mouse.x + editor_copy.root_x
-			editor_copy.spot_y = mouse.y + editor_copy.root_y
+			editor_copy._spot = mouse.sum(editor_copy._root, 1)
 			editor_copy.type.act(editor_copy)
 			editor_copy = editor_copy.deep_copy(now)
 		}
@@ -212,19 +209,18 @@ function MazeGame() {
 		ctx.strokeStyle = `#202020`
 		ctx.lineWidth = editor_copy.Type.line_width * mouse.scale * 0.2
 
-
 		const lines = editor_copy.level.lines
 		for (let i = 0; i < lines.length; i += 2) {
 			const p0 = lines[i], p1 = lines[i+1]
 
 			ctx.beginPath()
 			ctx.lineTo(
-				mouse.width/2 + (p0.x - editor_copy.root_x) * mouse.scale,
-				mouse.height/2+ (p0.y - editor_copy.root_y) * mouse.scale,
+				mouse.width/2 + (p0.x - editor_copy._root._x) * mouse.scale,
+				mouse.height/2+ (p0.y - editor_copy._root._y) * mouse.scale,
 			)
 			ctx.lineTo(
-				mouse.width/2 + (p1.x - editor_copy.root_x) * mouse.scale,
-				mouse.height/2+ (p1.y - editor_copy.root_y) * mouse.scale,
+				mouse.width/2 + (p1.x - editor_copy._root._x) * mouse.scale,
+				mouse.height/2+ (p1.y - editor_copy._root._y) * mouse.scale,
 			)
 			ctx.closePath()
 			ctx.stroke()
