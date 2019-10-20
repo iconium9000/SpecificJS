@@ -206,7 +206,7 @@ function MazeGame() {
 		mouse.now_time = now
 		editor_copy.draw( ctx, mouse, )
 
-		ctx.strokeStyle = `#202020`
+		ctx.strokeStyle = `#000000`
 		ctx.lineWidth = editor_copy.Type.line_width * mouse.scale * 0.2
 
 		const lines = editor_copy.level.lines

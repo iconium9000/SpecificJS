@@ -129,6 +129,10 @@ module.exports = (project_name, Lib) => {
       return this._x * point._x + this._y * point._y
     }
 
+    get length() {
+      return Math.sqrt(this._x*this._x + this._y*this._y) * this.scale
+    }
+
     mul(
       scale, // Float
     ) {
@@ -298,20 +302,21 @@ module.exports = (project_name, Lib) => {
     }
 
     static get_spot(
-      editor, // Editor
+      level, // Level
+      _spot, // Point
       radius, // Float,Null
     ) {
       if (!radius) {
         radius = this.radius
       }
       let min_dist2 = radius*radius
-      let ret_spot = editor.level
+      let ret_spot = level
 
-      const spots = editor.level[this.plural_name]
+      const spots = level[this.plural_name]
       for (const spot_idx in spots) {
         const spot = spots[spot_idx]
 
-        const sub = editor._spot.sum(spot._root, -1)
+        const sub = _spot.sum(spot._root, -1)
         const dist2 = sub.dot(sub) * sub.scale * sub.scale
         if (dist2 < min_dist2) {
           min_dist2 = dist2
@@ -500,18 +505,18 @@ module.exports = (project_name, Lib) => {
     }
 
     static get_spot(
-      editor, // Editor
+      level, // Level
+      _spot, // Point
     ) {
-      const level = editor.level
       const walls = level[this.plural_name]
 
       let min_dist = this.short
       let spot = level
-      editor.is_open = false
+      _spot.is_open = false
 
       for (const wall_idx in walls) {
         const wall = walls[wall_idx]
-        const p_spot = editor._spot.sum(wall._root, -1)
+        const p_spot = _spot.sum(wall._root, -1)
 
         const long = p_spot.dot(wall._long) * p_spot.scale / wall._long.scale
         let short = p_spot.dot(wall._short) * p_spot.scale
@@ -522,7 +527,7 @@ module.exports = (project_name, Lib) => {
         if ( 0 < long && long < 1 && 0 < short && short < min_dist ) {
           min_dist = short
           spot = wall
-          editor.is_open = long > 0.5
+          _spot.is_open = long > 0.5
           spot.idx = wall_idx
         }
       }
@@ -551,7 +556,8 @@ module.exports = (project_name, Lib) => {
       }
       else {
         delete editor.spot.editor
-        editor.spot = this.get_spot(editor)
+        editor.spot = this.get_spot(editor.level, editor._spot)
+        editor.is_open = editor._spot.is_open
         editor.spot.editor = editor
         editor.action = `selected ${this.name}`
 
@@ -816,6 +822,14 @@ module.exports = (project_name, Lib) => {
       lock_spot: [ 0, 6, 0,-1, 0],
     }
     static lock_name_array = [ 'lock_root', 'lock_cent', 'lock_spot',  ]
+
+    get center() {
+      return (
+        this._root
+        .sum(this._long, 1/2)
+        .usum(this._short, this.Type.mid_short)
+      )
+    }
 
     constructor(
       level, // Level
@@ -1086,15 +1100,15 @@ module.exports = (project_name, Lib) => {
       ctx.stroke()
     }
 
-    get lines() {
-      return [ this._root, this._root.sum(this._long, 1) ]
-    }
+    // get lines() {
+    //   return [ this._root, this._root.sum(this._long, 1) ]
+    // }
 
     static act(
       editor, // Editor
     ) {
 
-      const spot = this.get_spot(editor, 2 * this.radius)
+      const spot = this.get_spot(editor.level, editor._spot, 2 * this.radius)
       if (spot.Type == this) {
         editor.spot = spot
         spot.editor = editor
@@ -1102,7 +1116,7 @@ module.exports = (project_name, Lib) => {
         return
       }
 
-      const door = Door.get_spot(editor)
+      const door = Door.get_spot(editor.level, editor._spot, )
       if (door.Type == Door) {
         const spot = editor._spot.sum(door._root, -1)
         const lock_name = Door.lock_name_array[Math.floor(
@@ -1120,7 +1134,7 @@ module.exports = (project_name, Lib) => {
         }
       }
 
-      const portal = Portal.get_spot(editor)
+      const portal = Portal.get_spot(editor.level, editor._spot, )
       if (portal.Type == Portal) {
         const spot = editor._spot.sum(portal._root, -1)
         const lock_name = Portal.lock_name_array[Math.floor(
@@ -1166,11 +1180,9 @@ module.exports = (project_name, Lib) => {
     get lines() {
       const {min_long,ceil_long} = this.Type
 
-      const p0 = this._root
-      const p1 = this._root.usum(this._long, ceil_long)
-      const p2 = this._root.sum(this._long, 1)
-      const p3 = p2.usum(this._long, -ceil_long)
-      return [ p0,p1, p2,p3 ]
+      const p0 = this._root.sum(this._long, 1)
+      const p1 = p0.usum(this._long, -ceil_long)
+      return [ p0,p1 ]
     }
 
     static act(
@@ -1316,10 +1328,11 @@ module.exports = (project_name, Lib) => {
       jack_Type, // Jack.Type,Null
     ) {
 
-      let lock = Lock.get_spot(editor, 2 * this.radius)
+      let lock = Lock.get_spot(editor.level, editor._spot, 2 * this.radius)
 
       const key = (
-        lock.Type != Level && lock.key || this.get_spot(editor, 2*this.radius)
+        lock.Type != Level && lock.key ||
+        this.get_spot(editor.level, editor._spot, 2*this.radius)
       )
       const jack = key.Type == this && key.jack || editor.level
 
@@ -1396,6 +1409,8 @@ module.exports = (project_name, Lib) => {
     static key_bind = 'g'
     static radius = 2 * Key.radius
 
+    static speed = 1e-1
+
     // jack: Jack
     // spot: Spot,Null
 
@@ -1432,59 +1447,201 @@ module.exports = (project_name, Lib) => {
       return super.copy(level_copy, path_copy,)
     }
 
-    do_path(lines) {
+    remove() {
+      this.jack.path = null
+      super.remove()
+      log('remove path')
+    }
 
+    move(
+      prev_time, // Float
+    ) {
+      let spot = this._spot
+      if (this.mid_root) {
+        spot = this.mid_root.center
+      }
 
+      this.jack.set_root( spot.sum(this._root, -1), )
 
+      if ( this.spot.type == Key || this.jack.lock.key ) {
+        this._root = this.lock._root
+      }
+
+      const dif = this.Type.speed * (this.change_time - prev_time)
+      const long = spot.sum(this._root, -1)
+
+      if (long.length - dif < this.Type.radius) {
+        const key_lock_radius = Key.radius + this.jack.lock._long.scale
+        const branch_root = this.spot._root.usum( long, -key_lock_radius)
+
+        if (this.mid_root) {
+          this.jack.key.set_root( this.mid_spot.center )
+          this.mid_root = his.mid_spot = null
+          this.jack.set_root( this._spot.sum(this.jack._root, -1) )
+          return false
+        }
+        else if (this.spot.type == Key) {
+          if (this.spot.lock) {
+            this.spot.lock.key = null
+          }
+          this.spot.lock = this.lock
+          this.lock.key = this.spot
+          this.jack.key.set_root( branch_root )
+        }
+        else if (this.spot.type != Level) {
+          if (this.jack.lock.key) {
+            this.jack.lock.key.lock = this.spot
+            this.spot.key = this.jack.lock.key
+            this.jack.lock.key = null
+            this.jack.key.set_root( branch_root )
+          }
+          else {
+            this.jack.key.lock = this.spot
+            this.spot.key = this.jack.key
+            this.jack.key.set_root( this.spot._root )
+          }
+        }
+        else if (this.jack.lock.key) {
+          this.jack.lock.key._root = this._spot
+          this.jack.lock.key.lock = null
+          this.jack.lock.key = null
+          this.jack.key.set_root( branch_root )
+        }
+        else {
+          this.jack.key.set_root( this._spot )
+        }
+        return true
+      }
+      else {
+        this.jack.key.set_root(this.jack.key._root.usum( long, dif))
+        return false
+      }
+    }
+
+    do_path(
+      lines,  // [Point,Point, Point,Point, ...]
+      prev_time, // Float
+    ) {
+
+      const key_radius = this.Type.radius
+      const jack_radius = Jack.radius
+      const lock = Lock.get_spot(this.level, this._spot, key_radius)
+      const key = (
+        lock.Type != Level && lock.key ||
+        Key.get_spot(this.level, this._spot, key_radius)
+      )
+      this.spot = key.Type != Level && key || lock
+      if (this.spot.Type != Level) {
+        this._spot = this.spot._root
+      }
+
+      this._root = this.jack._root
+
+      if (key.lock && key.lock.spot == this.jack) {
+        return true
+      }
+
+      this.mid_root = this.mid_spot = null
+
+      const is_valid_path = this.Type.is_valid_path
+      if (is_valid_path(this._root, this._spot, lines)) {
+        return this.move(prev_time, )
+      }
+      else if (this.level.open_portals.length == 2) {
+        let [root_portal, spot_portal] = this.level.open_portals
+
+        let root = root_portal.center
+        let spot = spot_portal.center
+
+        if (
+          is_valid_path(this._root, root, lines) &&
+          is_valid_path(spot, this._spot, lines)
+        ) {
+          this.mid_root = root_portal
+          this.mid_spot = spot_portal
+          return this.move( prev_time, )
+        }
+
+        if (
+          is_valid_path(this._root, spot, lines) &&
+          is_valid_path(spot, this._spot, lines)
+        ) {
+          this.mid_root = spot_portal
+          this.mid_spot = root_portal
+          return this.move( prev_time, )
+        }
+      }
+
+      return true
+    }
+
+    get lines() {
+      // if (this.mid_root) {
+      //   return [
+      //     this._root, this.mid_root.center,
+      //     this._spot, this.mid_spot.center,
+      //   ]
+      // }
+      // else if (this._spot) {
+      //   return [ this._root, this._spot, ]
+      // }
+
+      return []
     }
 
     static act(
       editor, // Editor
     ) {
-      const key = Key.get_spot(editor, this.radius)
-      const lock = Lock.get_spot(editor, this.radius)
+      const key = Key.get_spot(editor.level, editor._spot, this.radius)
+      const lock = Lock.get_spot(editor.level, editor._spot, this.radius)
+
+      editor.action = ''
 
       if (editor.spot.Type != Level && editor.spot.path) {
         editor.action = `no action (${editor.spot.Type.name} already has path)`
         return
       }
 
-      if (key.Type != Level) {
-        if (key.jack) {
-          if (key.editor) {
-            editor.spot.editor = null
-            editor.spot = editor.level
-            editor.action = `deselected ${key.jack.Type.name}`
-            return
-          }
-          else {
-            editor.spot.editor = null
-            key.jack.editor = editor
-            editor.spot = key.jack
-            editor.action = `selected ${key.jack.Type.name}`
-            return
-          }
+      if (key.Type != Level && key.jack) {
+        if (key.jack.editor) {
+          editor.spot.editor = null
+          editor.spot = editor.level
+          editor.action = `deselected ${key.jack.Type.name}`
+          return
         }
         else {
-          editor._spot = key._root
+          editor.spot.editor = null
+          key.jack.editor = editor
+          editor.spot = key.jack
+          editor.action = `selected ${key.jack.Type.name}`
+          return
         }
-      }
-      else if (lock.Type != Level) {
-        editor._spot = lock._root
       }
 
       if (editor.spot.Type != Level && !editor.spot.path) {
+        const jack_lock_key = (
+          key.Type != Level && editor.spot.lock.spot == editor.spot &&
+          editor.spot.lock.key
+        )
+        if (jack_lock_key) {
+          if (jack_lock_key == key) {
+            editor.action = `no action (cannot path to own key)`
+            return
+          }
+          jack_lock_key.lock.key = null
+          jack_lock_key.lock = null
+          editor.action = `dropped key and `
+        }
         editor.spot.path = new Path(
           editor.level, editor.spot,
           editor._spot,
         )
-        editor.action = `set new path for ${editor.spot.Type.name}`
+        editor.action += `set new path for ${editor.spot.Type.name}`
         return
       }
     }
 
-
-    static valid_sub_path(
+    static is_valid_path(
       root,spot, // Point
       lines, // [Point,Point, Point,Point, ...]
     ) {
@@ -1578,7 +1735,6 @@ module.exports = (project_name, Lib) => {
         jack_copy.path = this.path.copy(level_copy, jack_copy, jack_copy.path,)
       }
 
-
       if (!lock_copy) {
         const radius = key_copy.Type.radius
         const lock_root = jack_copy._root.usum(jack_copy._long, radius)
@@ -1634,15 +1790,15 @@ module.exports = (project_name, Lib) => {
       ctx.stroke()
     }
 
-    get lines() {
-      const {radius,} = this.Type
-      const i_long = this._long.invert( radius )
-      const h_long = this._long.copy(radius * this._long.scale / 2)
-      return [
-        this._root.sum(i_long, 1).sum(h_long,-1),
-        this._root.sum(i_long,-1).sum(h_long,-1),
-      ]
-    }
+    // get lines() {
+    //   const {radius,} = this.Type
+    //   const i_long = this._long.invert( radius )
+    //   const h_long = this._long.copy(radius * this._long.scale / 2)
+    //   return [
+    //     this._root.sum(i_long, 1).sum(h_long,-1),
+    //     this._root.sum(i_long,-1).sum(h_long,-1),
+    //   ]
+    // }
 
     static act(
       editor, // Editor
@@ -1789,10 +1945,15 @@ module.exports = (project_name, Lib) => {
         }
       }
 
+
       const lines = level_copy.lines
-      for (const path_idx in level_copy.paths) {
+      for (let path_idx = 0; path_idx < level_copy.paths.length; ++path_idx) {
         const path_copy = level_copy.paths[path_idx]
-        path_copy.do_path(lines)
+
+        if (path_copy.do_path(lines, this.change_time)) {
+          path_copy.remove()
+          --path_idx
+        }
       }
 
       for (const editor_idx in this.editors) {
@@ -1832,6 +1993,10 @@ module.exports = (project_name, Lib) => {
       for (const jack_idx in this.jacks) {
   			const this_jack = this.jacks[jack_idx]
   			lines = lines.concat(this_jack.lines)
+  		}
+      for (const path_idx in this.paths) {
+  			const this_path = this.paths[path_idx]
+  			lines = lines.concat(this_path.lines)
   		}
 
       return lines
