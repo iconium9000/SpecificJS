@@ -82,6 +82,16 @@ module.exports = (project_name, Lib) => {
       return new Point(this._x, this._y, scale)
     }
 
+    get clamp() {
+      const length = Math.sqrt(this._x*this._x + this._y*this._y)
+      if (length) {
+        return new Point( this._x/length, this._y/length, length * this.scale)
+      }
+      else {
+        return new Point(0,0,this.scale)
+      }
+    }
+
     long_short(
       short,ceil_long, // Float
     ) {
@@ -1409,7 +1419,7 @@ module.exports = (project_name, Lib) => {
     static key_bind = 'g'
     static radius = 2 * Key.radius
 
-    static speed = 1e-1
+    static speed = 1e2
 
     // jack: Jack
     // spot: Spot,Null
@@ -1450,72 +1460,73 @@ module.exports = (project_name, Lib) => {
     remove() {
       this.jack.path = null
       super.remove()
-      log('remove path')
     }
 
     move(
       prev_time, // Float
     ) {
       let spot = this._spot
-      if (this.mid_root) {
-        spot = this.mid_root.center
-      }
+      // if (this.mid_root) {
+      //   spot = this.mid_root.center
+      // }
 
-      this.jack.set_root( spot.sum(this._root, -1), )
+      // this.jack.set_root( spot.sum(this._root, -1), )
 
       if ( this.spot.type == Key || this.jack.lock.key ) {
         this._root = this.lock._root
       }
 
-      const dif = this.Type.speed * (this.change_time - prev_time)
-      const long = spot.sum(this._root, -1)
+      const radius = this.Type.radius
+      const lock_key_radius = (
+        this.jack.lock.Type.radius + this.jack.key.Type.radius
+      )
+      const speed = this.Type.speed
+      const dif = speed * (this.change_time - prev_time)
+      let long = spot.sum(this._root, -1).clamp
 
-      if (long.length - dif < this.Type.radius) {
-        const key_lock_radius = Key.radius + this.jack.lock._long.scale
-        const branch_root = this.spot._root.usum( long, -key_lock_radius)
+      this.jack._long = long
+      const lock_key = this.jack.lock.key
 
-        if (this.mid_root) {
-          this.jack.key.set_root( this.mid_spot.center )
-          this.mid_root = his.mid_spot = null
-          this.jack.set_root( this._spot.sum(this.jack._root, -1) )
-          return false
+      if ( long.scale - dif < radius ) {
+        const branch_root = this._spot.usum(long, -lock_key_radius)
+
+        if (this.spot.type == Key) {
+          this.jack.lock.key = this.spot
+          this.spot.key.lock = this.jack.lock
+          this.jack.key.set_root(branch_root)
         }
-        else if (this.spot.type == Key) {
-          if (this.spot.lock) {
-            this.spot.lock.key = null
-          }
-          this.spot.lock = this.lock
-          this.lock.key = this.spot
-          this.jack.key.set_root( branch_root )
-        }
-        else if (this.spot.type != Level) {
-          if (this.jack.lock.key) {
-            this.jack.lock.key.lock = this.spot
-            this.spot.key = this.jack.lock.key
-            this.jack.lock.key = null
-            this.jack.key.set_root( branch_root )
+        else if (this.spot.Type != Level) {
+          if (lock_key) {
+            lock_key.lock.key = null
+            lock_key.lock = this.spot
+            this.spot.key = lock_key
+            this.spot.set_root( this.spot._root, this.spot._long,)
+            this.jack.key.set_root(branch_root)
           }
           else {
-            this.jack.key.lock = this.spot
+            this.jack.lock.remove()
+            this.jack.lock = this.spot
             this.spot.key = this.jack.key
-            this.jack.key.set_root( this.spot._root )
+            this.spot.set_root( this.spot._root, this.spot._long,)
           }
         }
-        else if (this.jack.lock.key) {
-          this.jack.lock.key._root = this._spot
-          this.jack.lock.key.lock = null
-          this.jack.lock.key = null
-          this.jack.key.set_root( branch_root )
+        else if (lock_key) {
+          lock_key.lock.key = null
+          lock_key.lock = null
+          lock_key.set_root(this._spot)
+          this.jack.key.set_root(branch_root)
         }
         else {
-          this.jack.key.set_root( this._spot )
+          this.jack.key.set_root(this._spot)
         }
         return true
       }
       else {
-        this.jack.key.set_root(this.jack.key._root.usum( long, dif))
+        this.jack.key.set_root(this.jack.key._root.usum(long, dif))
         return false
       }
+
+      return true
     }
 
     do_path(
@@ -1541,36 +1552,35 @@ module.exports = (project_name, Lib) => {
         return true
       }
 
-      this.mid_root = this.mid_spot = null
-
       const is_valid_path = this.Type.is_valid_path
       if (is_valid_path(this._root, this._spot, lines)) {
+        this.mid_root = this.mid_spot = null
         return this.move(prev_time, )
       }
-      else if (this.level.open_portals.length == 2) {
-        let [root_portal, spot_portal] = this.level.open_portals
-
-        let root = root_portal.center
-        let spot = spot_portal.center
-
-        if (
-          is_valid_path(this._root, root, lines) &&
-          is_valid_path(spot, this._spot, lines)
-        ) {
-          this.mid_root = root_portal
-          this.mid_spot = spot_portal
-          return this.move( prev_time, )
-        }
-
-        if (
-          is_valid_path(this._root, spot, lines) &&
-          is_valid_path(spot, this._spot, lines)
-        ) {
-          this.mid_root = spot_portal
-          this.mid_spot = root_portal
-          return this.move( prev_time, )
-        }
-      }
+      // else if (this.level.open_portals.length == 2) {
+      //   let [root_portal, spot_portal] = this.level.open_portals
+      //
+      //   let root = root_portal.center
+      //   let spot = spot_portal.center
+      //
+      //   if (
+      //     is_valid_path(this._root, root, lines) &&
+      //     is_valid_path(spot, this._spot, lines)
+      //   ) {
+      //     this.mid_root = root_portal
+      //     this.mid_spot = spot_portal
+      //     return this.move( prev_time, )
+      //   }
+      //
+      //   if (
+      //     is_valid_path(this._root, spot, lines) &&
+      //     is_valid_path(spot, this._spot, lines)
+      //   ) {
+      //     this.mid_root = spot_portal
+      //     this.mid_spot = root_portal
+      //     return this.move( prev_time, )
+      //   }
+      // }
 
       return true
     }
@@ -1619,10 +1629,13 @@ module.exports = (project_name, Lib) => {
       }
 
       if (editor.spot.Type != Level && !editor.spot.path) {
+        const jack = editor.spot
+
         const jack_lock_key = (
-          key.Type != Level && editor.spot.lock.spot == editor.spot &&
-          editor.spot.lock.key
+          key.Type != Level && jack.lock.spot == jack &&
+          jack.lock.key
         )
+
         if (jack_lock_key) {
           if (jack_lock_key == key) {
             editor.action = `no action (cannot path to own key)`
@@ -1632,11 +1645,14 @@ module.exports = (project_name, Lib) => {
           jack_lock_key.lock = null
           editor.action = `dropped key and `
         }
-        editor.spot.path = new Path(
-          editor.level, editor.spot,
-          editor._spot,
-        )
-        editor.action += `set new path for ${editor.spot.Type.name}`
+
+        if (jack.key.lock) {
+          jack.key.lock.key = null
+          jack.key.lock = null
+        }
+
+        jack.path = new Path( editor.level, jack, editor._spot, )
+        editor.action += `set new path for ${jack.Type.name}`
         return
       }
     }
@@ -1945,14 +1961,14 @@ module.exports = (project_name, Lib) => {
         }
       }
 
-
       const lines = level_copy.lines
       for (let path_idx = 0; path_idx < level_copy.paths.length; ++path_idx) {
         const path_copy = level_copy.paths[path_idx]
 
         if (path_copy.do_path(lines, this.change_time)) {
-          path_copy.remove()
-          --path_idx
+          // path_copy.remove()
+          level_copy.paths.splice(path_idx--, 1)
+          path_copy.jack.path = null
         }
       }
 

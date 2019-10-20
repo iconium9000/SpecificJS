@@ -203,29 +203,35 @@ function MazeGame() {
 		catch (e) {
 			editor_copy = client.editor
 		}
-		mouse.now_time = now
-		editor_copy.draw( ctx, mouse, )
 
-		ctx.strokeStyle = `#000000`
-		ctx.lineWidth = editor_copy.Type.line_width * mouse.scale * 0.2
+		try {
+			mouse.now_time = now
+			editor_copy.draw( ctx, mouse, )
 
-		const lines = editor_copy.level.lines
-		for (let i = 0; i < lines.length; i += 2) {
-			const p0 = lines[i], p1 = lines[i+1]
+			ctx.strokeStyle = `#000000`
+			ctx.lineWidth = editor_copy.Type.line_width * mouse.scale * 0.2
 
-			ctx.beginPath()
-			ctx.lineTo(
-				mouse.width/2 + (p0.x - editor_copy._root._x) * mouse.scale,
-				mouse.height/2+ (p0.y - editor_copy._root._y) * mouse.scale,
-			)
-			ctx.lineTo(
-				mouse.width/2 + (p1.x - editor_copy._root._x) * mouse.scale,
-				mouse.height/2+ (p1.y - editor_copy._root._y) * mouse.scale,
-			)
-			ctx.closePath()
-			ctx.stroke()
+			const lines = editor_copy.level.lines
+			for (let i = 0; i < lines.length; i += 2) {
+				const p0 = lines[i], p1 = lines[i+1]
+
+				ctx.beginPath()
+				ctx.lineTo(
+					mouse.width/2 + (p0.x - editor_copy._root._x) * mouse.scale,
+					mouse.height/2+ (p0.y - editor_copy._root._y) * mouse.scale,
+				)
+				ctx.lineTo(
+					mouse.width/2 + (p1.x - editor_copy._root._x) * mouse.scale,
+					mouse.height/2+ (p1.y - editor_copy._root._y) * mouse.scale,
+				)
+				ctx.closePath()
+				ctx.stroke()
+			}
+		}
+		catch(e) {
 
 		}
+
 	}
 
 	log('index.js')
