@@ -1,4 +1,8 @@
-const Lib = module.exports = {}
+const Lib = module.exports = {
+  get time() {
+    return (new Date()).getTime()
+  }
+}
 
 const pi = Math.PI
 const pi2 = pi * 2
