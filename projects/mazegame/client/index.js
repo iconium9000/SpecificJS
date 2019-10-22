@@ -14,23 +14,24 @@ function MazeGame() {
 		key_bindings[Type.key_bind] = Type
 	}
 
-	{
-		const time = Lib.time
-		const timeline = new MazeGame.Timeline([time])
-
-		const event_1 = new MazeGame.Event([
-			time, 'Game', 'new',
-		])
-		const event_2 = new MazeGame.Event([
-			time, 'Level', 'new',
-			new MazeGame.Event([
-				time, 'Timeline', 'get_event'
-			]),
-		])
-		const event_3 = new MazeGame.Event([
-			time, 'Level', 'new',
-		])
+	function int_lerp(ratio, src, dst) {
+		return (dst - src) * ratio + src
 	}
+	const timeline = new MazeGame.Timeline(int_lerp)
+	const time = 0 // Lib.time
+	log(timeline.set(time, 1))
+	log(timeline.set(time-4, 4, true))
+	log(timeline.set(time, -10))
+	log(timeline.set(time+4, 4))
+
+	log(timeline.get(time-2))
+	log(timeline.get(time+1))
+	log(timeline.get(time+3))
+	log(timeline.get(time+6))
+	log(timeline.get(time-10))
+
+
+
 	const game_queue = []
 	const client = {
 	  socket: io('/mazegame'),
@@ -80,7 +81,7 @@ function MazeGame() {
 
 		if (mouse.left_down) {
 			// TODO
-			log(Lib.time())
+			log(Lib.time)
 		}
 
 		if (e.button == 2) {

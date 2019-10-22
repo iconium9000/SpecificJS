@@ -3,6 +3,12 @@ module.exports = (project_name, Lib) => {
   const log = (...msg) => console.log(project_name, ...msg)
   const err = console.error
 
+
+  // Lerp: function(
+  //   ratio, // Float:[0,1]
+  //   src,dst, // Type
+  // )
+
   class Type {
     static Type = Type
 
@@ -13,60 +19,93 @@ module.exports = (project_name, Lib) => {
 
   class Event extends Type {
 
-    // return Event
-    constructor([
+    constructor(
       time, // Int
-      type_name,method_name, // String
-      ...args, // Type
-    ]) {
+      value, // Object
+      lerp, // Boolean,Null
+    ) {
+      super()
       this.time = time
-      this.type_name = type_name; this.method_name = method_name
-      this.args = args
+      this.value = value
+      this.lerp = lerp
     }
   }
 
   class Timeline extends Type {
+    // lerp: Lerp
 
-    events = []
+    event_array = []
 
-    // return Timeline
-    constructor([
-      time, // Int
-    ]) {
+    constructor(
+      lerp, // Lerp,Null
+    ) {
       super()
-      this.time = time
+      this.lerp = lerp || ( (src,dst) => src )
     }
 
-    // return Null
-    add_event([
-      ...new_events, // Event[]
-    ]) {
-
-      for (const event_idx in new_events) {
-        const new_event = new_events[event_idx]
-        for (const event_idx in this.events) {
-          const [this_event] = this.events[event_idx]
-          if (this_event.time == new_event.time) {
-            this.events[event_idx].push(new_event)
-            break
-          }
-          else if (new_event.time < this_event.time) {
-            this.events.splice(event_idx, 0, [new_event])
-            break
-          }
+    get_event_idx(
+      time, // Int
+    ) {
+      let l = 0, r = this.event_array.length - 1
+      while (l <= r) {
+        let m = Math.floor((l + r) / 2)
+        if (this.event_array[m].time < time) {
+          l = m + 1
         }
-        this.events.push([new_event])
+        else if (this.event_array[m].time > time) {
+          r = m - 1
+        }
+        else {
+          return m
+        }
+      }
+      return r
+    }
+
+    // return Type,Null
+    set(
+      time, // Int
+      value, // Type
+      lerp, // Boolean,Null
+    ) {
+      const new_event = new Event(time,value,lerp)
+      const idx = this.get_event_idx(new_event.time)
+      const this_event = this.event_array[idx]
+
+      if (this_event && this_event.time == new_event.time) {
+        this.event_array[idx] = new_event
+        return this_event.value
+      }
+      else {
+        this.event_array.splice(idx + 1, 0, new_event)
+        return null
       }
     }
 
-    // return Timeline
-    get flatten() {
-      // TODO
-      return this
+
+    // return: Type,Null
+    get(
+      time, // Int
+    ) {
+      const idx = this.get_event_idx(time)
+      const this_event = this.event_array[idx]
+      const next_event = this.event_array[idx+1]
+      if (!this_event) {
+        return null
+      }
+      else if (next_event && this_event.lerp) {
+        return this.lerp(
+          (time - this_event.time) / (next_event.time - this_event.time),
+          this_event.value, next_event.value
+        )
+      }
+      else {
+        return this_event.value
+      }
     }
   }
 
-  class Game extends Type {
+  class Game extends Timeline {
 
 
   }
@@ -79,11 +118,7 @@ module.exports = (project_name, Lib) => {
   class Editor extends Type {
 
 
-    constructor([
 
-    ]) {
-      super()
-    }
   }
 
   class Wall extends Type {
@@ -91,12 +126,12 @@ module.exports = (project_name, Lib) => {
 
   }
 
-  class Door extends Wall {
+  class Door extends Type {
 
 
   }
 
-  class Portal extends Door {
+  class Portal extends Type {
 
 
   }
@@ -124,7 +159,6 @@ module.exports = (project_name, Lib) => {
   const MazeGame = {}
 
    {
-
 
      const array = [
        Type,
