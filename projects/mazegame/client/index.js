@@ -11,26 +11,18 @@ function MazeGame() {
 	const key_bindings = {}
 	for (const type_name in MazeGame) {
 		const Type = MazeGame[type_name]
+		// TODO remove this
+		eval(`window.${Type.name} = MazeGame.${Type.name}`)
 		key_bindings[Type.key_bind] = Type
 	}
 
-	function int_lerp(ratio, src, dst) {
-		return (dst - src) * ratio + src
-	}
-	const timeline = new MazeGame.Timeline(int_lerp)
-	const time = 0 // Lib.time
-	log(timeline.set(time, 1))
-	log(timeline.set(time-4, 4, true))
-	log(timeline.set(time, -10))
-	log(timeline.set(time+4, 4))
+	const time = Lib.time
+	const game = new Game()
+	const level = new Level
+	game.set(time,level,Level)
 
-	log(timeline.get(time-2))
-	log(timeline.get(time+1))
-	log(timeline.get(time+3))
-	log(timeline.get(time+6))
-	log(timeline.get(time-10))
-
-
+	log(game.get(time))
+	log(level.get(time))
 
 	const game_queue = []
 	const client = {
