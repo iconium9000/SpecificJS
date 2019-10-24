@@ -18,10 +18,11 @@ function MazeGame() {
 
 	const time = Lib.time
 	const game = new Game(time)
-	const level = new Level(time)
-	game.set(level,null,Level)
+	game.level = new Level(time, game)
 
-	log(Game.copy(time+10, game))
+	log(game.values)
+
+	// log(game.copy(time+3).level.game)
 
 	const game_queue = []
 	const client = {
