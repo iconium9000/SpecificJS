@@ -18,11 +18,16 @@ function MazeGame() {
 
 	const time = Lib.time
 	const game = new Game(time)
-	game.level = new Level(time, game)
+	const level = new Level(time, game)
+	game.level = level
+	const wall = new Wall(time, level)
+	level.walls.get_label(wall.root_time).value = wall
 
-	log(game.values)
+	log(game.copy(time+10).values)
 
-	// log(game.copy(time+3).level.game)
+
+	// let center = new Point(1,1,1)
+	// let
 
 	const game_queue = []
 	const client = {
@@ -32,12 +37,20 @@ function MazeGame() {
 		name: null,
 		full_name: null,
 		editor: null,
-		scale: 90,
+		root: new MazeGame.Point(0,0,90),
+		inner_shift: new MazeGame.Point(20,22),
 	}
 	const mouse = {} // new MazeGame.Mouse()
 
-	$(document).mousemove(e => {
+	function get_center(canvas) {
+		const {innerWidth,innerHeight} = canvas
+		const point = new Point(innerWidth,innerHeight).sub(client.inner_shift)
+		const {x,y,length} = point, scale = x < y ? x : y
+		return point.div(2*length).unit.copy(scale)
+	}
 
+	$(document).mousemove(e => {
+		const center = get_center(e.target)
 		mouse.x = (e.clientX-7 - mouse.width/2)/mouse.scale
 		mouse.y = (e.clientY-7 - mouse.height/2)/mouse.scale
 
@@ -51,6 +64,11 @@ function MazeGame() {
 	})
 
 	$(document).mousedown(e => {
+
+		log(e)
+		log(e.clientX-7, e.offsetX)
+		const center = get_center(e.target)
+		log(center)
 
 		mouse.x = (e.clientX-7 - mouse.width/2)/mouse.scale
 		mouse.y = (e.clientY-7 - mouse.height/2)/mouse.scale

@@ -2,6 +2,7 @@ module.exports = (project_name, Lib) => {
 
   const log = (...msg) => console.log(project_name, ...msg)
   const err = console.error
+  const pi = Math.PI, pi2 = pi*2
 
   MazeGame = {}
 
@@ -39,7 +40,6 @@ module.exports = (project_name, Lib) => {
     }
 
   }
-
   class Float extends Type {
     static lerp(
       ratio, // Float[0,1]
@@ -89,17 +89,55 @@ module.exports = (project_name, Lib) => {
 
     get x() { return this._x * this._scale }
     get y() { return this._y * this._scale }
+    get abs_x() { return Math.abs(this._x * this._scale) }
+    get abs_y() { return Math.abs(this._y * this._scale) }
     get scale() { return this._scale }
+    get _length() {
+      const {_x,_y} = this
+      return Math.sqrt(_x*_x + _y*_y)
+    }
     get length() {
-      const {_x,_y,_scale} = this
-      return _scale * Math.sqrt(_x*_x + _y*_y)
+      const {_scale,_length} = this
+      return _scale * _length
+    }
+    get unit() {
+      const {_x,_y,_scale,_length} = this
+      return (
+        _scale < 0 ?
+        new Point(-_x/_length, -_y/_length, _length * -_scale) :
+        new Point(_x/_length, _y/_length, _length * _scale)
+      )
+    }
+    get long() {
+      const {x,y,abs_x,abs_y} = this
+      return (
+        abs_x < abs_y ?
+        new Point( 0, y < -1 ? -1 : 1, abs_y) :
+        new Point( x < -1 ? -1 : 1, abs_x)
+      )
+    }
+    get short() {
+      const {x,y,abs_x,abs_y} = this
+      return (
+        abs_x > abs_y ?
+        new Point( 0, y < -1 ? -1 : 1, abs_y) :
+        new Point( x < -1 ? -1 : 1, abs_x)
+      )
+    }
+
+    set lineTo(
+      ctx, // CanvasRenderingContext2D
+    ) {
+      ctx.lineTo(this.x, this.y)
     }
 
     constructor(
       x,y,scale, // Float,Null
     ) {
       super()
-      this._x = x; this._y = y; this._scale = scale
+      this._x = x != undefined ? x : 0
+      this._y = y != undefined ? y : 0
+      this._scale = scale != undefined ? scale : 1
     }
 
     copy(
@@ -122,36 +160,77 @@ module.exports = (project_name, Lib) => {
       return point_copy
     }
 
-    sum(
+    dot(
       point, // Point
-      scale, // Float,Null
     ) {
-      const {x,y} = this
-      if (scale == undefined) {
-        return new Point( x + point.x, y + point.y, 1 )
-      }
-      const {_x,_y} = point
-      return new Point(x + _x * scale, y + _y * scale, 1)
+      const {x:tx,y:ty} = this, {x:px,y:py} = point
+      return tx*px + ty*py
     }
 
     sub(
       point, // Point
-      scale, // Float,Null
+      point_scale,scale, // Float,Null
     ) {
       const {x,y} = this
-      if (scale == undefined) {
-        return new Point( x - point.x, y - point.y, 1 )
+      if (scale == undefined) scale = 1
+      if (point_scale == undefined) {
+        return new Point( x + point.x, y + point.y, scale )
       }
       const {_x,_y} = point
-      return new Point(x - _x * scale, y - _y * scale, 1)
+      return new Point(x + _x * point_scale, y + _y * point_scale, scale)
     }
 
-    get unit() {
+    sub(
+      point, // Point
+      point_scale,scale, // Float,Null
+    ) {
+      const {x,y} = this
+      if (scale == undefined) scale = 1
+      if (point_scale == undefined) {
+        return new Point( x - point.x, y - point.y, scale )
+      }
+      const {_x,_y} = point
+      return new Point(x - _x * point_scale, y - _y * point_scale, scale)
+    }
+
+    mul(
+      mul, // Float
+    ) {
       const {_x,_y,_scale} = this
-      const length = Math.sqrt(_x*_x + _y*_y)
-      return new Point(_x/length, _y/length, length * _scale)
+      return new Point(_x,_y,_scale*mul)
+    }
+    div(
+      div, // Float
+    ) {
+      const {_x,_y,_scale} = this
+      return new Point(_x,_y,_scale/div)
+    }
+
+    // NOTE: assumes that this._length == 1
+    // NOTE: assumes that this._scale > 0
+    clamp(
+      min,ceil, // Float
+      scale, // Float,Null
+    ) {
+      const {_x,_y,_scale} = this
+      return (
+        scale != undefined ? new Point(_x,_y,scale) :
+        _scale < min ? new Point(_x,_y,min) :
+        new Point(_x,_y,Math.ceil(_scale / ceil) * ceil)
+      )
+    }
+
+    round(
+      round, // Float
+    ) {
+      const {x,y} = this
+      return new Point(
+        Math.round(x/round) * round,
+        Math.round(y/round) * round, 1
+      )
     }
   }
+  MazeGame.Point = Point
 
   class Timeline extends Type {
 
@@ -168,23 +247,32 @@ module.exports = (project_name, Lib) => {
         events, // _Event[],Null
       ) {
         this._time = time
-        this._events = events || []
+        if (events == undefined) {
+          events = []
+          events._flag = 1
+        }
+        this._events = events
+        this._event_flag = 0
+
         this._lerp = true
         this._soft = false
         this._value = undefined
         this._type = Type
       }
 
-      get _idx() {
+      get idx() {
+        if (this._event_flag == this._events._flag) return this._idx
+        this._event_flag = this._event_flag
+
         let l = 0, r = this._events.length - 1//, m = r
         while (l <= r) {
           let m = Math.floor((l + r) / 2)
           const dif = this._time - this._events[m]._time
           if (dif > 0) l = m + 1
           else if (dif < 0) r = m - 1
-          else return m
+          else return this._idx = m
         }
-        return r
+        return this._idx = r
       }
 
       // def event[time] as this_event
@@ -199,7 +287,7 @@ module.exports = (project_name, Lib) => {
         if (time == undefined) {
           return this
         }
-        const idx = this._idx
+        const idx = this.idx
         const this_event = this._events[idx]
         if (this_event == undefined || this_event._time != time) {
           return new this.constructor(time, this._events)
@@ -212,7 +300,7 @@ module.exports = (project_name, Lib) => {
       // else get prev_event.type
       get type() {
         if (this._lerp) {
-          const idx = this._idx
+          const idx = this.idx
           const prev_event = this._events[idx] || this
           return prev_event._type
         }
@@ -224,7 +312,7 @@ module.exports = (project_name, Lib) => {
       // else get prev_event.soft
       get soft() {
         if (this._lerp) {
-          const idx = this._idx
+          const idx = this.idx
           const prev_event = this._events[idx] || this
           return prev_event._soft
         }
@@ -240,7 +328,7 @@ module.exports = (project_name, Lib) => {
       // else get prev_event.lerp(prev_event, next_event)
       get value() {
         if (this._lerp) {
-          const idx = this._idx
+          const idx = this.idx
           if (idx < 0) return undefined
           const prev_event = this._events[idx]
           const next_event = this._events[idx+1]
@@ -263,11 +351,13 @@ module.exports = (project_name, Lib) => {
       // else set prev_event.type as t
       set type(t) {
         if (this._lerp) {
-          const idx = this._idx
+          const idx = this.idx
           if (idx < 0) {
             this._type = t
             this._lerp = false
-            this._events.splice(0, 0, this)
+            this._event_flag = ++this._events._flag
+            this._idx = 0
+            this._events.splice(this._idx, 0, this)
             return
           }
           this._events[idx]._type = t
@@ -280,11 +370,13 @@ module.exports = (project_name, Lib) => {
       // else set prev_event.spot as !!spot
       set soft(s) {
         if (this._lerp) {
-          const idx = this._idx
+          const idx = this.idx
           if (idx < 0) {
             this._soft = !!s
             this._lerp = false
-            this._events.splice(0, 0, this)
+            this._event_flag = ++this._events._flag
+            this._idx = 0
+            this._events.splice(this._idx, 0, this)
             return
           }
           this._events[idx]._soft = !!s
@@ -298,7 +390,7 @@ module.exports = (project_name, Lib) => {
       // else define new_event with .value as v
       set value(v) {
         if (this._lerp) {
-          const idx = this._idx
+          const idx = this.idx
           const prev_event = this._events[idx] || this
           if (prev_event._time == this._time && prev_event != this) {
             prev_event._value = v
@@ -306,7 +398,9 @@ module.exports = (project_name, Lib) => {
           else {
             this._value = v
             this._lerp = false
-            this._events.splice(idx+1, 0, this)
+            this._event_flag = ++this._events._flag
+            this._idx = idx+1
+            this._events.splice(this._idx, 0, this)
           }
         }
         else this._value = v
@@ -314,7 +408,7 @@ module.exports = (project_name, Lib) => {
     }
 
     // return _Event
-    label_io(
+    get_label(
       label, // String,Int
       type, // Type,Null
     ) {
@@ -323,8 +417,21 @@ module.exports = (project_name, Lib) => {
         event ? event.copy(this._time) :
         (this._events[label] = new this.Type._Event(this._time))
       )
-      if (type != undefined) event.type = type
+      event.type = type || this._default_type
       return event
+    }
+
+    get_timeline(
+      label, // String,Int
+      type, // Type,Null
+    ) {
+      const _timeline = this.get_label(label, Timeline)
+      let timeline = _timeline.value
+      if (timeline == undefined) {
+        timeline = new Timeline(this.time, type)
+        _timeline.value = timeline
+      }
+      return timeline
     }
 
     // returns this._time
@@ -369,11 +476,13 @@ module.exports = (project_name, Lib) => {
 
     constructor(
       time, // Int
+      default_type, // Type,Null
     ) {
       super()
       this._time = time
       this._root_time = time
       this._events = {}
+      this._default_type = default_type || Type
     }
   }
   MazeGame.Timeline = Timeline
@@ -387,56 +496,177 @@ module.exports = (project_name, Lib) => {
     set level(
       new_level, // Level,Null
     ) {
-      this.label_io('level', Level).value = new_level
+      this.get_label('level', Level).value = new_level
       if (new_level == undefined) return
-      this.levels.label_io(new_level.root_time, Level).value = new_level
+      this.levels.get_label(new_level.root_time).value = new_level
     }
     get level() {
-      return this.label_io('level').value
+      return this.get_label('level').value
     }
     get levels() {
-      const _levels = this.label_io('levels', Timeline)
-      let levels = _levels.value
-      if (levels == undefined) {
-        levels = new Timeline(this.time)
-        _levels.value = levels
-      }
-      return levels
+      return this.get_timeline('levels', Level)
     }
   }
   MazeGame.Game = Game
 
-  class GameObject extends Timeline {
+  class Level extends Timeline {
     constructor(
       time, // Int
       game, // Game,Null
     ) {
-      super(time)
+      super(time,Timeline)
       this.game = game
     }
     set game(
       game, // Game,Null
     ) {
-      this.label_io('game', Game).value = game
+      this.get_label('game', Game).value = game
     }
     get game() {
-      return this.label_io('game').value
+      return this.get_label('game').value
     }
-    remove() {
-      const _game = this.label_io('game')
-      const game = _game.value
-      if (game == undefined) return
-      game.levels.label_io(this.root_time).value = null
-      _game.value = null
+    get walls() {
+      return this.get_timeline('walls', Wall)
     }
-  }
-  class Level extends GameObject {
-
-
   }
   MazeGame.Level = Level
 
+  class LevelObject extends Timeline {
+    static root_default = new Point(0,0,1)
+    static root_round = 1
+    static root_radius = 3
+    static fill_color = 'black'
+    static line_color = 'white'
+    static line_width = 0.1
 
+    constructor(
+      time, // Int
+      level, // Level,Null
+      root, // Point,Null
+    ) {
+      super(time,Point)
+      this.level = level; this.root = root
+    }
+    set level(
+      level, // Game,Null
+    ) {
+      this.get_label('level', Level).value = level
+    }
+    get level() {
+      return this.get_label('level').value
+    }
+
+    set root(
+      root, // Point,Null
+    ) {
+      this.get_label('root').value = root
+    }
+    get root() {
+      return this.get_label('root').value || this.Type.root_default
+    }
+
+    static get_spot(
+      level_objects, // LevelObject{},LevelObject[]
+      spot, // Point
+    ) {
+      let closest_level_object = null
+      let min_dist = this.root_radius
+      for (const level_object_idx in level_objects) {
+        const level_object = level_objects[level_object_idx]
+        const {root} = level_object
+        const dist = root.sub(spot).length
+        if (dist < min_dist) {
+          min_dist = dist
+          closest_level_object = level_object
+        }
+      }
+      return closest_level_object
+    }
+
+    draw(
+      ctx, // CanvasRenderingContext2D
+      root,center, // Point
+    ) {
+      const scale = root.scale*center.scale
+      const {x,y} = this.root.sub(root,1,root.scale).sum(center,1,center.scale)
+      const {line_width, line_color, radius} = this.Type
+      ctx.beginPath(); ctx.arc(x,y,radius, 0,pi2); ctx.closePath()
+      ctx.lineWidth = line_width * scale; ctx.strokeStyle = line_color
+      ctx.stroke()
+    }
+  }
+
+  class Wall extends LevelObject {
+    static long_min = 3
+    static long_ceil = 1
+    static long_default = new Point(1,0,1)
+    static short = 3
+    static short_sign = false
+
+    constructor(
+      time, // Int
+      level, // Level,Null
+      root,long, // Point,Null
+    ) {
+      super(time, level, root)
+      this.root = root; this._long = long
+    }
+    set _long(
+      long, // Point,Null
+    ) {
+      return this.get_label('long').value = long
+    }
+    get _long() {
+      return this.get_label('long').value || this.Type.long_default
+    }
+    get long() {
+      const {long_min,long_ceil,long} = this.Type
+      return this._long.long.clamp(long_min,long_ceil,long)
+    }
+    get short() {
+      const {short_min,short_ceil,short} = this.Type
+      return this._long.short.clamp(short_min,short_ceil,short)
+    }
+
+    draw(
+      ctx, // CanvasRenderingContext2D
+      root,center, // Point
+    ) {
+      const scale = root.scale*center.scale
+      const _root = this.root.sub(root,1,root.scale).sum(center,1,center.scale)
+      const _spot = this.long.mul(scale).sum(_root)
+      const {line_width, line_color} = this.Type
+      ctx.lineWidth = line_width * scale
+      ctx.strokeStyle = line_color
+      ctx.beginPath()
+      _root.lineTo = ctx
+      _spot.lineTo = ctx
+      ctx.closePath()
+      ctx.stroke()
+    }
+
+    static get_spot(
+      walls, // Wall{},Wall[]
+      spot, // Point
+    ) {
+      let closest_wall = null
+      let min_dist = 1
+      for (const wall_idx in walls) {
+        const wall = walls[wall_idx]
+        const {root,_long: {long, short}} = wall
+        const _spot = root.sub(spot)
+        let _short = _spot.dot(short) / short.scale/short.scale
+        let _long = _spot.dot(long) / long.scale/long.scale
+        if (this.short_sign && _short < 0) _short = -_short
+        if (_short < min_dist && 0 < _long && _long < 1) {
+          min_dist = _short
+          closest_wall = wall
+        }
+      }
+      return closest_wall
+    }
+  }
+  MazeGame.Wall = Wall
 
   return MazeGame
 }
