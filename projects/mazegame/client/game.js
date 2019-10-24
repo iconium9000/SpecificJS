@@ -220,33 +220,12 @@ module.exports = (project_name, Lib) => {
       return event
     }
 
-    /* Get Type: gets map of all events whose type is included in type
-      def events as new _Event{}
-      for each event at label
-        if event.type is a member of types
-          set events[label] as event
-      return events
-      NOTE: return value maps the pointers to instantainious events
-        of each timeline. This is a static object and not a dynamic one.
-    */
-    get_type(
-      ...types // Type
-    ) {
-      const events = {}
-      for (const timeline_label in this._events) {
-        const event = this.label_io(timeline_label)
-        if (types.includes(event.type)) {
-          events[timeline_label] = event
-        }
-      }
-      return events
-    }
-
-    // returns this.time
+    // returns this._time
     get time() {
       return this._time
     }
 
+    // returns this._root_time
     get root_time() {
       return this._root_time
     }
@@ -354,7 +333,7 @@ module.exports = (project_name, Lib) => {
   }
   class Level extends GameObject {
 
-
+    
   }
   MazeGame.Level = Level
 
