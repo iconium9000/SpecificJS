@@ -28,12 +28,6 @@ module.exports = (project_name, Lib) => {
       return this.constructor
     }
 
-    equals(
-      type, // Type,Null
-    ) {
-      return type == this
-    }
-
     copy(
       time, // Int
       type_copy, // Type,Null
@@ -44,6 +38,119 @@ module.exports = (project_name, Lib) => {
       return type_copy
     }
 
+  }
+
+  class Float extends Type {
+    static lerp(
+      ratio, // Float[0,1]
+      src,dst, // Float
+    ) {
+      return (dst-src)*ratio + dst
+    }
+    static copy(
+      old_float, // Float,Null
+      time, // Int
+      float_copy, //
+    ) {
+      return float_copy != undefined ? float_copy : old_float
+    }
+  }
+  class Int extends Type {
+    static lerp(
+      ratio, // Float[0,1]
+      src,dst, // Int
+    ) {
+      return Math.floor((dst-src)*ratio + dst)
+    }
+    static copy(
+      old_int, // Int,Null
+      time, // Int
+      int_copy, // Int,Null
+    ) {
+      return int_copy != undefined ? int_copy : old_int
+    }
+  }
+
+  class Point extends Type {
+    static lerp(
+      ratio, // Float[0,1]
+      src,dst, // Point
+    ) {
+      const {x,y} = src
+      return new Point( (dst.x-x)*ratio + x, (dst.y-y)*ratio + y, 1, )
+    }
+    static copy(
+      old_point, // Point,Null
+      time,
+      point_copy, // Point,Null
+    ) {
+      return old_point && old_point.copy(old_point.scale, point_copy)
+    }
+
+    get x() { return this._x * this._scale }
+    get y() { return this._y * this._scale }
+    get scale() { return this._scale }
+    get length() {
+      const {_x,_y,_scale} = this
+      return _scale * Math.sqrt(_x*_x + _y*_y)
+    }
+
+    constructor(
+      x,y,scale, // Float,Null
+    ) {
+      super()
+      this._x = x; this._y = y; this._scale = scale
+    }
+
+    copy(
+      scale, // Float,Null
+      point_copy, // Point,Null
+    ) {
+      const {_x,_y,_scale} = this
+
+      if (scale == undefined) {
+        scale = _scale
+      }
+
+      if (point_copy == undefined) {
+        point_copy = new Point(_x, _y, scale)
+      }
+      else {
+        point_copy._x = _x; point_copy._y = y;
+        point_copy._scale = scale
+      }
+      return point_copy
+    }
+
+    sum(
+      point, // Point
+      scale, // Float,Null
+    ) {
+      const {x,y} = this
+      if (scale == undefined) {
+        return new Point( x + point.x, y + point.y, 1 )
+      }
+      const {_x,_y} = point
+      return new Point(x + _x * scale, y + _y * scale, 1)
+    }
+
+    sub(
+      point, // Point
+      scale, // Float,Null
+    ) {
+      const {x,y} = this
+      if (scale == undefined) {
+        return new Point( x - point.x, y - point.y, 1 )
+      }
+      const {_x,_y} = point
+      return new Point(x - _x * scale, y - _y * scale, 1)
+    }
+
+    get unit() {
+      const {_x,_y,_scale} = this
+      const length = Math.sqrt(_x*_x + _y*_y)
+      return new Point(_x/length, _y/length, length * _scale)
+    }
   }
 
   class Timeline extends Type {
@@ -260,12 +367,6 @@ module.exports = (project_name, Lib) => {
       return super.copy(time, type_copy)
     }
 
-    equals(
-      timeline, // Timeline,Null
-    ) {
-      return !!timeline && timeline._events == this._events
-    }
-
     constructor(
       time, // Int
     ) {
@@ -306,7 +407,6 @@ module.exports = (project_name, Lib) => {
   MazeGame.Game = Game
 
   class GameObject extends Timeline {
-
     constructor(
       time, // Int
       game, // Game,Null
@@ -314,7 +414,6 @@ module.exports = (project_name, Lib) => {
       super(time)
       this.game = game
     }
-
     set game(
       game, // Game,Null
     ) {
@@ -333,7 +432,7 @@ module.exports = (project_name, Lib) => {
   }
   class Level extends GameObject {
 
-    
+
   }
   MazeGame.Level = Level
 
