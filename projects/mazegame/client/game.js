@@ -108,6 +108,10 @@ module.exports = (project_name, Lib) => {
         new Point(_x/_length, _y/_length, _length * _scale)
       )
     }
+    get set() {
+      const {x,y} = this
+      return new Point(x,y)
+    }
     get long() {
       const {x,y,abs_x,abs_y} = this
       return (
@@ -167,7 +171,7 @@ module.exports = (project_name, Lib) => {
       return tx*px + ty*py
     }
 
-    sub(
+    sum(
       point, // Point
       point_scale,scale, // Float,Null
     ) {
@@ -586,11 +590,13 @@ module.exports = (project_name, Lib) => {
     draw(
       ctx, // CanvasRenderingContext2D
       root,center, // Point
+      preview, // Boolean,Null
     ) {
-      const scale = root.scale*center.scale
-      const {x,y} = this.root.sub(root,1,root.scale).sum(center,1,center.scale)
+      const {x,y} = this.root.sub(center,1).div(center.scale).sum(root,1)
       const {line_width, line_color, radius} = this.Type
-      ctx.beginPath(); ctx.arc(x,y,radius, 0,pi2); ctx.closePath()
+      ctx.beginPath();
+      ctx.arc(x,y,radius*center.scale, 0,pi2);
+      ctx.closePath()
       ctx.lineWidth = line_width * scale; ctx.strokeStyle = line_color
       ctx.stroke()
     }

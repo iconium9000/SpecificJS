@@ -38,19 +38,28 @@ function MazeGame() {
 		full_name: null,
 		editor: null,
 		root: new MazeGame.Point(0,0,90),
+		spot: new MazeGame.Point(0,0,1),
 		inner_shift: new MazeGame.Point(20,22),
 	}
 	const mouse = {} // new MazeGame.Mouse()
 
 	function get_center(canvas) {
-		const {innerWidth,innerHeight} = canvas
-		const point = new Point(innerWidth,innerHeight).sub(client.inner_shift)
-		const {x,y,length} = point, scale = x < y ? x : y
-		return point.div(2*length).unit.copy(scale)
+		const {innerWidth,innerHeight} = window
+		const {root} = client
+		let point = new Point(innerWidth,innerHeight).sub(client.inner_shift)
+		const {x,y} = point
+		canvas.width = x; canvas.height = y
+		return point.div(2).set.copy((x < y ? x : y) / root.scale )
+	}
+	function set_spot({offsetX,offsetY}, center) {
+		const {root} = client, spot = new Point(offsetX,offsetY)
+		client.spot = spot.sub(center,1).div(center.scale).sum(root,1)
 	}
 
 	$(document).mousemove(e => {
-		const center = get_center(e.target)
+		const center = get_center(canvas)
+		set_spot(e, center)
+
 		mouse.x = (e.clientX-7 - mouse.width/2)/mouse.scale
 		mouse.y = (e.clientY-7 - mouse.height/2)/mouse.scale
 
@@ -64,14 +73,18 @@ function MazeGame() {
 	})
 
 	$(document).mousedown(e => {
+		const canvas = e.target
+		const center = get_center(canvas)
+		set_spot(e, center)
 
-		log(e)
-		log(e.clientX-7, e.offsetX)
-		const center = get_center(e.target)
-		log(center)
+		const {root,spot} = client
 
-		mouse.x = (e.clientX-7 - mouse.width/2)/mouse.scale
-		mouse.y = (e.clientY-7 - mouse.height/2)/mouse.scale
+		log('center', center)
+		log('spot', spot)
+
+		mouse.x = (e.clientX-7 - canvas.width/2)/center.scale
+		mouse.y = (e.clientY-7 - canvas.height/2)/center.scale
+		log(mouse.x,mouse.y)
 
 		if (e.button == 2) {
 			mouse.right_down = true
@@ -150,10 +163,22 @@ function MazeGame() {
 		const prev_now = client.prev_now
 		const deltaT = now - prev_now > max_deltaT ? max_deltaT : now - prev_now
 
-		client.prev_now = now
-		mouse.scale = (
-			mouse.width > mouse.height ? mouse.height : mouse.width
-		) / client.scale
+		const center = get_center(canvas)
+		const {root,spot} = client
+		const _center = center.copy(1)
+		const _spot = spot.sub(root,1).mul(center.scale).sum(_center)
+
+		ctx.strokeStyle = 'white'
+		ctx.beginPath()
+		_center.lineTo = ctx
+		_spot.lineTo = ctx
+		ctx.closePath()
+		ctx.stroke()
+
+		// client.prev_now = now
+		// mouse.scale = (
+		// 	mouse.width > mouse.height ? mouse.height : mouse.width
+		// ) / client.scale
 	}
 
 	log('index.js')
