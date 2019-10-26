@@ -10,10 +10,10 @@ module.exports = (project_name, Lib) => {
     static Type = this
 
     static lerp(
-      ratio, // Float[0,1]
-      src,dst, // Type
+      src_t,dst_t,mid_t, // Int
+      src,dst, // Object
     ) {
-      return this.copy(src)
+      return this.copy(mid_t,src)
     }
 
     static copy(
@@ -22,6 +22,12 @@ module.exports = (project_name, Lib) => {
       type_copy, // Type,Null
     ) {
       return old_type && old_type.copy(time, type_copy)
+    }
+
+    static temp(
+      object, // Object,Null
+    ) {
+      return object
     }
 
     // returns this.Type
@@ -42,10 +48,10 @@ module.exports = (project_name, Lib) => {
   }
   class Float extends Type {
     static lerp(
-      ratio, // Float[0,1]
+      src_t,dst_t,mid_t, // Int
       src,dst, // Float
     ) {
-      return (dst-src)*ratio + dst
+      return (dst-src)*(mid_t-src_t)/(dst_t-src_t) + dst
     }
     static copy(
       old_float, // Float,Null
@@ -57,10 +63,10 @@ module.exports = (project_name, Lib) => {
   }
   class Int extends Type {
     static lerp(
-      ratio, // Float[0,1]
+      src_t,dst_t,mid_t, // Int
       src,dst, // Int
     ) {
-      return Math.floor((dst-src)*ratio + dst)
+      return Math.floor((dst-src)*(mid_t-src_t)/(dst_t-src_t) + dst)
     }
     static copy(
       old_int, // Int,Null
@@ -73,9 +79,10 @@ module.exports = (project_name, Lib) => {
 
   class Point extends Type {
     static lerp(
-      ratio, // Float[0,1]
+      src_t,dst_t,mid_t, // Int
       src,dst, // Point
     ) {
+      const ratio = (mid_t-src_t)/(dst_t-src_t)
       const {x,y} = src
       return new Point( (dst.x-x)*ratio + x, (dst.y-y)*ratio + y, 1, )
     }
@@ -236,6 +243,227 @@ module.exports = (project_name, Lib) => {
   }
   MazeGame.Point = Point
 
+  class TimeState extends Type {
+
+    constructor(
+      time, // Int
+      type, // Type
+      value, // Object,Null
+      soft, // Boolean,Null
+    ) {
+      super()
+      this._time = time; this._temp = false
+      this._events = []
+      this._events._root_time = time
+      this._events._type = type
+      this._events.push({ time: time, value: value, soft: !!soft })
+    }
+
+    get time() {
+      return this._time
+    }
+    get type() {
+      return this._events._type
+    }
+    get root_time() {
+      return this._events._root_time
+    }
+
+    get _idx() {
+      let l = 0, r = this._events.length - 1
+      while (l <= r) {
+        let m = Math.floor((l + r) / 2)
+        const dif = this._time - this._events[m].time
+        if (dif > 0) l = m + 1
+        else if (dif < 0) r = m - 1
+        else return m
+      }
+      return r
+    }
+    set soft(soft) {
+      let idx = this._idx+1
+      const prev_event = this._events[idx-1]
+      const new_event = {
+        time: this._time, soft: soft,
+        value: prev_event && prev_event.value
+      }
+
+      if (!prev_event);
+      if (prev_event.time == new_event.time) --idx
+      else if (prev_event.value != undefined) {
+        const next_event = this._events[idx]
+        const next_value = next_event && next_event.value
+
+        if (next_value != undefined) {
+          new_event.value = this.type.lerp(
+            prev_event.time, next_event.time, new_event.time,
+            prev_event.value, next_value,
+          )
+        }
+      }
+
+      this._events.splice(idx, this._events.length - idx, new_event)
+    }
+    set value(value) {
+      let idx = this._idx+1
+      const event = this._events[idx-1]
+      const new_event = { time: this._time, value: value, soft: false }
+      if (event && event.time == new_event.time) {
+        new_event.soft = event.soft
+        --idx
+      }
+      this._events.splice(idx, this._events.length - idx, new_event)
+    }
+    get value() {
+      const idx = this._idx
+      const prev_event = this._events[idx]
+
+      let value = prev_event && prev_event.value
+      if (value != undefined && prev_event.time != this._time) {
+        const next_event = this._events[idx+1]
+        const next_value = next_event && next_event.value
+        if (next_value != undefined) {
+          value = this.type.lerp(
+            prev_event.time, next_event.time, this._time,
+            value, next_value,
+          )
+        }
+      }
+      else value = this.type.copy(value, this._time)
+
+      if (value != undefined && this._temp) {
+        const new_event = {
+          time: this._time, value: value,
+          soft: prev_event && prev_event.soft,
+        }
+        if (prev_event && prev_event.time == this._time) {
+          this._events[idx] = new_event
+        }
+        else {
+          this._events[idx].splice(idx+1,0,new_event)
+        }
+        value = this.type.temp(value)
+      }
+      return value
+    }
+
+    copy(
+      time, // Int,Null
+      timestate_copy, // TimeState,Null
+    ) {
+      if (time == undefined) time = this._time
+      if (!timestate_copy) timestate_copy = new this.Type(time)
+      else timestate_copy._time = time
+
+      timestate_copy._events = this._events
+      timestate_copy._temp = this._temp
+      return timestate_copy
+    }
+
+    static temp(
+      timestate, // TimeState,Null
+    ) {
+      return timestate && timestate.temp
+    }
+
+    get temp() {
+      const events = this._events.slice(0)
+      events._root_time = this.root_time
+      events._type = this.type
+
+      const temp_timestate = new this.Type(this._time)
+      temp_timestate._events = events
+      temp_timestate._temp = true
+      return temp_timestate
+    }
+
+  }
+
+  class TimeStateMap extends Type {
+
+    constructor(
+      time, // Int
+      type, // Type
+    ) {
+      super()
+      this._root_time = time
+      this._time = time
+      this._timestates = [{}]
+      this._default_type = type
+    }
+
+    get time() {
+      return this._time
+    }
+    get type() {
+      return this._default_type
+    }
+    get root_time() {
+      return this._root_time
+    }
+
+    copy(
+      time, // Int,Null
+      timestatemap_copy, // TimeStateMap
+    ) {
+      if (time == undefined) time = this._time
+      if (!timestatemap_copy) {
+        timestatemap_copy = new this.Type(time, this._default_type)
+      }
+      else timestatemap_copy._time = time
+      timestatemap_copy._root_time = this._root_time
+      timestatemap_copy._timestates = this._timestates
+      return timestatemap_copy
+    }
+
+    get temp() {
+      const temp_timestatemap = new this.Type(this._time)
+      const [...timestates] = this._timestates
+      temp_timestatemap._timestates = [{}, ...timestates]
+      return temp_timestatemap
+    }
+
+    get(
+      label, // String,Int
+      type, // Type,Null
+      state_type, // Type[TimeState,TimeStateMap],Null
+    ) {
+      const temp = this._timestates.length > 1
+      for (const idx in this._timestates) {
+        const timestate = this._timestates[idx][label]
+        if (timestate != undefined) {
+          const timestate_copy = timestate.copy(this._time)
+          return temp ? timestate_copy.temp : timestate_copy
+        }
+      }
+      const new_timestate = new (state_type || TimeState)(
+        this._time, type || this._default_type
+      )
+      this._timestates[0][label] = new_timestate
+      return new_timestate
+    }
+
+    get values() {
+      const values = {}
+      let idx = this._timestates.length
+      const temp = idx > 1
+      while (idx-- > 0) {
+        const timestates = this._timestates[idx]
+        for (const label in timestates) {
+          const timestate = timestates[label].copy(this._time)
+          values[label] = temp ? timestate.temp : timestate
+        }
+      }
+      return values
+    }
+
+    add(
+      timestate, // TimeState,TimeStateMap
+    ) {
+      this.get(timestate.root_time, timestate.Type).value = timestate
+    }
+  }
+
   class Timeline extends Type {
 
     static _Event = class {
@@ -338,9 +566,7 @@ module.exports = (project_name, Lib) => {
           const next_event = this._events[idx+1]
           if (prev_event._soft && next_event != undefined) {
             return prev_event._type.lerp(
-              (this._time - prev_event._time) /
-              (next_event._time - prev_event._time),
-              prev_event._value, next_event._value,
+              prev_event.time, next_event.time, this._time,
               next_event._type,
             )
           }
@@ -412,6 +638,7 @@ module.exports = (project_name, Lib) => {
     }
 
     // return _Event
+    // _Event has get,set for value and
     get_label(
       label, // String,Int
       type, // Type,Null
@@ -491,46 +718,44 @@ module.exports = (project_name, Lib) => {
   }
   MazeGame.Timeline = Timeline
 
-  class Game extends Timeline {
+  class Game extends TimeStateMap {
     constructor(
       time, // Int
     ) {
-      super(time)
+      super(time,Level)
     }
     set level(
       new_level, // Level,Null
     ) {
-      this.get_label('level', Level).value = new_level
-      if (new_level == undefined) return
-      this.levels.get_label(new_level.root_time).value = new_level
+      this.get('level').value = new_level
     }
     get level() {
-      return this.get_label('level').value
+      return this.get('level').value
     }
     get levels() {
-      return this.get_timeline('levels', Level)
+      return this.get('levels',Level,TimeStateMap)
     }
   }
   MazeGame.Game = Game
 
-  class Level extends Timeline {
+  class Level extends TimeStateMap {
     constructor(
       time, // Int
       game, // Game,Null
     ) {
-      super(time,Timeline)
+      super(time,TimeState)
       this.game = game
     }
     set game(
       game, // Game,Null
     ) {
-      this.get_label('game', Game).value = game
+      this.get('game', Game).value = game
     }
     get game() {
-      return this.get_label('game').value
+      return this.get('game', Game).value
     }
     get walls() {
-      return this.get_timeline('walls', Wall)
+      return this.get('walls', Wall, TimeStateMap).value
     }
   }
   MazeGame.Level = Level

@@ -20,10 +20,12 @@ function MazeGame() {
 	const game = new Game(time)
 	const level = new Level(time, game)
 	game.level = level
-	const wall = new Wall(time, level)
-	level.walls.get_label(wall.root_time).value = wall
-
-	log(game.copy(time+10).values)
+	game.levels.add(level)
+	// const wall = new Wall(time, level
+	const game_copy = game.copy(time+10)
+	log(game_copy)
+	log(game_copy.level)
+	log(game_copy.levels.values)
 
 
 	// let center = new Point(1,1,1)
