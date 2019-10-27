@@ -1,7 +1,7 @@
 function MazeGame() {
 	const is_mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 	const max_deltaT = 0.1
-	const start_time = (new Date()).getTime() * 1e-3
+	const start_time = Lib.time * 1e-3
 	const project_name = 'MazeGame:'
 	const log = (...msg) => console.log(project_name, ...msg)
 	const err = console.error
@@ -18,18 +18,8 @@ function MazeGame() {
 
 	const time = Lib.time
 	const game = new Game(time)
-	const level = new Level(time, game)
-	game.level = level
-	game.levels.add(level)
-	// const wall = new Wall(time, level
-	const game_copy = game.copy(time+10)
-	log(game_copy)
-	log(game_copy.level)
-	log(game_copy.levels.values)
-
-
-	// let center = new Point(1,1,1)
-	// let
+	game.push(new Level(time, game))
+	game.build_to(time)
 
 	const game_queue = []
 	const client = {
@@ -39,39 +29,32 @@ function MazeGame() {
 		name: null,
 		full_name: null,
 		editor: null,
-		root: new MazeGame.Point(0,0,90),
-		spot: new MazeGame.Point(0,0,1),
-		inner_shift: new MazeGame.Point(20,22),
+		root: new MazeGame.Point(0,0,0,20),
+		spot: new MazeGame.Point(0,0,0,1),
+		inner_shift: new MazeGame.Point(0,0,20,22),
+		right_down: false, left_down: false,
+		state: MazeGame.Wall,
 	}
-	const mouse = {} // new MazeGame.Mouse()
 
 	function get_center(canvas) {
-		const {innerWidth,innerHeight} = window
 		const {root} = client
-		let point = new Point(innerWidth,innerHeight).sub(client.inner_shift)
-		const {x,y} = point
-		canvas.width = x; canvas.height = y
-		return point.div(2).set.copy((x < y ? x : y) / root.scale )
+		const {width:x,height:y} = canvas
+		const point = new Point(Lib.time,x,y)
+		return point.div(2).set((x < y ? x : y) / root.scale )
 	}
 	function set_spot({offsetX,offsetY}, center) {
-		const {root} = client, spot = new Point(offsetX,offsetY)
+		const {root} = client, spot = new Point(Lib.time,offsetX,offsetY)
 		client.spot = spot.sub(center,1).div(center.scale).sum(root,1)
 	}
 
 	$(document).mousemove(e => {
 		const center = get_center(canvas)
 		set_spot(e, center)
-
-		mouse.x = (e.clientX-7 - mouse.width/2)/mouse.scale
-		mouse.y = (e.clientY-7 - mouse.height/2)/mouse.scale
-
-		if ( mouse.right_down && client.editor ) {
-			// client.editor._root._x += mouse.prev_x - mouse.x
-			// client.editor._root._y += mouse.prev_y - mouse.y
+		if ( client.right_down ) {
+			const {root,spot,prev_spot} = client
+			client.root = prev_spot.sub(spot).sum(root,1,root.scale)
 		}
-
-		mouse.prev_x = mouse.x
-		mouse.prev_y = mouse.y
+		client.prev_spot = client.spot
 	})
 
 	$(document).mousedown(e => {
@@ -80,50 +63,36 @@ function MazeGame() {
 		set_spot(e, center)
 
 		const {root,spot} = client
-
-		log('center', center)
-		log('spot', spot)
-
-		mouse.x = (e.clientX-7 - canvas.width/2)/center.scale
-		mouse.y = (e.clientY-7 - canvas.height/2)/center.scale
-		log(mouse.x,mouse.y)
-
-		if (e.button == 2) {
-			mouse.right_down = true
-		}
-		else {
-			mouse.left_down = true
-		}
-
-		mouse.prev_x = mouse.x
-		mouse.prev_y = mouse.y
+		client[e.button == 2 ? 'right_down' : 'left_down'] = true
+		client.prev_spot = spot
 	})
 
 	$(document).mouseup(e => {
+		const canvas = e.target
+		const time = Lib.time
+		const center = get_center(canvas)
+		set_spot(e, center)
 
-		mouse.x = (e.clientX-7 - mouse.width/2)/mouse.scale
-		mouse.y = (e.clientY-7 - mouse.height/2)/mouse.scale
+		const {root,spot} = client
 
-		if (mouse.left_down) {
-			// TODO
-			log(Lib.time)
+		if (client.left_down) {
+			game.build_to(time)
+			const cause = client.state.get_spec( game, spot.at(time) )
+			cause && cause.push()
 		}
 
-		if (e.button == 2) {
-			mouse.right_down = false
-		}
-		else {
-			mouse.left_down = false
-		}
-
-		mouse.prev_x = mouse.x
-		mouse.prev_y = mouse.y
+		client[e.button == 2 ? 'right_down' : 'left_down'] = false
+		client.prev_spot = spot
 	})
 
 	$(document).keypress(e => {
     var c = String.fromCharCode(e.which | 0x20)
 
 		// delete: e.which = 127
+		if (c == ' ') {
+			game.build_to(Lib.time)
+			log(game)
+		}
   })
 
   $(document).keyup(e => {
@@ -156,31 +125,27 @@ function MazeGame() {
 	function tick() {
 
 		const canvas = document.getElementById('canvas')
-		const ctx = canvas.getContext('2d')
-		mouse.width = canvas.width = window.innerWidth - 20
-		mouse.height = canvas.height = window.innerHeight - 22
+		const ctx = canvas.getContext('2d') // CanvasRenderingContext2D
+		canvas.width = window.innerWidth - 20
+		canvas.height = window.innerHeight - 20
 		window.requestAnimationFrame(tick)
 
 		const now = Lib.now()
 		const prev_now = client.prev_now
 		const deltaT = now - prev_now > max_deltaT ? max_deltaT : now - prev_now
 
-		const center = get_center(canvas)
+		const time = Lib.time
+		const center = get_center(canvas, time)
 		const {root,spot} = client
-		const _center = center.copy(1)
+		const _center = center.strip()
 		const _spot = spot.sub(root,1).mul(center.scale).sum(_center)
 
-		ctx.strokeStyle = 'white'
-		ctx.beginPath()
-		_center.lineTo = ctx
-		_spot.lineTo = ctx
-		ctx.closePath()
-		ctx.stroke()
+		game.build_to(time)
+		const effect = client.state.get_spec( game, spot.at(time), )
+		game.draw( ctx, center, root, )
+		effect && effect.set_spec()
 
-		// client.prev_now = now
-		// mouse.scale = (
-		// 	mouse.width > mouse.height ? mouse.height : mouse.width
-		// ) / client.scale
+		client.prev_now = now
 	}
 
 	log('index.js')

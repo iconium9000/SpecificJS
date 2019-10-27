@@ -1,3 +1,21 @@
+/*
+static idx(
+  events, // Type[]
+  time,
+) {
+  let l = 0, r = events.length - 1
+  while (l <= r) {
+    let m = Math.floor((l + r) / 2)
+    const dif = time - events[m].time
+    if (dif > 0) l = m + 1
+    else if (dif < 0) r = m - 1
+    else return m
+  }
+  return r
+}
+
+*/
+
 const Lib = module.exports = {
   get time() {
     return (new Date()).getTime()
