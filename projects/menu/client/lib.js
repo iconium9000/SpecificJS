@@ -41,7 +41,7 @@ function inverse_angle(angle) {
   return angle + pi > pi ? angle - pi : angle + pi
 }
 
-Lib.bin_idx = (array, value, label) => {
+Lib.bin_idx_high = (array, value, label) => {
   let l = 0, r = array.length - 1, m = r
   while (l <= r) {
     const dif = value - array[m][label]
@@ -52,6 +52,24 @@ Lib.bin_idx = (array, value, label) => {
         const dif = value - array[m+1][label]
         if (dif < 0) return m
         else ++m
+      }
+      return m
+    }
+    m = Math.floor((l + r) / 2)
+  }
+  return r
+}
+Lib.bin_idx_low = (array, value, label) => {
+  let l = 0, r = array.length - 1, m = r
+  while (l <= r) {
+    const dif = value - array[m][label]
+    if (dif > 0) l = m + 1
+    else if (dif < 0) r = m - 1
+    else {
+      while (m > l) {
+        const dif = value - array[m-1][label]
+        if (dif > 0) return m
+        else --m
       }
       return m
     }

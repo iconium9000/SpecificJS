@@ -78,7 +78,7 @@ function MazeGame() {
 			if (game) {
 				log(game)
 				log(game.get_label(time, 'level'))
-				log(game.get_range('level'))
+				log(game.get_label_map(time, 'level', 'time'))
 			}
 		}
 
@@ -119,9 +119,12 @@ function MazeGame() {
 
 	  log(client.full_name, 'connected to server')
 
-		client.game = new Game(Lib.time, client.socket.id)
-		client.game.push(new Level(Lib.time, client.game))
-
+		const time = Lib.time
+		const game = new Game(time, client.socket.id)
+		const level = new Level(time, game)
+		game.push(level)
+		level.push(new Effect(time+2000,level,'stop_time',time+2000,true))
+		client.game = game
 	  tick()
 	})
 

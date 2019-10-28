@@ -4,14 +4,7 @@ module.exports = (project_name, Lib) => {
   const err = console.error
   const pi = Math.PI, pi2 = pi*2
 
-  function AddLabel(
-    time_map, // []{.time}
-    label, // String,Int
-    label_name, // String
-    value, // Object,Null
-  ) {
 
-  }
 
   MazeGame = {}
 
@@ -268,10 +261,10 @@ module.exports = (project_name, Lib) => {
     ) {
       const {_label_timelines: _ltls} = this, {time,_label} = effect
       const timeline = _ltls[_label] || (_ltls[_label] = [])
-      timeline.splice(1+Lib.bin_idx(timeline, time, 'time'), 0, effect)
+      timeline.splice(1+Lib.bin_idx_high(timeline, time, 'time'), 0, effect)
     }
 
-    get_value(
+    value_at(
       time, // Int
     ) {
       if (this.time > time) return undefined
@@ -279,14 +272,15 @@ module.exports = (project_name, Lib) => {
     }
 
     valid_at(
-      time,
-      label,
-      effect,
+      time, // Int
+      effect, // Effect,Null
     ) {
-      return (
-        (effect == this && label == effect.label) ||
-        time <= effect.get_label(time, 'stop_time', Infinity)
-      )
+      if (this.time > time) return false
+      if (effect == this && this._label == 'stop_time') {
+        return time <= this._value
+      }
+      else return time <= this.get_label(time, 'stop_time', Infinity)
+  
     }
 
     get_label(
@@ -296,29 +290,54 @@ module.exports = (project_name, Lib) => {
     ) {
       const timeline = this._label_timelines[label]
       if (!timeline) return null_value
-      for (let idx = Lib.bin_idx(timeline, time, 'time'); idx >= 0; --idx) {
-        const effect = timeline[idx]
-        if (this.valid_at(time, label, effect)) {
-          return effect.get_value(time)
+      let idx = Lib.bin_idx_high(timeline, time, 'time')
+      while ( idx >= 0 ) {
+        const effect = timeline[idx--]
+        if (effect.valid_at(time, this)) {
+          return effect.value_at(time)
         }
       }
       return null_value
     }
 
     get_range(
+      start_time,stop_time // Int
       label, // String
+      include_null, // Boolean,Null
     ) {
-      const range = [], timeline = this._label_timelines[label]
-      if (!timeline) return range
-      for (let idx = 0; idx < timeline.length; ++idx) {
+      const timeline = this._label_timelines[label]
+      if (!timeline) return []
+      const range = []
+
+      let last_effect
+      while (let idx = 0; idx < timeline.length; ++idx) {
         const effect = timeline[idx]
-        if (this.valid_at(effect.time, label, effect)) {
-          range.push(effect.get_value(effect.time))
+        if (this.valid_at(effect, stop_time)) {
+
         }
       }
-      return range
+    }
+
+    get_label_map(
+      time, // Int
+      label, // String
+      index_label, // String
+    ) {
+      const label_map = {}, timeline = this._label_timelines[label]
+      if (!timeline) return label_map
+      for (let idx = 0; idx < timeline.length; ++idx) {
+        const effect = timeline[idx]
+        if (this.valid_at(effect, time)) {
+          const value = effect.value_at(time)
+          if (value != undefined) {
+            label_map[value[index_label]] = value
+          }
+        }
+      }
+      return label_map
     }
   }
+  MazeGame.Effect = Effect
 
   class Lerp extends Effect {
 
@@ -341,7 +360,7 @@ module.exports = (project_name, Lib) => {
       this._stop_effect.flag = flag
     }
 
-    get_value(
+    value_at(
       time, // Int
     ) {
       return (
@@ -354,6 +373,7 @@ module.exports = (project_name, Lib) => {
       )
     }
   }
+  MazeGame.Lerp = Lerp
 
   class Cause extends Effect {
 
@@ -406,6 +426,7 @@ module.exports = (project_name, Lib) => {
       return false
     }
   }
+  MazeGame.Cause = Cause
 
   class Game extends Cause {
 
