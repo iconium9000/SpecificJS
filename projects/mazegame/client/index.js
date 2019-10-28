@@ -16,11 +16,6 @@ function MazeGame() {
 		key_bindings[Type.key_bind] = Type
 	}
 
-	const time = Lib.time
-	const game = new Game(time)
-	game.push(new Level(time, game))
-	game.build_to(time)
-
 	const game_queue = []
 	const client = {
 	  socket: io('/mazegame'),
@@ -31,7 +26,6 @@ function MazeGame() {
 		editor: null,
 		root: new MazeGame.Point(0,0,0,20),
 		spot: new MazeGame.Point(0,0,0,1),
-		inner_shift: new MazeGame.Point(0,0,20,22),
 		right_down: false, left_down: false,
 		state: MazeGame.Wall,
 	}
@@ -76,9 +70,16 @@ function MazeGame() {
 		const {root,spot} = client
 
 		if (client.left_down) {
-			game.build_to(time)
-			const cause = client.state.get_spec( game, spot.at(time) )
-			cause && cause.push()
+			// game.build_to(time)
+			// const cause = client.state.get_spec( game, spot.at(time) )
+			// cause && cause.push()
+
+			const {game} = client
+			if (game) {
+				log(game)
+				log(game.get_label(time, 'level'))
+				log(game.get_range('level'))
+			}
 		}
 
 		client[e.button == 2 ? 'right_down' : 'left_down'] = false
@@ -90,8 +91,7 @@ function MazeGame() {
 
 		// delete: e.which = 127
 		if (c == ' ') {
-			game.build_to(Lib.time)
-			log(game)
+			const time = Lib.time
 		}
   })
 
@@ -119,6 +119,9 @@ function MazeGame() {
 
 	  log(client.full_name, 'connected to server')
 
+		client.game = new Game(Lib.time, client.socket.id)
+		client.game.push(new Level(Lib.time, client.game))
+
 	  tick()
 	})
 
@@ -140,10 +143,7 @@ function MazeGame() {
 		const _center = center.strip()
 		const _spot = spot.sub(root,1).mul(center.scale).sum(_center)
 
-		game.build_to(time)
-		const effect = client.state.get_spec( game, spot.at(time), )
-		game.draw( ctx, center, root, )
-		effect && effect.set_spec()
+		if (client.game) client.game.draw(ctx,root,center)
 
 		client.prev_now = now
 	}
