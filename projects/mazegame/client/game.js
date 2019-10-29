@@ -12,7 +12,7 @@ module.exports = (project_name, Lib) => {
     static Type = this
     static fill_color = 'black'
     static stroke_color = 'white'
-    static line_width = 0.5
+    static line_width = 0.3
 
     constructor(
       time, // Int
@@ -33,7 +33,6 @@ module.exports = (project_name, Lib) => {
     get Type() {
       return this.constructor
     }
-
   }
   class Float extends Type {
     static lerp(
@@ -100,6 +99,11 @@ module.exports = (project_name, Lib) => {
       ctx, // CanvasRenderingContext2D
     ) {
       ctx.lineTo(this.x, this.y)
+    }
+    set moveTo(
+      ctx, // CanvasRenderingContext2D
+    ) {
+      ctx.moveTo(this.x, this.y)
     }
 
     constructor(
@@ -226,31 +230,21 @@ module.exports = (project_name, Lib) => {
   }
   MazeGame.Point = Point
 
-  class Effect extends Type {
-
-    // NOTE: if dst is null, dst defaults to this
+  class ChangeTracker extends Type {
     constructor(
       time, // Int
-      dst, // Effect,Null
-      label, // String,Int
-      value, // Object,Null
-      deep, // Boolean,Null
     ) {
       super(time)
-      this._label = label; this._value = value
-      this._label_timelines = {}
-      ;(dst || this).add_label(this, deep)
+      this._timeline_map = {} // Effect[]{.label}
     }
 
-    get value() { return this._value }
-    get label() { return this._label }
     remove_flag(flag) {
-      for (const label in this._label_timelines) {
-        const timeline = this._label_timelines[label]
+      for (const label in this._timeline_map) {
+        const timeline = this._timeline_map[label]
         let idx = 0
         while (idx < timeline.length) {
           const effect = timeline[idx]
-          effect.remove_flag(flag)
+          if (effect != this) effect.remove_flag(flag)
           if (effect.flag == flag) timeline.splice(idx,1)
           else ++idx
         }
@@ -261,16 +255,9 @@ module.exports = (project_name, Lib) => {
       effect, // Effect
       deep, // Boolean,Null
     ) {
-      const {_label_timelines: _ltls} = this, {time,_label} = effect
+      const {_timeline_map: _ltls} = this, {time,_label} = effect
       const timeline = _ltls[_label] || (_ltls[_label] = [])
       timeline.splice(1+Lib.bin_idx_high(timeline, time, 'time'), 0, effect)
-    }
-
-    value_at(
-      time, // Int
-    ) {
-      if (this.time > time) return undefined
-      else return this._value
     }
 
     valid_at(
@@ -289,7 +276,7 @@ module.exports = (project_name, Lib) => {
       label, // String
       null_value, // Object,Null
     ) {
-      const timeline = this._label_timelines[label]
+      const timeline = this._timeline_map[label]
       if (!timeline) return null_value
       let idx = Lib.bin_idx_high(timeline, time, 'time')
       while ( idx >= 0 ) {
@@ -309,7 +296,7 @@ module.exports = (project_name, Lib) => {
       label, // String
       include_null, // Boolean,Null
     ) {
-      const timeline = this._label_timelines[label]
+      const timeline = this._timeline_map[label]
       if (!timeline) return []
       const range = []
 
@@ -340,24 +327,46 @@ module.exports = (project_name, Lib) => {
       return range
     }
 
-    // gets Object{.<index_label>} with all the valid values
-    //   that this[label] has had up until time
-    label_map_at(
+    values_at(
       time, // Int
-      label, // String
-      index_label, // String
     ) {
-      const label_map = {}, timeline = this._label_timelines[label]
-      if (!timeline) return label_map
-      for (let idx = 0; idx < timeline.length; ++idx) {
-        const effect = timeline[idx]
-        if (effect.valid_at(time)) {
-          const value = effect.value_at(time)
-          if (value != undefined) label_map[value[index_label]] = value
-        }
-        else if (time < effect.time) break
+      const values = {}
+      for (const label in this._timeline_map) {
+        const value = this.label_at(time, label)
+        if (value != undefined) values[label] = value
       }
-      return label_map
+      return values
+    }
+  }
+
+  class Effect extends ChangeTracker {
+
+    // NOTE: if dst is null, dst defaults to this
+    // NODE: if value is undefined, value defaults to this
+    constructor(
+      time, // Int
+      description, // String
+      dst, // ChangeTracker,Null
+      label, // String,Int
+      value, // Object,Undefined,Null
+      deep, // Boolean,Null
+    ) {
+      super(time); dst = dst || this
+      this._description = description
+      this._value = value === undefined ? this : value
+      this._label = label
+      dst.add_label(this, deep)
+    }
+
+    get description() { return this._description }
+    get value() { return this._value }
+    get label() { return this._label }
+
+    value_at(
+      time, // Int
+    ) {
+      if (this.time > time) return undefined
+      else return this._value
     }
   }
   MazeGame.Effect = Effect
@@ -367,12 +376,13 @@ module.exports = (project_name, Lib) => {
 
     constructor(
       start_time,stop_time, // Int
-      dst, // Effect,Null
+      description, // String
+      dst, // ChangeTracker,Null
       label, // String,Int
       start_value,stop_value, // Type
       type, // Type.Type (type of start_value and stop_value)
     ) {
-      super(start_time, dst, label, start_value)
+      super(start_time, description, dst, label, start_value)
       this._stop_value; this._type = type; this._stop_time = stop_time
     }
 
@@ -395,12 +405,13 @@ module.exports = (project_name, Lib) => {
 
     constructor(
       time, // Int
-      dst, // Effect,Null
+      description, // String
+      dst, // ChangeTracker,Null
       label, // String,Int
       value, // Object,Null
       deep, // Boolean,Null
     ) {
-      super(time,dst,label,value,deep)
+      super(time,description,dst,label,value,deep)
       this._effects = []
       this._min_time = time
     }
@@ -408,7 +419,7 @@ module.exports = (project_name, Lib) => {
     get min_time() { return this._min_time }
 
     set flag(flag) {
-      this.flag = flag
+      super.flag = flag
       for (const idx in this._effects) this._effects[idx].flag = flag
     }
     remove_flag(flag) {
@@ -450,9 +461,16 @@ module.exports = (project_name, Lib) => {
 
     constructor(
       time, // Int
+      description, // String
       editor_id, // String
     ) {
-      super(time, null, 'editor', editor_id)
+      super(time, description, null, 'editor', editor_id)
+      this._levels = new ChangeTracker(time)
+    }
+    get levels() { return this._levels }
+    remove_flag(flag) {
+      super.remove_flag(flag)
+      this._levels.remove_flag(flag)
     }
 
     draw(
@@ -467,12 +485,23 @@ module.exports = (project_name, Lib) => {
   MazeGame.Game = Game
 
   class Level extends Cause {
+
     constructor(
       time, // Int
+      description, // String
       game, // Game
+      levels, // ChangeTracker
     ) {
-      super(time, null, 'game', game)
-      this.push(new Effect(time, game, 'level', this))
+      super(time, description, levels, time)
+      this._game = game
+      this._walls = new ChangeTracker(time)
+    }
+    get game() { return this._game }
+    get walls() { return this._walls }
+
+    remove_flag(flag) {
+      super.remove_flag(flag)
+      this._walls.remove_flag(flag)
     }
 
     draw(
@@ -480,10 +509,10 @@ module.exports = (project_name, Lib) => {
       time, // Int
       root,center, // Point
     ) {
-      const walls = this.label_map_at(time, 'wall', 'time')
-      for (const time in walls) {
-        const wall = walls[time]
-        wall.draw(ctx,time,root,center)
+
+      const walls = this._walls.values_at(time)
+      for (const label in walls) {
+        walls[label].draw(ctx,time,root,center)
       }
     }
   }
@@ -584,22 +613,25 @@ module.exports = (project_name, Lib) => {
       //   return cause
       // }
 
-      let wall = new Wall(level, spot)
-      log(level.push(wall))
+      let wall = new Wall(spot, 'added new wall', level.walls,)
+      wall.push(new Effect(spot.time, 'set wall', level, 'wall', wall))
+      level.push(wall)
       return wall
     }
 
     constructor(
-      level, // Level
       root, // Point
+      description, // String
+      walls, // ChangeTracker
     ) {
-      super(root.time, null, 'level', level)
+      const time = root.time
+      super(time, description, walls, time)
       const {single_name,default_long} = this.Type
-      this.push(new Effect(root.time, this, 'root', root))
-      this.push(new Effect(root.time, this, 'long', default_long.at(root.time)))
-      this.push(new Effect(root.time, level, single_name, this))
+      this.push(new Effect(time, 'set root', this, 'root', root))
+      this.push(new Effect(
+        time, 'set long', this, 'long', default_long.at(time)
+      ))
     }
-
 
     draw(
       ctx, // CanvasRenderingContext2D
@@ -607,14 +639,21 @@ module.exports = (project_name, Lib) => {
       root,center, // Point
     ) {
       const type = this.Type
-      const _root = type.to_root(this.label_at(time, 'root'))
-      const _long = type.to_long(this.label_at(time, 'long'))
+      const _root = (
+        type.to_root(this.label_at(time, 'root'))
+        .sub(root,1).mul(center.scale).sum(center,1)
+      )
+      const _spot = _root.sum(
+        type.to_long(this.label_at(time, 'long'))
+        .mul(center.scale)
+      )
 
       ctx.strokeStyle = type.stroke_color
       ctx.lineWidth = type.line_width * center.scale
       ctx.beginPath()
-      _root.ctx = ctx
-      _root.sum(_long).ctx = ctx
+      ctx.lineCap = "round"
+      _root.moveTo = ctx
+      _spot.lineTo = ctx
       ctx.closePath()
       ctx.stroke()
     }
