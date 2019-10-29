@@ -10,6 +10,9 @@ module.exports = (project_name, Lib) => {
 
   class Type {
     static Type = this
+    static fill_color = 'black'
+    static stroke_color = 'white'
+    static line_width = 0.5
 
     constructor(
       time, // Int
@@ -130,9 +133,10 @@ module.exports = (project_name, Lib) => {
 
     dot(
       point, // Point
+      scale, // Float,Null
     ) {
-      const {x:tx,y:ty} = this, {x:px,y:py} = point
-      return tx*px + ty*py
+      const {x,y} = this, {_x,_y,_scale} = point
+      return (x*+_x + y*+_y) * (scale != undefined ? scale : _scale)
     }
 
     sum(
@@ -196,11 +200,9 @@ module.exports = (project_name, Lib) => {
       min,max,round, // Float
     ) {
       const {time,_x,_y,_scale} = this
-      return new Point(time,_x,_y,
-        _scale < min ? min :
-        max < _scale ? max :
-        0 < round ? Math.round(_scale / round) * round :
-        _scale
+      return new Point(time, _x,_y,
+        _scale < min ? min : max < _scale ? max :
+        0 < round ? Math.round(_scale / round) * round : _scale
       )
     }
 
@@ -237,7 +239,7 @@ module.exports = (project_name, Lib) => {
       super(time)
       this._label = label; this._value = value
       this._label_timelines = {}
-      ;(dst || this).add_effect(this, deep)
+      ;(dst || this).add_label(this, deep)
     }
 
     get value() { return this._value }
@@ -255,7 +257,7 @@ module.exports = (project_name, Lib) => {
       }
     }
 
-    add_effect(
+    add_label(
       effect, // Effect
       deep, // Boolean,Null
     ) {
@@ -275,15 +277,14 @@ module.exports = (project_name, Lib) => {
       time, // Int
       effect, // Effect,Null
     ) {
-      if (this.time > time) return false
-      if (effect == this && this._label == 'stop_time') {
-        return time <= this._value
-      }
-      else return time <= this.get_label(time, 'stop_time', Infinity)
-  
+      return (
+        time < this.time ? false :
+        effect == this && this._label == 'stop_time' ? time <= this._value :
+        time <= this.label_at(time, 'stop_time', Infinity)
+      )
     }
 
-    get_label(
+    label_at(
       time, // Int
       label, // String
       null_value, // Object,Null
@@ -300,8 +301,11 @@ module.exports = (project_name, Lib) => {
       return null_value
     }
 
-    get_range(
-      start_time,stop_time // Int
+    // gets Object[] with all valid values that this[label] has had
+    //   between start_time and stop_time
+    // if include_null, Object[] may contain null values
+    range_at(
+      start_time,stop_time, // Int
       label, // String
       include_null, // Boolean,Null
     ) {
@@ -309,16 +313,36 @@ module.exports = (project_name, Lib) => {
       if (!timeline) return []
       const range = []
 
-      let last_effect
-      while (let idx = 0; idx < timeline.length; ++idx) {
+      let last_effect = null
+      for (let idx = 0; idx < timeline.length; ++idx) {
         const effect = timeline[idx]
-        if (this.valid_at(effect, stop_time)) {
-
+        if (effect.valid_at(stop_time)) {
+          if (effect.time < start_time);
+          else if (effect.time <= stop_time) {
+            if (last_effect && last_effect.time < start_time) {
+              const value = last_effect.value_at(start_time)
+              if (value != undefined || include_null) range.push(value)
+            }
+            const value = effect.value_at(effect.time)
+            if (value != undefined || include_null) range.push(value)
+          }
+          last_effect = effect
         }
       }
+      if (
+        last_effect &&
+        stop_time < last_effect.time &&
+        start_time < stop_time
+      ) {
+        const value = last_effect.value_at(stop_time)
+        if (value != undefined || include_null) range.push(value)
+      }
+      return range
     }
 
-    get_label_map(
+    // gets Object{.<index_label>} with all the valid values
+    //   that this[label] has had up until time
+    label_map_at(
       time, // Int
       label, // String
       index_label, // String
@@ -327,18 +351,18 @@ module.exports = (project_name, Lib) => {
       if (!timeline) return label_map
       for (let idx = 0; idx < timeline.length; ++idx) {
         const effect = timeline[idx]
-        if (this.valid_at(effect, time)) {
+        if (effect.valid_at(time)) {
           const value = effect.value_at(time)
-          if (value != undefined) {
-            label_map[value[index_label]] = value
-          }
+          if (value != undefined) label_map[value[index_label]] = value
         }
+        else if (time < effect.time) break
       }
       return label_map
     }
   }
   MazeGame.Effect = Effect
 
+  // class that's value lerps between start and stop values
   class Lerp extends Effect {
 
     constructor(
@@ -349,15 +373,7 @@ module.exports = (project_name, Lib) => {
       type, // Type.Type (type of start_value and stop_value)
     ) {
       super(start_time, dst, label, start_value)
-      this._stop_effect = new Effect(stop_time, dst || this, label, stop_value)
-      this._stop_effect._label_timelines = this._label_timelines
-      this._type = type
-    }
-
-    get type() { return this._type}
-    set flag(flag) {
-      this.flag = flag
-      this._stop_effect.flag = flag
+      this._stop_value; this._type = type; this._stop_time = stop_time
     }
 
     value_at(
@@ -366,10 +382,10 @@ module.exports = (project_name, Lib) => {
       return (
         time < this.time ? undefined :
         time == this.time ? this._value :
-        this._type.lerp(
-          this.time, this._stop_effect.time, time,
-          this._value, this._stop_effect._value,
-        )
+        time < this._stop_time ? this._type.lerp(
+          this.time, this._stop_time, time,
+          this._value, this._stop_value,
+        ) : this_.stop_value
       )
     }
   }
@@ -389,6 +405,8 @@ module.exports = (project_name, Lib) => {
       this._min_time = time
     }
 
+    get min_time() { return this._min_time }
+
     set flag(flag) {
       this.flag = flag
       for (const idx in this._effects) this._effects[idx].flag = flag
@@ -404,13 +422,13 @@ module.exports = (project_name, Lib) => {
       }
     }
 
-    add_effect(
+    add_label(
       effect, // Effect
       deep, // Boolean,Null
     ) {
-      super.add_effect(effect, deep)
+      super.add_label(effect, deep)
       if (deep) for (const idx in this._effects) {
-        this._effects[idx].add_effect(effect, true)
+        this._effects[idx].add_label(effect, true)
       }
     }
 
@@ -439,10 +457,11 @@ module.exports = (project_name, Lib) => {
 
     draw(
       ctx, // CanvasRenderingContext2D
+      time, // Int
       root,center, // Point
     ) {
-      const level = this.get_label(center.time, 'level')
-      if (level) level.draw(ctx,root,center)
+      const level = this.label_at(time, 'level')
+      if (level) level.draw(ctx,time,root,center)
     }
   }
   MazeGame.Game = Game
@@ -458,14 +477,147 @@ module.exports = (project_name, Lib) => {
 
     draw(
       ctx, // CanvasRenderingContext2D
+      time, // Int
       root,center, // Point
     ) {
-
+      const walls = this.label_map_at(time, 'wall', 'time')
+      for (const time in walls) {
+        const wall = walls[time]
+        wall.draw(ctx,time,root,center)
+      }
     }
   }
   MazeGame.Level = Level
-  class Wall extends Cause {
 
+  class Wall extends Cause {
+    static single_name = 'wall'
+    static root_round = 2
+    static long_round = 2
+    static long_min = 2
+    static short_min = 1
+    static short_max = 1
+    static short_sign = false
+
+    static get default_long() {
+      const {long_min,short_min} = this
+      return new Point(0,long_min,short_min)
+    }
+    static to_root(
+      point,  // Point
+    ) {
+      return point.round(this.root_round)
+    }
+    static to_long(
+      point,  // Point
+    ) {
+      const {long_min,long_max,long_round} = this
+      return point.long.cramp(long_min,long_max,long_round)
+    }
+    static to_short(
+      point,  // Point
+    ) {
+      const {short_min,short_max,short_round} = this
+      return point.short.cramp(short_min,short_max,short_round)
+    }
+    static get_closest(
+      spot, // Point
+      walls, // Wall[],Wall{}
+    ) {
+      let min_dist = Infinity, return_wall = null
+      for (const label in walls) {
+        const wall = walls[label], type = wall.Type
+
+        const _root = wall.label_at(spot.time, 'root')
+        const _long = wall.label_at(spot.time, 'long')
+
+        const root = spot.sub(type.to_root(_root))
+        const long = type.to_long(_long), short = type.to_short(_long)
+
+        const long_length = long.scale, short_length = short.scale
+
+        let long_dot = root.dot(long,1), short_dot = root.dot(short,1)
+        if (!type.short_sign && short_dot < 0) short_dot = -short_dot
+
+        if (
+          0 < long_dot && long_dot < long.scale &&
+          0 < short_dot && short_dot < short.scale && short_dot < min_dist
+        ) {
+          return_wall = wall
+          min_dist = short_dot
+        }
+        return return_wall
+      }
+    }
+
+    static act_at(
+      game, // Game
+      spot, // Point
+    ) {
+      const level = game.label_at(spot.time, 'level')
+      if (!level || spot.time < level.min_time) return null
+      const {single_name} = this
+
+      // let wall = level.label_at(spot.time, single_name)
+      // if (wall && wall.min_time <= spot.time) {
+      //   const root = wall.label_at(spot.time, 'root')
+      //   const cause = new Cause(spot.time, wall, 'long', spot.sub(root))
+      //   cause.push(new Effect(spot.time, level, single_name, null))
+      //   wall.push(cause)
+      //   return cause
+      // }
+      //
+      // const walls = level.label_map_at(spot.time, single_name, 'time')
+      // wall = this.get_closest(spot, walls)
+      // if (wall && wall.min_time <= spot.time) {
+      //   const type = wall
+      //   const _root = wall.label_at(spot.time, 'root')
+      //   const _long = wall.label_at(spot.time, 'long')
+      //   const root = spot.sub(type.to_root(_root)), long = type.to_long(_long)
+      //   const long_dot = root.dot(long,1) / long.scale
+      //
+      //   const cause = new Cause(spot.time, level, single_name, wall)
+      //   if (long_dot < 0.5) {
+      //     const new_root = _root.sum(long).at(spot.time)
+      //     cause.push(new Effect(spot.time, wall, 'root', new_root))
+      //   }
+      //   wall.push(cause)
+      //   return cause
+      // }
+
+      let wall = new Wall(level, spot)
+      log(level.push(wall))
+      return wall
+    }
+
+    constructor(
+      level, // Level
+      root, // Point
+    ) {
+      super(root.time, null, 'level', level)
+      const {single_name,default_long} = this.Type
+      this.push(new Effect(root.time, this, 'root', root))
+      this.push(new Effect(root.time, this, 'long', default_long.at(root.time)))
+      this.push(new Effect(root.time, level, single_name, this))
+    }
+
+
+    draw(
+      ctx, // CanvasRenderingContext2D
+      time, // Int
+      root,center, // Point
+    ) {
+      const type = this.Type
+      const _root = type.to_root(this.label_at(time, 'root'))
+      const _long = type.to_long(this.label_at(time, 'long'))
+
+      ctx.strokeStyle = type.stroke_color
+      ctx.lineWidth = type.line_width * center.scale
+      ctx.beginPath()
+      _root.ctx = ctx
+      _root.sum(_long).ctx = ctx
+      ctx.closePath()
+      ctx.stroke()
+    }
   }
   MazeGame.Wall = Wall
 

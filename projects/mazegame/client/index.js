@@ -69,17 +69,12 @@ function MazeGame() {
 
 		const {root,spot} = client
 
-		if (client.left_down) {
-			// game.build_to(time)
-			// const cause = client.state.get_spec( game, spot.at(time) )
-			// cause && cause.push()
-
-			const {game} = client
-			if (game) {
-				log(game)
-				log(game.get_label(time, 'level'))
-				log(game.get_label_map(time, 'level', 'time'))
-			}
+		const {game,state,left_down} = client
+		if (left_down && game) {
+			const effect = state.act_at(game, spot.at(time))
+			log(effect)
+			log(game)
+			log(effect && effect.label_at(time + 100, 'root'))
 		}
 
 		client[e.button == 2 ? 'right_down' : 'left_down'] = false
@@ -123,7 +118,6 @@ function MazeGame() {
 		const game = new Game(time, client.socket.id)
 		const level = new Level(time, game)
 		game.push(level)
-		level.push(new Effect(time+2000,level,'stop_time',time+2000,true))
 		client.game = game
 	  tick()
 	})
@@ -142,12 +136,18 @@ function MazeGame() {
 
 		const time = Lib.time
 		const center = get_center(canvas, time)
-		const {root,spot} = client
+		const {root,spot,state,game} = client
 		const _center = center.strip()
 		const _spot = spot.sub(root,1).mul(center.scale).sum(_center)
 
-		if (client.game) client.game.draw(ctx,root,center)
-
+		// try {
+			// const effect = state.act_at(game, spot.at(time))
+			game.draw(ctx,time,root,center)
+			// if (effect) {
+			// 	effect.flag = effect
+			// 	game.remove_flag(effect)
+			// }
+		// } catch (e) {}
 		client.prev_now = now
 	}
 
