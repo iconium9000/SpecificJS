@@ -10,9 +10,12 @@ module.exports = (project_name, Lib) => {
 
   class Type {
     static Type = this
+    static key_bind = undefined
     static fill_color = 'black'
     static stroke_color = 'white'
-    static line_width = 0.3
+    static line_width = 0.2
+    static get single_name() { return this.name.toLowerCase() }
+    static get plural_name() { return this.single_name + 's' }
 
     constructor(
       time, // Int
@@ -202,11 +205,13 @@ module.exports = (project_name, Lib) => {
     // NOTE: assumes that this._scale > 0
     cramp(
       min,max,round, // Float
+      scale, // Float,Null
     ) {
       const {time,_x,_y,_scale} = this
+      if (scale == undefined) scale = _scale
       return new Point(time, _x,_y,
-        _scale < min ? min : max < _scale ? max :
-        0 < round ? Math.round(_scale / round) * round : _scale
+        scale < min ? min : max < scale ? max :
+        0 < round ? Math.round(scale / round) * round : scale
       )
     }
 
@@ -220,255 +225,217 @@ module.exports = (project_name, Lib) => {
         new Point(time, x, y, 1)
       )
     }
-
-    effect(
-      object, // Object
-      label, // String
-    ) {
-      return new Effect(this.time, object, label, this)
-    }
   }
   MazeGame.Point = Point
 
-  class ChangeTracker extends Type {
+  class Tracker extends Type {
+
+    // NOTE: if flag is null, defaults to this
     constructor(
       time, // Int
+      flag, // Tracker,Null
     ) {
       super(time)
-      this._timeline_map = {} // Effect[]{.label}
+      this._branch = []
+      this._tracker_map = {}
+      this._effect_tracker = []
+      this._flag = flag || this
+    }
+    get flag() { return this._flag }
+    get is_valid() {
+      const {_branch} = this
+      let idx = _branch.length
+      while (idx > 0) {
+        if (_branch[--idx] != _branch[--idx].is_valid) {
+          return false
+        }
+      }
+      return true
     }
 
-    remove_flag(flag) {
-      for (const label in this._timeline_map) {
-        const timeline = this._timeline_map[label]
+    remove_flag(
+      flag, // Tracker
+    ) {
+      const {_tracker_map,_effect_tracker,_branch} = this
+      for (const label in _tracker_map) {
+        const tracker = _tracker_map[label]
         let idx = 0
-        while (idx < timeline.length) {
-          const effect = timeline[idx]
-          if (effect != this) effect.remove_flag(flag)
-          if (effect.flag == flag) timeline.splice(idx,1)
+        while (idx < tracker.length) {
+          const effect = tracker[idx]
+          if (effect._flag == flag) {
+            tracker.splice(idx,1)
+          }
           else ++idx
         }
+        if (idx == 0) delete _tracker_map[label]
+      }
+
+      for (let idx = 0; idx < _effect_tracker.length;) {
+        const effect = _effect_tracker[idx]
+        if (effect != this) effect.remove_flag(flag)
+        if (effect._flag == flag) {
+          _effect_tracker.splice(idx,1)
+        }
+        else ++idx
+      }
+
+      for (let idx = 0; idx < _branch.length;) {
+        const effect = _branch[idx]
+        if (effect._flag == flag) {
+          _branch.splice(idx,2)
+        }
+        else idx += 2
       }
     }
 
-    add_label(
+    add_branch(
+      tracker, // Tracker
+      valid, // Boolean
+    ) {
+      if (tracker != this) {
+        const {_branch,_effect_tracker} = this
+        _branch.push(tracker,valid)
+        for (const idx in _effect_tracker) {
+          _effect_tracker[idx].add_branch(tracker,valid)
+        }
+      }
+    }
+
+    set_label(
       effect, // Effect
-      deep, // Boolean,Null
+      label, // String,Int,Null
     ) {
-      const {_timeline_map: _ltls} = this, {time,_label} = effect
-      const timeline = _ltls[_label] || (_ltls[_label] = [])
-      timeline.splice(1+Lib.bin_idx_high(timeline, time, 'time'), 0, effect)
-    }
-
-    valid_at(
-      time, // Int
-      effect, // Effect,Null
-    ) {
-      return (
-        time < this.time ? false :
-        effect == this && this._label == 'stop_time' ? time <= this._value :
-        time <= this.label_at(time, 'stop_time', Infinity)
+      const {_tracker_map,_effect_tracker} = this
+      const tracker = (
+        label == undefined ? _effect_tracker :
+        _tracker_map[label] || (_tracker_map[label] = [])
       )
+      const insert_idx = 1 + Lib.bin_idx_high(tracker, effect.time, 'time')
+      for (let idx = insert_idx; idx < tracker.length; ++idx) {
+        tracker[idx].add_branch(effect,false)
+      }
+      tracker.splice(insert_idx, 0, effect)
     }
-
-    label_at(
+    get_label(
       time, // Int
-      label, // String
-      null_value, // Object,Null
+      label, // String,Int
     ) {
-      const timeline = this._timeline_map[label]
-      if (!timeline) return null_value
-      let idx = Lib.bin_idx_high(timeline, time, 'time')
-      while ( idx >= 0 ) {
-        const effect = timeline[idx--]
-        if (effect.valid_at(time, this)) {
-          return effect.value_at(time)
-        }
+      const tracker = this._tracker_map[label]
+      if (!tracker) return null
+
+      let idx = Lib.bin_idx_high(tracker, time, 'time')
+      while (idx >= 0) {
+        const effect = tracker[idx--]
+        if (effect.is_valid) return effect.get_value(time)
       }
-      return null_value
+      return null
     }
 
-    // gets Object[] with all valid values that this[label] has had
-    //   between start_time and stop_time
-    // if include_null, Object[] may contain null values
-    range_at(
-      start_time,stop_time, // Int
-      label, // String
-      include_null, // Boolean,Null
-    ) {
-      const timeline = this._timeline_map[label]
-      if (!timeline) return []
-      const range = []
-
-      let last_effect = null
-      for (let idx = 0; idx < timeline.length; ++idx) {
-        const effect = timeline[idx]
-        if (effect.valid_at(stop_time)) {
-          if (effect.time < start_time);
-          else if (effect.time <= stop_time) {
-            if (last_effect && last_effect.time < start_time) {
-              const value = last_effect.value_at(start_time)
-              if (value != undefined || include_null) range.push(value)
-            }
-            const value = effect.value_at(effect.time)
-            if (value != undefined || include_null) range.push(value)
-          }
-          last_effect = effect
-        }
-      }
-      if (
-        last_effect &&
-        stop_time < last_effect.time &&
-        start_time < stop_time
-      ) {
-        const value = last_effect.value_at(stop_time)
-        if (value != undefined || include_null) range.push(value)
-      }
-      return range
-    }
-
-    values_at(
+    get_values(
       time, // Int
     ) {
-      const values = {}
-      for (const label in this._timeline_map) {
-        const value = this.label_at(time, label)
+      const {_tracker_map} = this, values = {}
+      for (const label in _tracker_map) {
+        const value = this.get_label(time, label)
         if (value != undefined) values[label] = value
       }
       return values
     }
   }
+  MazeGame.Tracker = Tracker
+  class Effect extends Tracker {
 
-  class Effect extends ChangeTracker {
-
-    // NOTE: if dst is null, dst defaults to this
-    // NODE: if value is undefined, value defaults to this
+    // NOTE: if destination is null, defaults to this
+    // Note: if value is undefined, defaults to this
     constructor(
       time, // Int
+      flag, // Tracker,Null
       description, // String
-      dst, // ChangeTracker,Null
-      label, // String,Int
+      cause, // Tracker,Null
+      destination, // Tracker,Null
+      label, // String,Int,Null
       value, // Object,Undefined,Null
-      deep, // Boolean,Null
     ) {
-      super(time); dst = dst || this
+      super(time,flag)
       this._description = description
-      this._value = value === undefined ? this : value
       this._label = label
-      dst.add_label(this, deep)
+      this._value = value === undefined ? this : value
+
+      if (cause && time < cause.time ) return
+      else if (!destination) destination = this
+      else if (time < destination.time) return
+      destination.set_label(this, label)
+      this.add_branch(destination,true)
+      if (cause && (cause != destination || label != undefined)) {
+        cause.set_label(this, undefined)
+        if (cause != destination) this.add_branch(cause,true)
+      }
     }
 
     get description() { return this._description }
-    get value() { return this._value }
-    get label() { return this._label }
 
-    value_at(
+    get_value(
       time, // Int
     ) {
-      if (this.time > time) return undefined
-      else return this._value
+      return time < this.time ? undefined : this._value
     }
   }
   MazeGame.Effect = Effect
-
-  // class that's value lerps between start and stop values
   class Lerp extends Effect {
 
+    // NOTE: if destination is null, defaults to this
     constructor(
       start_time,stop_time, // Int
+      flag, // Tracker,Null
       description, // String
-      dst, // ChangeTracker,Null
+      cause, // Tracker,Null
+      destination, // Tracker,Null
       label, // String,Int
       start_value,stop_value, // Type
-      type, // Type.Type (type of start_value and stop_value)
+      type, // Type (~start_value.Type, ~stop_value.Type)
     ) {
-      super(start_time, description, dst, label, start_value)
-      this._stop_value; this._type = type; this._stop_time = stop_time
+      super(
+        start_time, flag, `start ${description}`,
+        cause, destination, label, start_value,
+      )
+      new Effect(
+        stop_time, this.flag, `stop ${description}`,
+        cause, destination || this, label, stop_value,
+      )
+      this._stop_time = stop_time
+      this._stop_value = stop_value
+      this._type = type
     }
 
-    value_at(
+    get_value(
       time, // Int
     ) {
       return (
         time < this.time ? undefined :
         time == this.time ? this._value :
-        time < this._stop_time ? this._type.lerp(
+        this._stop_time < time ? this._type.lerp(
           this.time, this._stop_time, time,
           this._value, this._stop_value,
-        ) : this_.stop_value
+        ) : this._stop_value
       )
     }
   }
   MazeGame.Lerp = Lerp
 
-  class Cause extends Effect {
-
+  class Game extends Tracker {
     constructor(
       time, // Int
-      description, // String
-      dst, // ChangeTracker,Null
-      label, // String,Int
-      value, // Object,Null
-      deep, // Boolean,Null
+      flag, // Tracker,Null
     ) {
-      super(time,description,dst,label,value,deep)
-      this._effects = []
-      this._min_time = time
+      super(time, flag)
+      this._levels = new Tracker(time, this.flag)
     }
 
-    get min_time() { return this._min_time }
-
-    set flag(flag) {
-      super.flag = flag
-      for (const idx in this._effects) this._effects[idx].flag = flag
-    }
-    remove_flag(flag) {
-      super.remove_flag(flag)
-      let idx = 0
-      while (idx < this._effects.length) {
-        const effect = this._effects[idx]
-        effect.remove_flag(flag)
-        if (effect.flag == flag) this._effects.splice(idx,1)
-        else ++idx
-      }
-    }
-
-    add_label(
-      effect, // Effect
-      deep, // Boolean,Null
-    ) {
-      super.add_label(effect, deep)
-      if (deep) for (const idx in this._effects) {
-        this._effects[idx].add_label(effect, true)
-      }
-    }
-
-    // return true iff successful
-    push(
-      effect, // Effect
-    ) {
-      if ( this._min_time <= effect.time ) {
-        this._effects.push(effect)
-        this._min_time = effect.time
-        return true
-      }
-      return false
-    }
-  }
-  MazeGame.Cause = Cause
-
-  class Game extends Cause {
-
-    constructor(
-      time, // Int
-      description, // String
-      editor_id, // String
-    ) {
-      super(time, description, null, 'editor', editor_id)
-      this._levels = new ChangeTracker(time)
-    }
     get levels() { return this._levels }
-    remove_flag(flag) {
+
+    remove_flag(
+      flag, // Tracker
+    ) {
       super.remove_flag(flag)
       this._levels.remove_flag(flag)
     }
@@ -478,30 +445,54 @@ module.exports = (project_name, Lib) => {
       time, // Int
       root,center, // Point
     ) {
-      const level = this.label_at(time, 'level')
+      const level = this.get_label(time, 'level')
       if (level) level.draw(ctx,time,root,center)
     }
   }
   MazeGame.Game = Game
-
-  class Level extends Cause {
+  class Level extends Effect {
 
     constructor(
       time, // Int
+      flag, // Tracker,Null
       description, // String
       game, // Game
-      levels, // ChangeTracker
     ) {
-      super(time, description, levels, time)
+      super(
+        time, flag, description,
+        game, game, 'level', undefined,
+      )
+      flag = this.flag
       this._game = game
-      this._walls = new ChangeTracker(time)
+      this._walls = new Tracker(time, flag)
+      this._doors = new Tracker(time, flag)
+      this._portals = new Tracker(time, flag)
+      this._locks = new Tracker(time, flag)
+      this._lasers = new Tracker(time, flag)
+      this._keys = new Tracker(time, flag)
+      this._jacks = new Tracker(time, flag)
     }
+
     get game() { return this._game }
     get walls() { return this._walls }
+    get doors() { return this._doors }
+    get portals() { return this._portals }
+    get locks() { return this._locks }
+    get lasers() { return this._lasers }
+    get keys() { return this._keys }
+    get jacks() { return this._jacks }
 
-    remove_flag(flag) {
+    remove_flag(
+      flag, // Tracker
+    ) {
       super.remove_flag(flag)
       this._walls.remove_flag(flag)
+      this._doors.remove_flag(flag)
+      this._portals.remove_flag(flag)
+      this._locks.remove_flag(flag)
+      this._lasers.remove_flag(flag)
+      this._keys.remove_flag(flag)
+      this._jacks.remove_flag(flag)
     }
 
     draw(
@@ -509,8 +500,27 @@ module.exports = (project_name, Lib) => {
       time, // Int
       root,center, // Point
     ) {
-
-      const walls = this._walls.values_at(time)
+      const locks = this._locks.get_values(time)
+      for (const label in locks) {
+        locks[label].draw(ctx,time,root,center)
+      }
+      const jacks = this._jacks.get_values(time)
+      for (const label in jacks) {
+        jacks[label].draw(ctx,time,root,center)
+      }
+      const keys = this._keys.get_values(time)
+      for (const label in keys) {
+        keys[label].draw(ctx,time,root,center)
+      }
+      const portals = this._portals.get_values(time)
+      for (const label in portals) {
+        portals[label].draw(ctx,time,root,center)
+      }
+      const doors = this._doors.get_values(time)
+      for (const label in doors) {
+        doors[label].draw(ctx,time,root,center)
+      }
+      const walls = this._walls.get_values(time)
       for (const label in walls) {
         walls[label].draw(ctx,time,root,center)
       }
@@ -518,14 +528,157 @@ module.exports = (project_name, Lib) => {
   }
   MazeGame.Level = Level
 
-  class Wall extends Cause {
-    static single_name = 'wall'
-    static root_round = 2
+  class Lock extends Effect {
+    static key_bind = 'l'
+    static long_min = 3
+    static long_max = 3
+    static long_round = 3
+    static radius = 0.5
+
+    static to_root(
+      point
+    ) {
+      return point
+    }
+    static to_long(
+      point
+    ) {
+      const {long_min,long_max,long_round} = this
+      return point.cramp(long_min,long_max,long_round)
+    }
+
+    constructor(
+      root,long, // Point @ time
+      flag, // Tracker,Null
+      description,lock_name, // String
+      level, // Level
+      target, // Tracker
+    ) {
+      const time = root.time
+      constructor(
+        time, flag, description,
+        target, level.locks, time, undefined,
+      )
+      new Effect(
+        time, this.flag, `set ${lock_name}`,
+        this, target, lock_name, this
+      )
+      new Effect(
+        time, this.flag, 'set root',
+        this, this, 'root', root,
+      )
+      new Effect(
+        time, this.flag, 'set long',
+        this, this, 'long', long,
+      )
+    }
+
+    static get_closest(
+      spot, // Point
+      locks, // Lock[],Lock{}
+    ) {
+      let min_dist = Infinity, return_lock = null
+      for (const label in locks) {
+        const lock = locks[label], type = lock.Type
+
+        const _root = type.to_root(lock.get_label(spot.time, 'root'))
+        const _long = type.to_long(lock.get_label(spot.time, 'long'))
+        const _dist = _root.sum(_long).sub(spot).length
+
+        if (_dist < min_dist && _dist < type.radius) {
+          return_lock = lock
+          min_dist = _dist
+        }
+      }
+      return return_lock
+    }
+
+    static act_at(
+      game, // Game
+      spot, // Point
+    ) {
+      const time = spot.time
+      const level = game.get_label(time, 'level')
+      if (!level || time < level.time) return null
+      const {single_name,plural_name,long_min,long_max,long_round} = this
+
+
+      let lock = level.get_label(time, 'target')
+      if (lock) {
+        const _root = lock.get_label(time, 'root')
+        const _long = lock.get_label(time, 'long').unit
+        const _spot = spot.sub(_root)
+        const spot_dot = _spot.dot(_long, 1)
+
+        let reset_long = null
+        if (spot_dot > 0) {
+          const new_long = type.to_long(_long.strip(spot_dot))
+          reset_long = new Effect(
+            time, null, `reset long`,
+            lock, lock, 'long', new_long.at(time),
+          )
+        }
+        const clear_target = new Effect(
+          time, reset_long, `clear target`,
+          lock, level, 'target', null,
+        )
+        return reset_long || clear_target
+      }
+
+      const locks = level.locks.get_values(time)
+      lock = this.get_closest(spot, locks)
+      if (lock) {
+        const type = lock.Type
+        const set_level_target = new Effect(
+          time, null, `set level target`,
+          lock, level, 'target', lock,
+        )
+        return set_level_target
+      }
+
+      const doors = level.doors.get_values(time)
+    }
+
+    draw(
+      ctx, // CanvasRenderingContext2D
+      time, // Int
+      root,center, // Point
+    ) {
+      const type = this.Type
+      const __root = type.to_root(this.get_label(time, 'root'))
+      const _root = __root.sub(root,1).mul(center.scale).sum(center,1)
+      const __long = type.to_long(this.get_label(time, 'long'))
+      const _long = __long.mul(center.scale)
+      const _spot = _root.sum(_long)
+
+      ctx.strokeStyle = type.stroke_color
+      ctx.fill_color = type.fill_color
+      ctx.lineWidth = type.line_width * center.scale
+      ctx.beginPath()
+      ctx.lineCap = "round"
+      _root.moveTo = ctx
+      _spot.lineTo = ctx
+      ctx.closePath()
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.arc(ctx, _root.x, _root.y, type.radius * center.scale, 0, pi2)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+    }
+  }
+  MazeGame.Lock = Lock
+
+  class Wall extends Effect {
+    static key_bind = 'w'
+    static root_round = 1
     static long_round = 2
     static long_min = 2
     static short_min = 1
     static short_max = 1
     static short_sign = false
+    static locks = []
 
     static get default_long() {
       const {long_min,short_min} = this
@@ -556,8 +709,8 @@ module.exports = (project_name, Lib) => {
       for (const label in walls) {
         const wall = walls[label], type = wall.Type
 
-        const _root = wall.label_at(spot.time, 'root')
-        const _long = wall.label_at(spot.time, 'long')
+        const _root = wall.get_label(spot.time, 'root')
+        const _long = wall.get_label(spot.time, 'long')
 
         const root = spot.sub(type.to_root(_root))
         const long = type.to_long(_long), short = type.to_short(_long)
@@ -574,63 +727,130 @@ module.exports = (project_name, Lib) => {
           return_wall = wall
           min_dist = short_dot
         }
-        return return_wall
       }
+      return return_wall
     }
 
     static act_at(
       game, // Game
       spot, // Point
     ) {
-      const level = game.label_at(spot.time, 'level')
-      if (!level || spot.time < level.min_time) return null
-      const {single_name} = this
+      const time = spot.time
+      const level = game.get_label(time, 'level')
+      if (!level || time < level.time) return null
+      const {single_name,plural_name} = this
 
-      // let wall = level.label_at(spot.time, single_name)
-      // if (wall && wall.min_time <= spot.time) {
-      //   const root = wall.label_at(spot.time, 'root')
-      //   const cause = new Cause(spot.time, wall, 'long', spot.sub(root))
-      //   cause.push(new Effect(spot.time, level, single_name, null))
-      //   wall.push(cause)
-      //   return cause
-      // }
-      //
-      // const walls = level.label_map_at(spot.time, single_name, 'time')
-      // wall = this.get_closest(spot, walls)
-      // if (wall && wall.min_time <= spot.time) {
-      //   const type = wall
-      //   const _root = wall.label_at(spot.time, 'root')
-      //   const _long = wall.label_at(spot.time, 'long')
-      //   const root = spot.sub(type.to_root(_root)), long = type.to_long(_long)
-      //   const long_dot = root.dot(long,1) / long.scale
-      //
-      //   const cause = new Cause(spot.time, level, single_name, wall)
-      //   if (long_dot < 0.5) {
-      //     const new_root = _root.sum(long).at(spot.time)
-      //     cause.push(new Effect(spot.time, wall, 'root', new_root))
-      //   }
-      //   wall.push(cause)
-      //   return cause
-      // }
+      let wall = level.get_label(time, 'target')
+      if (wall) {
+        const type = wall.Type
+        const root = wall.get_label(time, 'root')
+        const reset_long = new Effect(
+          time, null, `reset long`,
+          wall, wall, 'long', spot.sub(root).at(time),
+        )
+        new Effect(
+          time, reset_long, `clear target`,
+          wall, level, 'target', null,
+        )
+        wall.reroot_locks(time, reset_long)
+        return reset_long
+      }
 
-      let wall = new Wall(spot, 'added new wall', level.walls,)
-      wall.push(new Effect(spot.time, 'set wall', level, 'wall', wall))
-      level.push(wall)
-      return wall
+      const walls = level[plural_name].get_values(time)
+      wall = this.get_closest(spot, walls)
+      if (wall) {
+        const type = wall.Type
+        const _root = wall.get_label(time, 'root')
+        const _long = wall.get_label(time, 'long')
+        const root = spot.sub(type.to_root(_root))
+        const long = type.to_long(_long), short = type.to_short(_long)
+        const long_dot = root.dot(long,1) / long.scale
+
+        const set_level_target = new Effect(
+          time, null, `set level target`,
+          wall, level, 'target', wall,
+        )
+        if (long_dot < 0.5) {
+          const {abs_x,abs_y,x,y} = _long
+          new Effect(
+            time, set_level_target, `flipped ${single_name} root`,
+            set_level_target, wall, 'root',
+            _root.sum(long).at(time),
+          )
+          new Effect(
+            time, set_level_target, `flipped ${single_name} long`,
+            set_level_target, wall, 'long', _long.set(-1).at(time),
+          )
+          wall.reroot_locks(time, set_level_target)
+        }
+        return set_level_target
+      }
+
+      const new_wall = new this(
+        spot, null, `added new ${single_name} to level`,
+        level, level[plural_name]
+      )
+      new Effect(
+        time, new_wall, `set level target`,
+        new_wall, level, 'target', new_wall,
+      )
+      return new_wall
     }
 
     constructor(
-      root, // Point
+      root, // Point @ time
+      flag, // Tracker,Null
       description, // String
-      walls, // ChangeTracker
+      level, // Level
+      walls, // Tracker
     ) {
       const time = root.time
-      super(time, description, walls, time)
-      const {single_name,default_long} = this.Type
-      this.push(new Effect(time, 'set root', this, 'root', root))
-      this.push(new Effect(
-        time, 'set long', this, 'long', default_long.at(time)
-      ))
+      super(
+        time, flag, description,
+        level, walls, time, undefined
+      )
+      this._level = level
+      new Effect(
+        time, this.flag, 'set root',
+        this, this, 'root', root,
+      )
+      new Effect(
+        time, this.flag, 'set long',
+        this, this, 'long', this.Type.default_long.at(time),
+      )
+    }
+    get level() { return this._level }
+
+    reroot_locks(
+      time, // Int
+      flag, // Tracker
+    ) {
+      const {locks} = this.Type
+      for (const lock_name in locks) {
+        const lock = this.get_label(time, lock_name)
+        if (lock) {
+          // TODO REROOT LOCK
+        }
+      }
+    }
+
+    remove(
+      time, // Int
+      flag,cause, // Tracker,Null
+    ) {
+      const {locks,plural_name,single_name} = this.Type
+      const walls = this.level[plural_name]
+      cause = cause || this
+      const remove_wall = new Effect(
+        time, flag, `remove ${single_name} from level`,
+        cause, walls, this.time, null,
+      )
+      flag = flag || remove_wall
+      for (const lock_name in locks) {
+        const lock = this.get_label(time, lock_name)
+        if (lock) lock.remove(time, flag, cause)
+      }
+      return remove_wall
     }
 
     draw(
@@ -640,11 +860,11 @@ module.exports = (project_name, Lib) => {
     ) {
       const type = this.Type
       const _root = (
-        type.to_root(this.label_at(time, 'root'))
+        type.to_root(this.get_label(time, 'root'))
         .sub(root,1).mul(center.scale).sum(center,1)
       )
       const _spot = _root.sum(
-        type.to_long(this.label_at(time, 'long'))
+        type.to_long(this.get_label(time, 'long'))
         .mul(center.scale)
       )
 
@@ -659,6 +879,222 @@ module.exports = (project_name, Lib) => {
     }
   }
   MazeGame.Wall = Wall
+
+  class Door extends Wall {
+    static key_bind = 'd'
+    static long_min = 4
+
+    static locks = {
+      'root_short': [],
+      'root_long': [],
+      'spot_short': [],
+      'spot_long': [],
+    }
+
+    constructor(
+      root, // Point
+      flag, // Tracker,Null
+      description, // String
+      level, // Level
+      doors, // Tracker
+    ) {
+      super(root,flag,description,level,doors,)
+      new Effect(
+        this.time, this.flag, 'set open_long',
+        this, this, 'open_long', 0,
+      )
+    }
+
+    draw(
+      ctx, // CanvasRenderingContext2D
+      time, // Int
+      root,center, // Point
+    ) {
+      const type = this.Type
+      const __open_long = this.get_label(time, 'open_long')
+      const __root = type.to_root(this.get_label(time, 'root'))
+      const _root = __root.sub(root,1).mul(center.scale).sum(center,1)
+      const __long = this.get_label(time, 'long')
+      const _long = type.to_long(__long).mul(center.scale)
+      const _short = type.to_short(__long).mul(center.scale)
+      const _spot = _root.sum(_long).sum(_short)
+
+      ctx.lineWidth = type.line_width * center.scale
+      ctx.strokeStyle = type.stroke_color
+      ctx.fill_color = type.fill_color
+      ctx.lineJoin = 'round'
+      ctx.lineCap = 'round'
+
+      if (1 <= __open_long) {
+        const mid_root = _long.div(2).sum(_root)
+        const mid_spot = mid_root.sum(_short)
+
+        ctx.beginPath()
+        _root.moveTo = ctx
+        _root.sum(_long).lineTo = ctx
+        _spot.lineTo = ctx
+        _root.sum(_short).lineTo = ctx
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
+
+        ctx.beginPath()
+        mid_root.moveTo = ctx
+        mid_spot.lineTo = ctx
+        ctx.closePath()
+        ctx.stroke()
+      }
+      else if (0 < __open_long) {
+        const _open_long = _long.mul(__open_long/2)
+
+        ctx.beginPath()
+        _root.moveTo = ctx
+        _root.sum(_open_long).lineTo = ctx
+        _root.sum(_open_long).sum(_short).lineTo = ctx
+        _root.sum(_short).lineTo = ctx
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
+
+        ctx.beginPath()
+        _spot.moveTo = ctx
+        _spot.sub(_open_long).lineTo = ctx
+        _spot.sub(_open_long).sub(_short).lineTo = ctx
+        _spot.sub(_short).lineTo = ctx
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
+      }
+
+      ctx.beginPath()
+      _root.moveTo = ctx
+      _root.sum(_short).lineTo = ctx
+      _root.sum(_long,_short.scale).lineTo = ctx
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.lineCap = "round"
+      _spot.moveTo = ctx
+      _spot.sub(_short).lineTo = ctx
+      _spot.sub(_long,_short.scale).lineTo = ctx
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+    }
+  }
+  MazeGame.Door = Door
+
+  class Portal extends Door {
+    static key_bind = 'p'
+    static short_min = 3
+    static short_max = this.short_min
+    static long_min = 12
+    static long_max = this.long_min
+    static short_mid = this.short_max / 2
+    static center_long = this.long_max / 2
+    static center_short = (
+      this.short_max*this.short_max - this.short_mid*this.short_mid +
+      this.long_max * this.long_max / 4
+    ) / 2 * (this.short_max - this.short_mid)
+    static radius = Math.sqrt(
+      Math.pow(this.short_max - this.center_short, 2) +
+      Math.pow(this.long_max - this.center_long, 2)
+    )
+    static locks = {
+      lock_root: [ 0, 2, 0,-1, 0],
+      lock_cent: [ 0, 4, 0,-1, 0],
+      lock_spot: [ 0, 6, 0,-1, 0],
+    }
+
+    static to_center(
+      root,short,long, // Point
+    ) {
+      const {mid_short,center_long} = this.Type
+      return root.sum(long, center_long).sum(short, short_mid)
+    }
+
+    draw(
+      ctx, // CanvasRenderingContext2D
+      time, // Int
+      root,center, // Point
+    ) {
+      const type = this.Type
+      const __open_long = this.get_label(time, 'open_long')
+      const __root = type.to_root(this.get_label(time, 'root'))
+      const _root = __root.sub(root,1).mul(center.scale).sum(center,1)
+      const __long = this.get_label(time, 'long')
+      const _long = type.to_long(__long).mul(center.scale)
+      const _short = type.to_short(__long).mul(center.scale)
+      const _spot = _root.sum(_long).sum(_short)
+
+      ctx.lineWidth = type.line_width * center.scale
+      ctx.strokeStyle = type.stroke_color
+      ctx.fill_color = type.fill_color
+      ctx.lineJoin = 'round'
+      ctx.lineCap = 'round'
+
+      if (1 <= __open_long) {
+        const mid_root = _long.div(2).sum(_root)
+        const mid_spot = mid_root.sum(_short)
+
+        ctx.beginPath()
+        _root.moveTo = ctx
+        _root.sum(_long).lineTo = ctx
+        _spot.lineTo = ctx
+        _root.sum(_short).lineTo = ctx
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
+
+        ctx.beginPath()
+        mid_root.moveTo = ctx
+        mid_spot.lineTo = ctx
+        ctx.closePath()
+        ctx.stroke()
+      }
+      else if (0 < __open_long) {
+        const _open_long = _long.mul(__open_long/2)
+
+        ctx.beginPath()
+        _root.moveTo = ctx
+        _root.sum(_open_long).lineTo = ctx
+        _root.sum(_open_long).sum(_short).lineTo = ctx
+        _root.sum(_short).lineTo = ctx
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
+
+        ctx.beginPath()
+        _spot.moveTo = ctx
+        _spot.sub(_open_long).lineTo = ctx
+        _spot.sub(_open_long).sub(_short).lineTo = ctx
+        _spot.sub(_short).lineTo = ctx
+        ctx.closePath()
+        ctx.fill()
+        ctx.stroke()
+      }
+
+      ctx.beginPath()
+      _root.moveTo = ctx
+      _root.sum(_short).lineTo = ctx
+      _root.sum(_long,_short.scale).lineTo = ctx
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.lineCap = "round"
+      _spot.moveTo = ctx
+      _spot.sub(_short).lineTo = ctx
+      _spot.sub(_long,_short.scale).lineTo = ctx
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+    }
+  }
+
 
   return MazeGame
 }

@@ -73,6 +73,7 @@ function MazeGame() {
 		if (left_down && game) {
 			const effect = state.act_at(game, spot.at(time))
 			log(game, effect)
+			log(effect.description)
 
 			// if (effect) {
 			// 	effect.flag = effect
@@ -86,10 +87,34 @@ function MazeGame() {
 
 	$(document).keypress(e => {
     var c = String.fromCharCode(e.which | 0x20)
+		const state = key_bindings[c]
+		const time = Lib.time
+		const level = client.game && client.game.get_label(time, 'level')
+		const target = level && level.get_label(time, 'target')
 
+		if (state) {
+			client.state = state
+			log('set state to', state.name)
+			if (target) {
+				new Effect(
+	        time, level.flag, `clear level target`,
+	        target, level, 'target', null,
+	      )
+			}
+		}
 		// delete: e.which = 127
-		if (c == ' ') {
-			const time = Lib.time
+		else if (e.which == 127) {
+			if (target) {
+				const remove_target = target.remove(time,null,null)
+				log(remove_target.description)
+				new Effect(
+	        time, remove_target, `clear level target`,
+	        target, level, 'target', null,
+	      )
+			}
+		}
+		else if (c == ' ') {
+
 		}
   })
 
@@ -118,11 +143,10 @@ function MazeGame() {
 	  log(client.full_name, 'connected to server')
 
 		const time = Lib.time
-		const game = new Game(time, 'added new game', client.socket.id)
-		const level = new Level(time, 'added new level', game.levels)
-		game.push(level)
-		level.push(new Effect(time, 'set level', game, 'level', level))
+		const game = new Game(time)
+		const level = new Level(time, game, 'added new level', game)
 		client.game = game
+		log(level)
 	  tick()
 	})
 
@@ -147,10 +171,7 @@ function MazeGame() {
 		try {
 			const effect = state.act_at(game, spot.at(time))
 			game.draw(ctx,time,root,center)
-			if (effect) {
-				effect.flag = effect
-				game.remove_flag(effect)
-			}
+			if (effect) game.remove_flag(effect)
 		} catch (e) {}
 		client.prev_now = now
 	}
