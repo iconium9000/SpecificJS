@@ -69,11 +69,18 @@ function MazeGame() {
 
 		const {root,spot} = client
 
-		const {game,state,left_down} = client
-		if (left_down && game) {
+		const {game,state,left_down,right_down} = client
+		if ((left_down || right_down) && game) {
+
+			const level = game.get_label(game, 'level')
+			log(level)
+
 			const effect = state.act_at(game, spot.at(time))
 			log(game, effect)
-			log(effect.description)
+			log(effect && effect.description)
+
+			// if (effect) game.remove_prerequisite_effects(effect)
+
 
 			// if (effect) {
 			// 	effect.flag = effect
@@ -97,20 +104,16 @@ function MazeGame() {
 			log('set state to', state.name)
 			if (target) {
 				new Effect(
-	        time, level.flag, `clear level target`,
-	        target, level, 'target', null,
+	        time, `clear level target`, null,
+	        [target], [level], [level, 'target'],
 	      )
 			}
 		}
 		// delete: e.which = 127
 		else if (e.which == 127) {
 			if (target) {
-				const remove_target = target.remove(time,null,null)
+				const remove_target = target.remove( time, [level, 'target'], )
 				log(remove_target.description)
-				new Effect(
-	        time, remove_target, `clear level target`,
-	        target, level, 'target', null,
-	      )
 			}
 		}
 		else if (c == ' ') {
@@ -144,7 +147,7 @@ function MazeGame() {
 
 		const time = Lib.time
 		const game = new Game(time)
-		const level = new Level(time, game, 'added new level', game)
+		const level = new Level(time, 'added new level', game, [game, 'level'])
 		client.game = game
 		log(level)
 	  tick()
@@ -171,7 +174,7 @@ function MazeGame() {
 		try {
 			const effect = state.act_at(game, spot.at(time))
 			game.draw(ctx,time,root,center)
-			if (effect) game.remove_flag(effect)
+			if (effect) game.remove_prerequisite_effects(effect)
 		} catch (e) {}
 		client.prev_now = now
 	}

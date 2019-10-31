@@ -92,9 +92,9 @@ module.exports = (project_name, Lib) => {
     get short() {
       const {time,x,y,abs_x,abs_y} = this
       return (
-        abs_x > abs_y ?
-        new Point(time, 0, y < -1 ? -1 : 1, abs_y) :
-        new Point(time, x < -1 ? -1 : 1, 0, abs_x)
+        abs_x < abs_y ?
+        new Point(time, x < -1 ? -1 : 1, 0, abs_x) :
+        new Point(time, 0, y < -1 ? -1 : 1, abs_y)
       )
     }
 
@@ -211,7 +211,7 @@ module.exports = (project_name, Lib) => {
       if (scale == undefined) scale = _scale
       return new Point(time, _x,_y,
         scale < min ? min : max < scale ? max :
-        0 < round ? Math.round(scale / round) * round : scale
+        0 < round ? Math.ceil(scale / round) * round : scale
       )
     }
 
@@ -233,99 +233,125 @@ module.exports = (project_name, Lib) => {
     // NOTE: if flag is null, defaults to this
     constructor(
       time, // Int
-      flag, // Tracker,Null
     ) {
       super(time)
-      this._branch = []
+      this._prerequisites = []
+      this._exclusions = []
       this._tracker_map = {}
-      this._effect_tracker = []
-      this._flag = flag || this
+      this._tracker_array = []
     }
-    get flag() { return this._flag }
     get is_valid() {
-      const {_branch} = this
-      let idx = _branch.length
-      while (idx > 0) {
-        if (_branch[--idx] != _branch[--idx].is_valid) {
-          return false
-        }
-      }
+      const {_prerequisites,_exclusions} = this
+      let idx = _prerequisites.length
+      while (idx > 0) if (!_prerequisites[--idx].is_valid) return false
+      idx = _exclusions.length
+      while (idx > 0) if (_exclusions[--idx].is_valid) return false
       return true
     }
 
-    remove_flag(
-      flag, // Tracker
+    is_prerequisite(
+      prerequisite, // Tracker
     ) {
-      const {_tracker_map,_effect_tracker,_branch} = this
-      for (const label in _tracker_map) {
-        const tracker = _tracker_map[label]
+      if (prerequisite == this) return true
+      const {_prerequisites} = this
+      for (const idx in _prerequisites) {
+        if (_prerequisites[idx].is_prerequisite(prerequisite)) return true
+      }
+      return false
+    }
+    is_exclusion(
+      exclusion, // Tracker
+    ) {
+      if (exclusion == this) return true
+      const {_exclusions} = this
+      for (const idx in _exclusions) {
+        if (_exclusions[idx].is_exclusion(exclusion)) return true
+      }
+      return false
+    }
+    add_prerequisite(
+      prerequisite, // Tracker
+    ) {
+      if (prerequisite.is_prerequisite(this)) return
+      const {_prerequisites} = this
+      for (const idx in _prerequisites) {
+        if (_prerequisites[idx].is_prerequisite(prerequisite)) return
+      }
+      _prerequisites.push(prerequisite)
+    }
+    add_exclusion(
+      exclusion, // Tracker
+    ) {
+      if (exclusion.is_exclusion(this)) return
+      const {_exclusions} = this
+      for (const idx in _exclusions) {
+        if (_exclusions[idx].is_exclusion(exclusion)) return
+      }
+      _exclusions.push(exclusion)
+    }
+
+    remove_prerequisite_effects(prerequisite) {
+      const {Type,_tracker_array, _tracker_map, _exclusions} = this
+      return Type.remove_prerequisite_effects(
+        _tracker_array, _tracker_map, _exclusions, prerequisite
+      )
+    }
+    static remove_prerequisite_effects(
+      _tracker_array, _tracker_map, _exclusions,
+      prerequisite, // Tracker
+    ) {
+
+      if (_exclusions) {
         let idx = 0
-        while (idx < tracker.length) {
-          const effect = tracker[idx]
-          if (effect._flag == flag) {
-            tracker.splice(idx,1)
+        while (idx < _exclusions.length) {
+          const exclusion = _exclusions[idx]
+          if (exclusion.is_prerequisite(prerequisite)) {
+            _exclusions.splice(idx,1)
           }
           else ++idx
         }
-        if (idx == 0) delete _tracker_map[label]
       }
 
-      for (let idx = 0; idx < _effect_tracker.length;) {
-        const effect = _effect_tracker[idx]
-        if (effect != this) effect.remove_flag(flag)
-        if (effect._flag == flag) {
-          _effect_tracker.splice(idx,1)
+      let idx = 0
+      while (idx < _tracker_array.length) {
+        const tracker = _tracker_array[idx]
+        if (tracker.is_prerequisite(prerequisite)) {
+          _tracker_array.splice(idx,1)
         }
-        else ++idx
-      }
-
-      for (let idx = 0; idx < _branch.length;) {
-        const effect = _branch[idx]
-        if (effect._flag == flag) {
-          _branch.splice(idx,2)
-        }
-        else idx += 2
-      }
-    }
-
-    add_branch(
-      tracker, // Tracker
-      valid, // Boolean
-    ) {
-      if (tracker != this) {
-        const {_branch,_effect_tracker} = this
-        _branch.push(tracker,valid)
-        for (const idx in _effect_tracker) {
-          _effect_tracker[idx].add_branch(tracker,valid)
+        else {
+          ++idx
+          const {_tracker_array,_tracker_map,_exclusions} = tracker
+          this.remove_prerequisite_effects(
+            _tracker_array,_tracker_map,_exclusions,
+            prerequisite,
+          )
         }
       }
+
+      let empty = idx == 0
+      for (const label in _tracker_map) {
+        const [tracker_array, tracker_map] = _tracker_map[label]
+        if (this.remove_prerequisite_effects(
+          tracker_array, tracker_map, null, prerequisite,
+        )) delete _tracker_map[label]
+        else empty = false
+      }
+      return empty
     }
 
-    set_label(
-      effect, // Effect
-      label, // String,Int,Null
-    ) {
-      const {_tracker_map,_effect_tracker} = this
-      const tracker = (
-        label == undefined ? _effect_tracker :
-        _tracker_map[label] || (_tracker_map[label] = [])
-      )
-      const insert_idx = 1 + Lib.bin_idx_high(tracker, effect.time, 'time')
-      for (let idx = insert_idx; idx < tracker.length; ++idx) {
-        tracker[idx].add_branch(effect,false)
-      }
-      tracker.splice(insert_idx, 0, effect)
-    }
     get_label(
       time, // Int
-      label, // String,Int
+      ...labels // String,Int
     ) {
-      const tracker = this._tracker_map[label]
-      if (!tracker) return null
-
-      let idx = Lib.bin_idx_high(tracker, time, 'time')
+      let {_tracker_array,_tracker_map} = this
+      for (const idx in labels) {
+        const label = labels[idx]
+        if (!_tracker_map[label]) return null;
+        [_tracker_array,_tracker_map] = _tracker_map[label]
+      }
+      let idx = Lib.bin_idx_high(_tracker_array, time, 'time')
       while (idx >= 0) {
-        const effect = tracker[idx--]
+        const effect = _tracker_array[idx--]
         if (effect.is_valid) return effect.get_value(time)
       }
       return null
@@ -333,10 +359,18 @@ module.exports = (project_name, Lib) => {
 
     get_values(
       time, // Int
+      ...labels // String,Int
     ) {
-      const {_tracker_map} = this, values = {}
+      const values = {}
+      let {_tracker_array,_tracker_map} = this
+      for (const idx in labels) {
+        const label = labels[idx]
+        if (!_tracker_map[label]) return values;
+        [_tracker_array,_tracker_map] = _tracker_map[label]
+      }
+
       for (const label in _tracker_map) {
-        const value = this.get_label(time, label)
+        const value = this.get_label(time, ...labels, label)
         if (value != undefined) values[label] = value
       }
       return values
@@ -345,30 +379,32 @@ module.exports = (project_name, Lib) => {
   MazeGame.Tracker = Tracker
   class Effect extends Tracker {
 
-    // NOTE: if destination is null, defaults to this
     // Note: if value is undefined, defaults to this
+    // NOTE: if any prerequisite is null, defaults to this
     constructor(
       time, // Int
-      flag, // Tracker,Null
       description, // String
-      cause, // Tracker,Null
-      destination, // Tracker,Null
-      label, // String,Int,Null
       value, // Object,Undefined,Null
+      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
     ) {
-      super(time,flag)
+      super(time)
       this._description = description
-      this._label = label
       this._value = value === undefined ? this : value
 
-      if (cause && time < cause.time ) return
-      else if (!destination) destination = this
-      else if (time < destination.time) return
-      destination.set_label(this, label)
-      this.add_branch(destination,true)
-      if (cause && (cause != destination || label != undefined)) {
-        cause.set_label(this, undefined)
-        if (cause != destination) this.add_branch(cause,true)
+      for (const idx in prerequisites) {
+        const [prerequisite, ...labels] = prerequisites[idx]
+        let {_tracker_array,_tracker_map} = prerequisite || this
+        for (const idx in labels) {
+          const label = labels[idx]
+          if (!_tracker_map[label]) _tracker_map[label] = [[],{}];
+          [_tracker_array,_tracker_map] = _tracker_map[label]
+        }
+        const insert_idx = 1 + Lib.bin_idx_high(_tracker_array, time, 'time')
+        for (let idx = insert_idx; idx < _tracker_array.length; ++idx) {
+          _tracker_array[idx].add_exclusion(this)
+        }
+        _tracker_array.splice(insert_idx, 0, this)
+        if (prerequisite) this.add_prerequisite(prerequisite)
       }
     }
 
@@ -386,24 +422,20 @@ module.exports = (project_name, Lib) => {
     // NOTE: if destination is null, defaults to this
     constructor(
       start_time,stop_time, // Int
-      flag, // Tracker,Null
       description, // String
-      cause, // Tracker,Null
-      destination, // Tracker,Null
-      label, // String,Int
-      start_value,stop_value, // Type
       type, // Type (~start_value.Type, ~stop_value.Type)
+      start_value,stop_value, // Type
+      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
     ) {
       super(
-        start_time, flag, `start ${description}`,
-        cause, destination, label, start_value,
+        start_time, `start ${description}`, start_value,
+        ...prerequisites
       )
       new Effect(
-        stop_time, this.flag, `stop ${description}`,
-        cause, destination || this, label, stop_value,
+        stop_time, `stop ${description}`, stop_value,
+        [this,], ...prerequisites
       )
-      this._stop_time = stop_time
-      this._stop_value = stop_value
+      this._stop_time = stop_time; this._stop_value = stop_value
       this._type = type
     }
 
@@ -423,21 +455,11 @@ module.exports = (project_name, Lib) => {
   MazeGame.Lerp = Lerp
 
   class Game extends Tracker {
+
     constructor(
       time, // Int
-      flag, // Tracker,Null
     ) {
-      super(time, flag)
-      this._levels = new Tracker(time, this.flag)
-    }
-
-    get levels() { return this._levels }
-
-    remove_flag(
-      flag, // Tracker
-    ) {
-      super.remove_flag(flag)
-      this._levels.remove_flag(flag)
+      super(time)
     }
 
     draw(
@@ -454,73 +476,45 @@ module.exports = (project_name, Lib) => {
 
     constructor(
       time, // Int
-      flag, // Tracker,Null
       description, // String
       game, // Game
+      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
     ) {
       super(
-        time, flag, description,
-        game, game, 'level', undefined,
+        time, description, undefined,
+        [game, 'level', time], ...prerequisites
       )
-      flag = this.flag
       this._game = game
-      this._walls = new Tracker(time, flag)
-      this._doors = new Tracker(time, flag)
-      this._portals = new Tracker(time, flag)
-      this._locks = new Tracker(time, flag)
-      this._lasers = new Tracker(time, flag)
-      this._keys = new Tracker(time, flag)
-      this._jacks = new Tracker(time, flag)
     }
 
     get game() { return this._game }
-    get walls() { return this._walls }
-    get doors() { return this._doors }
-    get portals() { return this._portals }
-    get locks() { return this._locks }
-    get lasers() { return this._lasers }
-    get keys() { return this._keys }
-    get jacks() { return this._jacks }
-
-    remove_flag(
-      flag, // Tracker
-    ) {
-      super.remove_flag(flag)
-      this._walls.remove_flag(flag)
-      this._doors.remove_flag(flag)
-      this._portals.remove_flag(flag)
-      this._locks.remove_flag(flag)
-      this._lasers.remove_flag(flag)
-      this._keys.remove_flag(flag)
-      this._jacks.remove_flag(flag)
-    }
 
     draw(
       ctx, // CanvasRenderingContext2D
       time, // Int
       root,center, // Point
     ) {
-      const locks = this._locks.get_values(time)
+      const locks = this.get_values(time,'lock')
       for (const label in locks) {
         locks[label].draw(ctx,time,root,center)
       }
-      const jacks = this._jacks.get_values(time)
+      const jacks = this.get_values(time,'jack')
       for (const label in jacks) {
         jacks[label].draw(ctx,time,root,center)
       }
-      const keys = this._keys.get_values(time)
+      const keys = this.get_values(time,'key')
       for (const label in keys) {
         keys[label].draw(ctx,time,root,center)
       }
-      const portals = this._portals.get_values(time)
+      const portals = this.get_values(time,'portal')
       for (const label in portals) {
         portals[label].draw(ctx,time,root,center)
       }
-      const doors = this._doors.get_values(time)
+      const doors = this.get_values(time,'door')
       for (const label in doors) {
         doors[label].draw(ctx,time,root,center)
       }
-      const walls = this._walls.get_values(time)
+      const walls = this.get_values(time,'wall')
       for (const label in walls) {
         walls[label].draw(ctx,time,root,center)
       }
@@ -549,29 +543,19 @@ module.exports = (project_name, Lib) => {
 
     constructor(
       root,long, // Point @ time
-      flag, // Tracker,Null
-      description,lock_name, // String
+      description, // String
       level, // Level
       target, // Tracker
+      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
     ) {
       const time = root.time
-      constructor(
-        time, flag, description,
-        target, level.locks, time, undefined,
-      )
-      new Effect(
-        time, this.flag, `set ${lock_name}`,
-        this, target, lock_name, this
-      )
-      new Effect(
-        time, this.flag, 'set root',
-        this, this, 'root', root,
-      )
-      new Effect(
-        time, this.flag, 'set long',
-        this, this, 'long', long,
-      )
+      super(time, description, undefined, ...prerequisites)
+      this._target = target; this._level = level
+      new Effect(time, 'set root', root, [this], [this, 'root'])
+      new Effect(time, 'set long', long, [this], [this, 'long'])
     }
+    get level() { return this._level }
+    get target() { return this._target }
 
     static get_closest(
       spot, // Point
@@ -614,29 +598,43 @@ module.exports = (project_name, Lib) => {
         if (spot_dot > 0) {
           const new_long = type.to_long(_long.strip(spot_dot))
           reset_long = new Effect(
-            time, null, `reset long`,
-            lock, lock, 'long', new_long.at(time),
+            time, `reset long`, new_long.at(time),
+            [lock], [lock, 'long'],
           )
         }
         const clear_target = new Effect(
-          time, reset_long, `clear target`,
-          lock, level, 'target', null,
+          time, `clear target`, null,
+          [reset_long || lock], [level, 'target'],
         )
         return reset_long || clear_target
       }
 
-      const locks = level.locks.get_values(time)
+      const locks = level.get_values(time, 'lock')
       lock = this.get_closest(spot, locks)
       if (lock) {
         const type = lock.Type
         const set_level_target = new Effect(
-          time, null, `set level target`,
-          lock, level, 'target', lock,
+          time, `set level target`, lock,
+          [lock], [level, 'target'],
         )
         return set_level_target
       }
 
-      const doors = level.doors.get_values(time)
+      const doors = level.get_values(time, 'door')
+    }
+
+    remove(
+      time, // Int
+      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+    ) {
+      const {level, Type: {single_name}} = this
+      const remove_lock = new Effect(
+        time, `remove ${single_name} from level`, null,
+        [this], [level, single_name, this.time], ...prerequisites
+      )
+      const key = this.get_label(time, 'key')
+      if (key) key.remove(time, [remove_lock], [this, 'key'])
+      return remove_lock
     }
 
     draw(
@@ -745,78 +743,80 @@ module.exports = (project_name, Lib) => {
         const type = wall.Type
         const root = wall.get_label(time, 'root')
         const reset_long = new Effect(
-          time, null, `reset long`,
-          wall, wall, 'long', spot.sub(root).at(time),
+          time, `reset long`, spot.sub(root).at(time),
+          [wall], [wall, 'long'],
         )
         new Effect(
-          time, reset_long, `clear target`,
-          wall, level, 'target', null,
+          time, `clear target`, null,
+          [reset_long], [level, 'target'],
         )
         wall.reroot_locks(time, reset_long)
         return reset_long
       }
 
-      const walls = level[plural_name].get_values(time)
+      const walls = level.get_values(time, single_name)
       wall = this.get_closest(spot, walls)
       if (wall) {
         const type = wall.Type
         const _root = wall.get_label(time, 'root')
         const _long = wall.get_label(time, 'long')
-        const root = spot.sub(type.to_root(_root))
+        const _spot = spot.sub(type.to_root(_root))
         const long = type.to_long(_long), short = type.to_short(_long)
-        const long_dot = root.dot(long,1) / long.scale
+        const long_dot = _spot.dot(long,1) / long.scale
 
         const set_level_target = new Effect(
-          time, null, `set level target`,
-          wall, level, 'target', wall,
+          time, `set level target`, wall,
+          [wall], [level, 'target'],
         )
+
         if (long_dot < 0.5) {
-          const {abs_x,abs_y,x,y} = _long
-          new Effect(
-            time, set_level_target, `flipped ${single_name} root`,
-            set_level_target, wall, 'root',
-            _root.sum(long).at(time),
+          const new_root = (
+            type.short_sign ?
+            _root.sum(long).sum(short).at(time) :
+            _root.sum(long).at(time)
           )
           new Effect(
-            time, set_level_target, `flipped ${single_name} long`,
-            set_level_target, wall, 'long', _long.set(-1).at(time),
+            time, `flipped ${single_name} root`, new_root,
+            [set_level_target], [wall, 'root'],
+          )
+          new Effect(
+            time, `flipped ${single_name} long`, spot.sub(new_root),
+            [set_level_target], [wall, 'long'],
           )
           wall.reroot_locks(time, set_level_target)
+        }
+        else {
+          new Effect(
+            time, `flipped ${single_name} long`, _spot,
+            [set_level_target], [wall, 'long'],
+          )
         }
         return set_level_target
       }
 
       const new_wall = new this(
-        spot, null, `added new ${single_name} to level`,
-        level, level[plural_name]
-      )
-      new Effect(
-        time, new_wall, `set level target`,
-        new_wall, level, 'target', new_wall,
+        spot, `added new ${single_name} to level`, level,
+        [level], [level, 'target'], [level, single_name, time],
       )
       return new_wall
     }
 
     constructor(
       root, // Point @ time
-      flag, // Tracker,Null
       description, // String
       level, // Level
-      walls, // Tracker
+      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
     ) {
       const time = root.time
-      super(
-        time, flag, description,
-        level, walls, time, undefined
-      )
+      super( time, description, undefined, ...prerequisites )
       this._level = level
       new Effect(
-        time, this.flag, 'set root',
-        this, this, 'root', root,
+        time, 'set root', this.Type.to_root(root),
+        [this, 'root'],
       )
       new Effect(
-        time, this.flag, 'set long',
-        this, this, 'long', this.Type.default_long.at(time),
+        time, 'set long', this.Type.default_long.at(time),
+        [this, 'long'],
       )
     }
     get level() { return this._level }
@@ -836,19 +836,16 @@ module.exports = (project_name, Lib) => {
 
     remove(
       time, // Int
-      flag,cause, // Tracker,Null
+      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
     ) {
       const {locks,plural_name,single_name} = this.Type
-      const walls = this.level[plural_name]
-      cause = cause || this
       const remove_wall = new Effect(
-        time, flag, `remove ${single_name} from level`,
-        cause, walls, this.time, null,
+        time, `remove ${single_name} from level`, null,
+        [this], [this.level, single_name, this.time], ...prerequisites
       )
-      flag = flag || remove_wall
       for (const lock_name in locks) {
         const lock = this.get_label(time, lock_name)
-        if (lock) lock.remove(time, flag, cause)
+        if (lock) lock.remove(time, [remove_wall], [this, lock_name])
       }
       return remove_wall
     }
@@ -859,18 +856,19 @@ module.exports = (project_name, Lib) => {
       root,center, // Point
     ) {
       const type = this.Type
-      const _root = (
-        type.to_root(this.get_label(time, 'root'))
-        .sub(root,1).mul(center.scale).sum(center,1)
-      )
-      const _spot = _root.sum(
-        type.to_long(this.get_label(time, 'long'))
-        .mul(center.scale)
-      )
+      const ___root = this.get_label(time, 'root')
+      const ___long = this.get_label(time, 'long')
+      const __root = type.to_root(___root)
+      const __long = type.to_long(___long), __short = type.to_short(___long)
+      const __spot = __long.sum(__short)
+
+      const _root = __root.sub(root,1).mul(center.scale).sum(center,1)
+      const _spot = _root.sum(__long.mul(center.scale))
 
       ctx.strokeStyle = type.stroke_color
       ctx.lineWidth = type.line_width * center.scale
       ctx.beginPath()
+      ctx.lineJoin = 'round'
       ctx.lineCap = "round"
       _root.moveTo = ctx
       _spot.lineTo = ctx
@@ -883,6 +881,7 @@ module.exports = (project_name, Lib) => {
   class Door extends Wall {
     static key_bind = 'd'
     static long_min = 4
+    static short_sign = true
 
     static locks = {
       'root_short': [],
@@ -893,15 +892,14 @@ module.exports = (project_name, Lib) => {
 
     constructor(
       root, // Point
-      flag, // Tracker,Null
       description, // String
       level, // Level
-      doors, // Tracker
+      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
     ) {
-      super(root,flag,description,level,doors,)
+      super(root, description, level, ...prerequisites)
       new Effect(
-        this.time, this.flag, 'set open_long',
-        this, this, 'open_long', 0,
+        this.time, 'set open_long', 0,
+        [this], [this, 'open_long'],
       )
     }
 
