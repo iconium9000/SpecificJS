@@ -59,6 +59,30 @@ Lib.bin_idx_high = (array, value, label) => {
   }
   return r
 }
+Lib.bin_insert = (array, new_element, label) => {
+  const insert_idx = Lib.bin_idx_high(array, new_element[label], label)
+  for (let idx = insert_idx; idx >= 0; --idx) {
+    const element = array[idx]
+    if (element == new_element) return array.length
+    else if (element[label] < new_element[label]) break
+  }
+  array.splice(insert_idx+1, 0, new_element)
+  return insert_idx+2
+}
+Lib.bin_delete = (array, bad_element, label) => {
+  const delete_idx = Lib.bin_idx_high(array, bad_element[label], label)
+  for (let idx = delete_idx; idx >= 0; --idx) {
+    const element = array[idx]
+    if (element == bad_element) {
+      array.splice(idx,1)
+      return true
+    }
+    else if (element[label] < bad_element[label]) return false
+  }
+  return false
+}
+
+
 Lib.bin_idx_low = (array, value, label) => {
   let l = 0, r = array.length - 1, m = r
   while (l <= r) {

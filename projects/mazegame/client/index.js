@@ -152,7 +152,7 @@ function MazeGame() {
 			if (game) {
 				const effect = effect_stack.pop()
 				if (effect) {
-					game.remove_prerequisite_effects(effect)
+					effect.kill(game)
 					log(`removed '${effect.description}'`)
 				}
 			}
@@ -193,7 +193,7 @@ function MazeGame() {
 			ctx.fillStyle = 'white'
 			if (effect) {
 				const start = Lib.time
-				game.remove_prerequisite_effects(effect)
+				effect.kill(game)
 				const stop = Lib.time
 				ctx.fillText(stop-start, 20, 50)
 			}
