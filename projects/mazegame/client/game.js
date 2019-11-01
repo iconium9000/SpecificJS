@@ -257,9 +257,24 @@ module.exports = (project_name, Lib) => {
       super(time)
       this._prerequisites = []
       this._exclusions = []
-      this._tracker_map = {}
       this._tracker_array = []
+      this._tracker_array._map = {}
+      this._tracker_array._count = 0
+      // this._is_valid
     }
+    // get is_valid() { return this._is_valid }
+
+    _get_tracker_array(
+      ...labels // String
+    ) {
+      let {_tracker_array} = this
+      for (const idx in labels) {
+        _tracker_array = _tracker_array._map[labels[idx]]
+        if (!_tracker_array) return null
+      }
+      return _tracker_array
+    }
+
     get is_valid() {
       const {_prerequisites,_exclusions} = this
       let idx = _prerequisites.length
@@ -299,25 +314,15 @@ module.exports = (project_name, Lib) => {
       }
       _prerequisites.push(prerequisite)
     }
-    add_exclusion(
-      exclusion, // Tracker
-    ) {
-      if (exclusion.is_exclusion(this)) return
-      const {_exclusions} = this
-      for (const idx in _exclusions) {
-        if (_exclusions[idx].is_exclusion(exclusion)) return
-      }
-      _exclusions.push(exclusion)
-    }
 
     remove_prerequisite_effects(prerequisite) {
-      const {Type,_tracker_array, _tracker_map, _exclusions} = this
+      const {Type,_tracker_array, _exclusions} = this
       return Type.remove_prerequisite_effects(
-        _tracker_array, _tracker_map, _exclusions, prerequisite
+        _tracker_array, _exclusions, prerequisite
       )
     }
     static remove_prerequisite_effects(
-      _tracker_array, _tracker_map, _exclusions,
+      _tracker_array, _exclusions,
       prerequisite, // Tracker
     ) {
 
@@ -340,35 +345,33 @@ module.exports = (project_name, Lib) => {
         }
         else {
           ++idx
-          const {_tracker_array,_tracker_map,_exclusions} = tracker
+          const {_tracker_array, _exclusions} = tracker
           this.remove_prerequisite_effects(
-            _tracker_array,_tracker_map,_exclusions,
+            _tracker_array,_exclusions,
             prerequisite,
           )
         }
       }
 
-      let empty = idx == 0
-      for (const label in _tracker_map) {
-        const [tracker_array, tracker_map] = _tracker_map[label]
+      for (const label in _tracker_array._map) {
+        const tracker_array = _tracker_array._map[label]
         if (this.remove_prerequisite_effects(
-          tracker_array, tracker_map, null, prerequisite,
-        )) delete _tracker_map[label]
-        else empty = false
+          tracker_array, null, prerequisite,
+        )) {
+          delete _tracker_array._map[label]
+          --_tracker_array._count
+        }
       }
-      return empty
+      return idx == 0 && _tracker_array._count == 0
     }
 
     get_label(
       time, // Int
       ...labels // String,Int
     ) {
-      let {_tracker_array,_tracker_map} = this
-      for (const idx in labels) {
-        const label = labels[idx]
-        if (!_tracker_map[label]) return null;
-        [_tracker_array,_tracker_map] = _tracker_map[label]
-      }
+      const _tracker_array = this._get_tracker_array(...labels)
+      if (!_tracker_array) return undefined
+
       let idx = Lib.bin_idx_high(_tracker_array, time, 'time')
       while (idx >= 0) {
         const effect = _tracker_array[idx--]
@@ -382,14 +385,10 @@ module.exports = (project_name, Lib) => {
       ...labels // String,Int
     ) {
       const values = {}
-      let {_tracker_array,_tracker_map} = this
-      for (const idx in labels) {
-        const label = labels[idx]
-        if (!_tracker_map[label]) return values;
-        [_tracker_array,_tracker_map] = _tracker_map[label]
-      }
+      const _tracker_array = this._get_tracker_array(...labels)
+      if (!_tracker_array) return values
 
-      for (const label in _tracker_map) {
+      for (const label in _tracker_array._map) {
         const value = this.get_label(time, ...labels, label)
         if (value != undefined) values[label] = value
       }
@@ -400,12 +399,11 @@ module.exports = (project_name, Lib) => {
   class Effect extends Tracker {
 
     // Note: if value is undefined, defaults to this
-    // NOTE: if any prerequisite is null, defaults to this
     constructor(
       time, // Int
       description, // String
       value, // Object,Undefined,Null
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       super(time)
       this._description = description
@@ -413,18 +411,39 @@ module.exports = (project_name, Lib) => {
 
       for (const idx in prerequisites) {
         const [prerequisite, ...labels] = prerequisites[idx]
-        let {_tracker_array,_tracker_map} = prerequisite || this
+
+        let {_tracker_array} = prerequisite
         for (const idx in labels) {
           const label = labels[idx]
-          if (!_tracker_map[label]) _tracker_map[label] = [[],{}];
-          [_tracker_array,_tracker_map] = _tracker_map[label]
+          if (_tracker_array._map[label]) {
+            _tracker_array = _tracker_array._map[label]
+          }
+          else {
+            ++_tracker_array._count
+            _tracker_array = _tracker_array._map[label] = []
+            _tracker_array._count = 0
+            _tracker_array._map = {}
+          }
         }
+
         const insert_idx = 1 + Lib.bin_idx_high(_tracker_array, time, 'time')
         for (let idx = insert_idx; idx < _tracker_array.length; ++idx) {
-          _tracker_array[idx].add_exclusion(this)
+          const exclusion = _tracker_array[idx]
+          if (!exclusion.is_exclusion(this)) {
+            const {_exclusions} = exclusion
+            let flag = false
+            for (const idx in _exclusions) {
+              if (flag = _exclusions[idx].is_exclusion(this)) break
+            }
+            if (!flag) {
+              _exclusions.push(this)
+            }
+          }
+
         }
         _tracker_array.splice(insert_idx, 0, this)
-        if (prerequisite) this.add_prerequisite(prerequisite)
+
+        this.add_prerequisite(prerequisite)
       }
     }
 
@@ -445,7 +464,7 @@ module.exports = (project_name, Lib) => {
       description, // String
       type, // Type (~start_value.Type, ~stop_value.Type)
       start_value,stop_value, // Type
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       super(
         start_time, `start ${description}`, start_value,
@@ -500,7 +519,7 @@ module.exports = (project_name, Lib) => {
       time, // Int
       description, // String
       game, // Game
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       super(
         time, description, undefined,
@@ -513,7 +532,7 @@ module.exports = (project_name, Lib) => {
 
     check(
       time, // Int
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
 
       const doors = this.get_values(time, 'door')
@@ -732,10 +751,12 @@ module.exports = (project_name, Lib) => {
             time, `added new ${single_name}`, name, level, door,
             [level, single_name, time],
           )
-          new Effect(
-            time, `set new target as ${this.name}`, new_lock,
-            [new_lock], [level, 'target'],
-          )
+          if (this.long_min < this.long_max) {
+            new Effect(
+              time, `set new target as ${this.name}`, new_lock,
+              [new_lock], [level, 'target'],
+            )
+          }
           door.reroot_lock(time, name, /*[new_lock]*/)
           return new_lock
         }
@@ -750,7 +771,7 @@ module.exports = (project_name, Lib) => {
       description,name, // String
       level, // Level
       target, // Tracker
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       super(
         time, description, undefined,
@@ -765,7 +786,7 @@ module.exports = (project_name, Lib) => {
 
     remove(
       time, // Int
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       const {_level, _target, _name, } = this
       const {single_name} = this.Type
@@ -821,7 +842,7 @@ module.exports = (project_name, Lib) => {
       description,name, // String
       level, // Level
       target, // Tracker
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       super(
         time, description, name, level, target,
@@ -831,7 +852,7 @@ module.exports = (project_name, Lib) => {
 
     remove(
       time, // Int
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       return super.remove(
         time, [this._level, 'lock', this.time],
@@ -1024,7 +1045,7 @@ module.exports = (project_name, Lib) => {
       root, // Point @ time
       description, // String
       level, // Level
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       const time = root.time
       super( time, description, undefined, ...prerequisites )
@@ -1043,7 +1064,7 @@ module.exports = (project_name, Lib) => {
     reroot_lock(
       time, // Int
       lock_name, // String
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       const lock = this.get_label(time, 'lock', lock_name)
       if (lock) {
@@ -1091,7 +1112,7 @@ module.exports = (project_name, Lib) => {
 
     reroot_locks(
       time, // Int
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       for (const name in this.Type.locks) {
         this.reroot_lock(time, name, ...prerequisites)
@@ -1100,7 +1121,7 @@ module.exports = (project_name, Lib) => {
 
     remove(
       time, // Int
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       const {locks,plural_name,single_name} = this.Type
       const remove_wall = new Effect(
@@ -1163,7 +1184,7 @@ module.exports = (project_name, Lib) => {
       root, // Point
       description, // String
       level, // Level
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       super(root, description, level, ...prerequisites)
       new Effect(
@@ -1328,7 +1349,7 @@ module.exports = (project_name, Lib) => {
       root, // Point
       description, // String
       level, // Level
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       super(
         root, description, level,
@@ -1338,7 +1359,7 @@ module.exports = (project_name, Lib) => {
 
     remove(
       time, // Int
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       return super.remove(
         time, [this.level, 'door', this.time],
@@ -1552,7 +1573,7 @@ module.exports = (project_name, Lib) => {
       time, // Int
       description, // String
       level, // Level
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       super( time, description, undefined, ...prerequisites )
       new Effect(
@@ -1567,7 +1588,7 @@ module.exports = (project_name, Lib) => {
     reset_root(
       time, // Int
       point, // Point
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       const reset_root = new Effect(
         time, `reset root`, point,
@@ -1578,7 +1599,7 @@ module.exports = (project_name, Lib) => {
 
     remove(
       time, // Int
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       const {_level, _target, _name, } = this
       const {single_name} = this.Type
@@ -1658,7 +1679,7 @@ module.exports = (project_name, Lib) => {
       time, // Int
       description, // String
       level, // Level
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       super(
         time, description, level,
@@ -1680,7 +1701,7 @@ module.exports = (project_name, Lib) => {
     reset_root(
       time, // Int
       __root, // Point @ time
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       const type = this.Type, {radius} = type
       const {_nose} = this, nose_type = _nose.Type
@@ -1703,7 +1724,7 @@ module.exports = (project_name, Lib) => {
 
     remove(
       time, // Int
-      ...prerequisites // [prerequisite: Tracker,Null, ...labels: String,Int]
+      ...prerequisites // [prerequisite: Tracker, ...labels: String,Int]
     ) {
       const {level} = this
       super.remove(time, [level, 'key', this.time], ...prerequisites)
