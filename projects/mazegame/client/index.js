@@ -16,7 +16,7 @@ function MazeGame() {
 		key_bindings[Type.key_bind] = Type
 	}
 
-	const game_queue = []
+	const effect_stack = []
 	const client = {
 	  socket: io('/mazegame'),
 		now: start_time,
@@ -24,10 +24,9 @@ function MazeGame() {
 		name: null,
 		full_name: null,
 		editor: null,
-		root: new MazeGame.Point(0,0,0,20),
+		root: new MazeGame.Point(0,0,0,60),
 		spot: new MazeGame.Point(0,0,0,1),
 		right_down: false, left_down: false,
-		state: MazeGame.Wall,
 	}
 
 	function get_center(canvas) {
@@ -40,6 +39,36 @@ function MazeGame() {
 		const {root} = client, spot = new Point(Lib.time,offsetX,offsetY)
 		client.spot = spot.sub(center,1).div(center.scale).sum(root,1)
 	}
+
+	client.socket.on('connect', () => {
+		client.name = null
+	  if (typeof document.cookie == 'string') {
+	    client.name = get_cookie('name')
+	  }
+
+	  // if no name is found in cookies, get one from the user
+	  while (!client.name || client.name == 'null') {
+	    client.name = prompt('Choose a name:', client.name)
+	    document.cookie = `name=${client.name}`
+	  }
+
+		client.full_name = `'${client.name}' (${client.socket.id})`
+
+	  // reply to server with name
+	  client.socket.emit('client name', {name: client.name})
+
+	  log(client.full_name, 'connected to server')
+
+		const time = Lib.time
+		const game = new Game(time)
+		new Effect(
+			time, 'init state as Wall', MazeGame.Wall,
+			[game], [game, 'state'],
+		)
+		const level = new Level( time, 'added new level', game, [game, 'level'], )
+		client.game = game
+	  tick()
+	})
 
 	$(document).mousemove(e => {
 		const center = get_center(canvas)
@@ -71,21 +100,14 @@ function MazeGame() {
 
 		const {game,state,left_down,right_down} = client
 		if ((left_down || right_down) && game) {
-
 			const level = game.get_label(game, 'level')
-			log(level)
-
-			const effect = state.act_at(game, spot.at(time))
-			log(game, effect)
-			log(effect && effect.description)
-
-			// if (effect) game.remove_prerequisite_effects(effect)
-
-
-			// if (effect) {
-			// 	effect.flag = effect
-			// 	game.remove_flag(effect)
-			// }
+			const state = game.get_label(time, 'state')
+			const level_action = state && state.act_at(game, spot.at(time))
+			if (level_action) {
+				log(level_action.description)
+				level.check(time, [level_action])
+				effect_stack.push(level_action)
+			}
 		}
 
 		client[e.button == 2 ? 'right_down' : 'left_down'] = false
@@ -96,61 +118,53 @@ function MazeGame() {
     var c = String.fromCharCode(e.which | 0x20)
 		const state = key_bindings[c]
 		const time = Lib.time
-		const level = client.game && client.game.get_label(time, 'level')
+		const game = client.game
+		const level = game && game.get_label(time, 'level')
 		const target = level && level.get_label(time, 'target')
 
 		if (state) {
-			client.state = state
-			log('set state to', state.name)
+			const update_state = new Effect(
+				time, `set state to ${state.name}`, state,
+				[game], [game, 'state'],
+			)
 			if (target) {
-				new Effect(
+				const clear_target = new Effect(
 	        time, `clear level target`, null,
-	        [target], [level], [level, 'target'],
+	        [update_state], [target], [level], [level, 'target'],
 	      )
+				level.check(time, [clear_target])
 			}
+			log(update_state.description)
+			effect_stack.push(update_state)
 		}
 		// delete: e.which = 127
 		else if (e.which == 127) {
 			if (target) {
-				const remove_target = target.remove( time, [level, 'target'], )
-				log(remove_target.description)
+				const remove_target = target.remove( time, [level], [level, 'target'],)
+				if (remove_target) {
+					log(remove_target.description)
+					level.check(time, [remove_target])
+					effect_stack.push(remove_target)
+				}
+			}
+		}
+		else if (c == 'z') {
+			if (game) {
+				const effect = effect_stack.pop()
+				if (effect) {
+					game.remove_prerequisite_effects(effect)
+					log(`removed '${effect.description}'`)
+				}
 			}
 		}
 		else if (c == ' ') {
-
+			log( game, level, effect_stack, )
 		}
   })
 
   $(document).keyup(e => {
     var c = String.fromCharCode(e.which | 0x20)
 
-	})
-
-	client.socket.on('connect', () => {
-		client.name = null
-	  if (typeof document.cookie == 'string') {
-	    client.name = get_cookie('name')
-	  }
-
-	  // if no name is found in cookies, get one from the user
-	  while (!client.name || client.name == 'null') {
-	    client.name = prompt('Choose a name:', client.name)
-	    document.cookie = `name=${client.name}`
-	  }
-
-		client.full_name = `'${client.name}' (${client.socket.id})`
-
-	  // reply to server with name
-	  client.socket.emit('client name', {name: client.name})
-
-	  log(client.full_name, 'connected to server')
-
-		const time = Lib.time
-		const game = new Game(time)
-		const level = new Level(time, 'added new level', game, [game, 'level'])
-		client.game = game
-		log(level)
-	  tick()
 	})
 
 	function tick() {
@@ -167,15 +181,26 @@ function MazeGame() {
 
 		const time = Lib.time
 		const center = get_center(canvas, time)
-		const {root,spot,state,game} = client
+		const {root,spot,game} = client
 		const _center = center.strip()
 		const _spot = spot.sub(root,1).mul(center.scale).sum(_center)
 
+
 		try {
-			const effect = state.act_at(game, spot.at(time))
+			const state = game.get_label(time, 'state')
+			const effect = state && state.act_at(game, spot.at(time))
 			game.draw(ctx,time,root,center)
-			if (effect) game.remove_prerequisite_effects(effect)
-		} catch (e) {}
+			ctx.fillStyle = 'white'
+			if (effect) {
+				const start = Lib.time
+				game.remove_prerequisite_effects(effect)
+				const stop = Lib.time
+				ctx.fillText(stop-start, 20, 50)
+			}
+			ctx.fillText(Math.round(1/deltaT), 20, 20)
+		} catch (e) {
+			log(e)
+		}
 		client.prev_now = now
 	}
 
