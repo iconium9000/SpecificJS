@@ -270,6 +270,7 @@ module.exports = (project_name, Lib) => {
       this._effect_array._count = 0
       this._effect_array._super = null
       this._is_valid = true
+      this._is_dead = false
 
       for (const idx in prereq_paths) {
         const [prereq, ...labels] = prereq_paths[idx]
@@ -333,7 +334,9 @@ module.exports = (project_name, Lib) => {
     }
 
     kill() {
+      if (this._is_dead) return
       const {_prereq_paths,_prereqs,_prexcls,_postreqs,_postxcls,} = this
+      this._is_dead = true; this._is_valid = false
       this._prereq_paths = []; this._prereqs = []; this._prexcls = []
       this._postreqs = []; this._postxcls = []
 
@@ -1455,29 +1458,17 @@ module.exports = (project_name, Lib) => {
       if (!level || time < level.time) return null
       const {single_name,plural_name} = this
 
-      let key = level.get_label(time, 'target')
-      if (!key) {
-        const keys = level.get_values(time, 'key')
-        const key = this.get_closest(spot, keys)
-        if (key) {
-          const set_level_target = new Effect(
-            time, `set level target`, key,
-            [level], [key], [level, `target`],
-          )
-          const lock = key.get_label(time, 'lock')
-          if (lock) {
-            const clear_key = new Effect(
-              time, `remove key from lock`, null,
-              [set_level_target], [key, 'lock'], [lock], [lock, 'key'],
-            )
-            new Effect(
-              time, `set is_open to false`, false,
-              [clear_key], [lock, 'is_open'],
-            )
-          }
-          return set_level_target
-        }
+      const keys = level.get_values(time, 'key')
+      let key = this.get_closest(spot, keys)
+      if (key) {
+        const set_level_target = new Effect(
+          time, `set level target`, key,
+          [level], [key], [level, `target`],
+        )
+        return set_level_target
       }
+
+      key = level.get_label(time, 'target')
 
       const locks = level.get_values(time, 'lock')
       const lock = Lock.get_closest(spot, locks)
@@ -1501,6 +1492,18 @@ module.exports = (project_name, Lib) => {
           )
         )
       )
+      const key_type = key.Type
+      const key_lock = key.get_label(time, 'lock')
+      if (key_lock) {
+        const unlink_key_lock = new Effect(
+          time, `unlink ${key_lock.Type.name} and ${key.Type.name}`, null,
+          [effect], [key_lock], [key_lock, 'key'], [key, 'lock'],
+        )
+        new Effect(
+          time, `set is_open to false`, false,
+          [unlink_key_lock], [lock, 'is_open'],
+        )
+      }
 
       const _key_is_open = key.get_label(time, 'is_open')
       if (lock && lock != key.nose) {
