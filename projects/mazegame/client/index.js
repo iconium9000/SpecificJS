@@ -105,6 +105,7 @@ function MazeGame() {
 			const level_action = state && state.act_at(game, spot.at(time))
 			if (level_action) {
 				log(level_action.description)
+				log('polys', level.get_polys(time - 2000, time))
 				level.check(time, [level_action])
 				effect_stack.push(level_action)
 			}

@@ -4,8 +4,6 @@ module.exports = (project_name, Lib) => {
   const err = console.error
   const pi = Math.PI, pi2 = pi*2
 
-
-
   MazeGame = {}
 
   class Type {
@@ -131,6 +129,13 @@ module.exports = (project_name, Lib) => {
       this._y = y != undefined ? y : 0
       this._scale = scale != undefined ? scale : 1
     }
+    equals(
+      point, // Point,Null
+    ) {
+      if (!point) return false
+      const {x:tx, y:ty} = this, {x:px, y:py} = point
+      return tx == px && ty == py
+    }
 
     set(
       scale, // Float,Null
@@ -255,7 +260,7 @@ module.exports = (project_name, Lib) => {
       time, // Int
       description, // String
       value, // Object,Undefined,Null
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
       super(time)
       this._description = description
@@ -307,12 +312,13 @@ module.exports = (project_name, Lib) => {
       }
     }
 
+    get value() { return this._value }
     get description() { return this._description }
 
     get is_valid() { return this._is_valid }
 
     _clear_if(
-      effect_array, // TrackerArray
+      effect_array, // EffectArray
     ) {
       const {length, _count, _super, _label} = effect_array
       if (_super && length == 0 && _count == 0) {
@@ -331,6 +337,14 @@ module.exports = (project_name, Lib) => {
         if (!_effect_array) return null
       }
       return _effect_array
+    }
+    _get_valid_idx(
+      time, // Int
+      effect_array, // EffectArray
+    ) {
+      let idx = Lib.bin_idx_high(effect_array, time, 'time')
+      while (idx >= 0 && !effect_array[idx]._is_valid) --idx
+      return idx
     }
 
     kill() {
@@ -395,7 +409,7 @@ module.exports = (project_name, Lib) => {
         const effect = _effect_array[idx--]
         if (effect._is_valid) return effect.get_value(time)
       }
-      return null
+      return undefined
     }
 
     get_values(
@@ -407,8 +421,13 @@ module.exports = (project_name, Lib) => {
       if (!_effect_array) return values
 
       for (const label in _effect_array._map) {
-        const value = this.get_label(time, ...labels, label)
-        if (value != undefined) values[label] = value
+        const effect_array = _effect_array._map[label]
+        const idx = this._get_valid_idx(time, effect_array)
+        const effect = effect_array[idx]
+        if (effect && effect.is_valid) {
+          const value = effect.get_value(time)
+          if (value != undefined) values[label] = value
+        }
       }
       return values
     }
@@ -422,7 +441,7 @@ module.exports = (project_name, Lib) => {
       description, // String
       type, // Type (~start_value.Type, ~stop_value.Type)
       start_value,stop_value, // Type
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
       super(
         start_time, `start ${description}`, start_value,
@@ -471,13 +490,14 @@ module.exports = (project_name, Lib) => {
     }
   }
   MazeGame.Game = Game
+
   class Level extends Effect {
 
     constructor(
       time, // Int
       description, // String
       game, // Game
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
       super(
         time, description, undefined,
@@ -488,9 +508,42 @@ module.exports = (project_name, Lib) => {
 
     get game() { return this._game }
 
+    get_polys(
+      start_time,stop_time, // Int
+    ) {
+      const polys = []
+      const wall_array = this._get_effect_array('wall')
+      const wall_map = wall_array && wall_array._map
+      if (!wall_map) return polys
+
+      for (const label in wall_map) {
+        const wall_array = wall_map[label]
+        let last_wall = null, last_time = start_time
+        for (const idx in wall_array) {
+          const {is_valid,time,value} = wall_array[idx]
+          if (!is_valid) continue
+          else if (time < start_time);
+          else if (stop_time < time) break
+          else if (last_wall != value) {
+            if (last_wall && start_time < time) {
+              const wall_time = stop_time < time ? stop_time : time
+              const [...wall_polys] = last_wall.get_polys(last_time, wall_time)
+              polys.push(...wall_polys)
+            }
+          }
+          last_wall = value; last_time = time < start_time ? start_time : time
+        }
+        if (last_wall && last_time < stop_time) {
+          const [...wall_polys] = last_wall.get_polys(last_time, stop_time)
+          polys.push(...wall_polys)
+        }
+      }
+      return polys
+    }
+
     check(
       time, // Int
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
 
       const doors = this.get_values(time, 'door')
@@ -543,24 +596,21 @@ module.exports = (project_name, Lib) => {
             time, `change is_open to ${door.is_open}`, door.is_open,
             [door], [door, 'is_open'], ...prereq_paths
           )
-          const _long = door.get_label(time, 'long')
-          const long = type.to_long(_long).scale
-          const long_open = door.get_label(time, 'long_open')
+          const long = door.get_long(time).scale
+          const long_open = door.get_long_open(time)
 
           if (door.is_open && 0 < long_open) {
             const next_time = time + long_open * long / type.speed
-            new Lerp(
-              time, next_time, `lerp long_open to 0`, Float,
-              long_open, 0,
-              [change_open], [door, 'long_open'],
+            door.set_long_open(
+              time, next_time, long_open, 0,
+              `lerp long_open to 0`, [change_open]
             )
           }
           else if (!door.is_open && long_open < 1) {
             const next_time = time + (1-long_open) * long / type.speed
-            new Lerp(
-              time, next_time, `lerp long_open to 1`, Float,
-              long_open, 1,
-              [change_open], [door, 'long_open'],
+            door.set_long_open(
+              time, next_time, long_open, 1,
+              `lerp long_open to 1`, [change_open]
             )
           }
         }
@@ -576,17 +626,9 @@ module.exports = (project_name, Lib) => {
       for (const label in locks) {
         locks[label].draw(ctx,time,root,center)
       }
-      const jacks = this.get_values(time,'jack')
-      for (const label in jacks) {
-        jacks[label].draw(ctx,time,root,center)
-      }
       const keys = this.get_values(time,'key')
       for (const label in keys) {
         keys[label].draw(ctx,time,root,center)
-      }
-      const doors = this.get_values(time,'door')
-      for (const label in doors) {
-        doors[label].draw(ctx,time,root,center)
       }
       const walls = this.get_values(time,'wall')
       for (const label in walls) {
@@ -604,33 +646,16 @@ module.exports = (project_name, Lib) => {
     static radius = 0.5
     static search_radius = 3 * this.radius
 
-    static to_root(
-      point
-    ) {
-      return point
-    }
-    static to_long(
-      point
-    ) {
-      const {long_min,long_max,long_round} = this
-      return point.cramp(long_min,long_max,long_round)
-    }
-
-    get level() { return this._level }
-    get target() { return this._target }
-    get name() { return this._name }
-
     static get_closest(
-      spot, // Point
+      spot, // Point @ time
       locks, // Lock[],Lock{}
     ) {
+      const time = spot.time
       let min_dist = Infinity, return_lock = null
       for (const label in locks) {
         const lock = locks[label], type = lock.Type
-
-        const _root = type.to_root(lock.get_label(spot.time, 'root'))
-        const _long = type.to_long(lock.get_label(spot.time, 'long'))
-        const _dist = _root.sum(_long).sub(spot).length
+        const _spot = lock.get_spot(time)
+        const _dist = _spot.sub(spot).length
 
         if (_dist < min_dist && _dist < type.search_radius) {
           return_lock = lock
@@ -651,25 +676,20 @@ module.exports = (project_name, Lib) => {
 
       let lock = level.get_label(time, 'target')
       if (lock) {
-        const type = lock.Type
-        const __root = lock.get_label(time, 'root')
-        const __long = lock.get_label(time, 'long').unit
-        const _root = type.to_root(__root)
+        const {long_min} = lock.Type
+        const _root = lock.get_root(time)
+        const _long = lock.get_long(time)
         const _key = lock.get_label(time, 'key')
         const _spot = spot.sub(_root)
 
-        let spot_dot = _spot.dot(__long, 1)
-        if (spot_dot < type.long_min) spot_dot = type.long_min
-
-        const __new_long = __long.strip(spot_dot).at(time)
-        const _new_long = type.to_long(__new_long)
-        const _new_spot = _root.sum(_new_long)
-        const reset_long = new Effect(
-          time, `reset long`, _new_long,
-          [lock], [lock, 'long'],
-        )
+        let spot_dot = _spot.dot(_long, 1)
+        if (spot_dot < long_min) spot_dot = long_min
+        const __new_long = _long.strip(spot_dot).at(time)
+        const reset_long = lock.set_long(__new_long, `reset long`, [lock])
         if (_key) {
-          _key.reset_root(time, _new_spot, [reset_long])
+          const _new_long = reset_long.value
+          const _new_spot = _root.sum(_new_long)
+          _key.set_root(time, _new_spot, [reset_long])
         }
         new Effect(
           time, `clear target`, null,
@@ -692,23 +712,22 @@ module.exports = (project_name, Lib) => {
       const doors = level.get_values(time, 'door')
       const door = Door.get_closest(spot, doors)
       if (door) {
-        const type = door.Type
-        const n_names = type.lock_names.length
+        const {lock_names,locks} = door.Type
+        const n_names = lock_names.length
 
-        const __root = door.get_label(time, 'root')
-        const __long = door.get_label(time, 'long')
-        const _root = type.to_root(__root)
-        const _long = type.to_long(__long)
+        const _root = door.get_root(time)
+        const _long = door.get_long(time)
 
         const long_dot = spot.sub(_root).dot(_long,1) / _long.scale
-        const name = type.lock_names[Math.floor(long_dot * n_names)]
+        const name = lock_names[Math.floor(long_dot * n_names)]
 
         const old_lock = door.get_label(time, 'lock', name)
-        if (type.locks[name] && !old_lock) {
+        if (locks[name] && !old_lock) {
           const new_lock = new this(
             time, `added new ${single_name}`, name, level, door,
             [level, single_name, time],
           )
+          new_lock.set_is_open( time, false, `set is_open`, [new_lock], )
           if (this.long_min < this.long_max) {
             new Effect(
               time, `set new target as ${this.name}`, new_lock,
@@ -728,23 +747,94 @@ module.exports = (project_name, Lib) => {
       time, // Point @ time
       description,name, // String
       level, // Level
-      target, // Tracker
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      target, // Effect
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
       super(
         time, description, undefined,
         [level], [target], [target, 'lock', name], ...prereq_paths
       )
-      new Effect(
-        time, `set is_open to false`, false,
-        [this], [this, 'is_open'],
-      )
       this._level = level; this._target = target; this._name = name
+      this._is_nose = target.Type == Jack
+    }
+
+    get level() { return this._level }
+    get target() { return this._target }
+    get name() { return this._name }
+    get is_nose() { return this._is_nose }
+    set_root(
+      root, // Point @ time
+      description, // String
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
+    ) {
+      const {time} = root
+      const set_root = new Effect(
+        time, description, root,
+        [this, 'root'], ...prereq_paths,
+      )
+      const key = this.get_label(time, 'key')
+      if (key) {
+        const long = this.get_long(time)
+        const spot = root.sum(long)
+        key.set_root(spot, `set lock key root`, [set_root])
+      }
+      return set_root
+    }
+    get_root(
+      time, // Int
+    ) {
+      return this.get_label(time, 'root').at(time)
+    }
+    set_long(
+      long, // Point @ time
+      description, // String
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
+    ) {
+      const {time} = long
+      const {long_min,long_max,long_round} = this.Type
+      const new_long = long.cramp(long_min,long_max,long_round)
+      const set_long = new Effect(
+        time, description, new_long,
+        [this, 'long'], ...prereq_paths,
+      )
+      const key = this.get_label(time, 'key')
+      if (key) {
+        const root = this.get_root(time)
+        const spot = root.sum(new_long)
+        key.set_root(spot, `set lock key root`, [set_long])
+      }
+      return set_long
+    }
+    get_long(
+      time, // Int
+    ) {
+      return this.get_label(time, 'long').at(time)
+    }
+    get_spot(
+      time, // Int
+    ) {
+      return this.get_root(time).sum(this.get_long(time))
+    }
+    set_is_open(
+      time, // Time
+      is_open, // Boolean
+      description, // String
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
+    ) {
+      return new Effect(
+        time, `${description} to ${is_open}`, is_open,
+        [this, `is_open`], ...prereq_paths
+      )
+    }
+    get_is_open(
+      time, // Time
+    ) {
+      return this.get_label(time, 'is_open')
     }
 
     remove(
       time, // Int
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
       const {_level, _target, _name, } = this
       const {single_name} = this.Type
@@ -764,17 +854,17 @@ module.exports = (project_name, Lib) => {
       time, // Int
       root,center, // Point
     ) {
-      const type = this.Type
-      const __root = type.to_root(this.get_label(time, 'root'))
+      const {stroke_color,fill_color,line_width,radius} = this.Type
+      const __root = this.get_root(time)
       const _root = __root.sub(root,1).mul(center.scale).sum(center,1)
-      const __long = type.to_long(this.get_label(time, 'long'))
+      const __long = this.get_long(time)
       const _long = __long.mul(center.scale)
       const _spot = _root.sum(_long)
 
       ctx.lineCap = 'round'
-      ctx.strokeStyle = type.stroke_color
-      ctx.fillStyle = type.fill_color
-      ctx.lineWidth = type.line_width * center.scale
+      ctx.strokeStyle = stroke_color
+      ctx.fillStyle = fill_color
+      ctx.lineWidth = line_width * center.scale
       ctx.beginPath()
       _root.moveTo = ctx
       _spot.lineTo = ctx
@@ -782,7 +872,7 @@ module.exports = (project_name, Lib) => {
       ctx.stroke()
 
       ctx.beginPath()
-      ctx.arc(_spot.x, _spot.y, type.radius * center.scale, 0, pi2)
+      ctx.arc(_spot.x, _spot.y, radius * center.scale, 0, pi2)
       ctx.closePath()
       ctx.fill()
       ctx.stroke()
@@ -799,8 +889,8 @@ module.exports = (project_name, Lib) => {
       time, // Point @ time
       description,name, // String
       level, // Level
-      target, // Tracker
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      target, // Effect
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
       super(
         time, description, name, level, target,
@@ -810,7 +900,7 @@ module.exports = (project_name, Lib) => {
 
     remove(
       time, // Int
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
       return super.remove(
         time, [this._level, 'lock', this.time],
@@ -823,26 +913,29 @@ module.exports = (project_name, Lib) => {
       time, // Int
       root,center, // Point
     ) {
-      const type = this.Type
-      const __root = type.to_root(this.get_label(time, 'root'))
+      const {
+        thin_line_width,thin_stroke_color,
+        line_width,stroke_color,radius,
+      } = this.Type
+      const __root = this.get_root(time)
       const _root = __root.sub(root,1).mul(center.scale).sum(center,1)
-      const __long = type.to_long(this.get_label(time, 'long'))
+      const __long = this.get_long(time)
       const _long = __long.mul(center.scale)
       const _spot = _root.sum(_long)
       const long_min = Lock.long_min * center.scale
 
       ctx.lineJoin = 'round'
       ctx.lineCap = 'round'
-      ctx.lineWidth = type.thin_line_width * center.scale
-      ctx.strokeStyle = type.thin_stroke_color
+      ctx.lineWidth = thin_line_width * center.scale
+      ctx.strokeStyle = thin_stroke_color
 
       ctx.beginPath()
       _root.sum(_long, long_min).lineTo = ctx
       _spot.sub(_long, long_min).lineTo = ctx
       ctx.stroke()
 
-      ctx.strokeStyle = type.stroke_color
-      ctx.lineWidth = type.line_width * center.scale
+      ctx.strokeStyle = stroke_color
+      ctx.lineWidth = line_width * center.scale
 
       ctx.beginPath()
       _root.moveTo = ctx
@@ -855,7 +948,7 @@ module.exports = (project_name, Lib) => {
       ctx.stroke()
 
       ctx.beginPath()
-      ctx.arc(_spot.x, _spot.y, type.radius * center.scale, 0, pi2)
+      ctx.arc(_spot.x, _spot.y, radius * center.scale, 0, pi2)
       ctx.closePath()
       ctx.fill()
       ctx.stroke()
@@ -870,6 +963,7 @@ module.exports = (project_name, Lib) => {
     static long_min = 2
     static short_min = 2
     static short_max = 2
+    static default_long_open = 0
     static short_sign = false
     static locks = {}
     static lock_names = []
@@ -879,16 +973,8 @@ module.exports = (project_name, Lib) => {
       const {long_min,short_min} = this
       return new Point(0,long_min,short_min)
     }
-    static to_root(
-      point,  // Point
-    ) {
-      return point.round(this.root_round)
-    }
-    static to_long(
-      point,  // Point
-    ) {
-      const {long_min,long_max,long_round} = this
-      return point.long.cramp(long_min,long_max,long_round)
+    static get default_root() {
+      return new Point(0,0,0)
     }
     static to_short(
       point,  // Point
@@ -897,23 +983,23 @@ module.exports = (project_name, Lib) => {
       return point.short.cramp(short_min,short_max,short_round)
     }
     static get_closest(
-      spot, // Point
+      spot, // Point @ time
       walls, // Wall[],Wall{}
     ) {
+      const time = spot.time
       let min_dist = Infinity, return_wall = null
       for (const label in walls) {
-        const wall = walls[label], type = wall.Type
+        const wall = walls[label], {short_sign} = wall.Type
 
-        const _root = wall.get_label(spot.time, 'root')
-        const _long = wall.get_label(spot.time, 'long')
-
-        const root = spot.sub(type.to_root(_root))
-        const long = type.to_long(_long), short = type.to_short(_long)
+        const _root = wall.get_root(time)
+        const long = wall.get_long(time)
+        const short = wall.get_short(time)
+        const root = spot.sub(_root)
 
         const long_length = long.scale, short_length = short.scale
 
         let long_dot = root.dot(long,1), short_dot = root.dot(short,1)
-        if (!type.short_sign && short_dot < 0) short_dot = -short_dot
+        if (!short_sign && short_dot < 0) short_dot = -short_dot
 
         if (
           0 < long_dot && long_dot < long.scale &&
@@ -928,20 +1014,18 @@ module.exports = (project_name, Lib) => {
 
     static act_at(
       game, // Game
-      spot, // Point
+      spot, // Point @ time
     ) {
       const time = spot.time
       const level = game.get_label(time, 'level')
       if (!level || time < level.time) return null
-      const {single_name,plural_name} = this
+      const {single_name,plural_name,default_long_open,default_long} = this
 
       let wall = level.get_label(time, 'target')
       if (wall) {
-        const type = wall.Type
-        const root = wall.get_label(time, 'root')
-        const reset_long = new Effect(
-          time, `reset long`, spot.sub(root).at(time),
-          [wall], [wall, 'long'],
+        const root = wall.get_root(time)
+        const reset_long = wall.set_long(
+          spot.sub(root).at(time), `reset long`, [wall],
         )
         new Effect(
           time, `clear target`, null,
@@ -954,11 +1038,10 @@ module.exports = (project_name, Lib) => {
       const walls = level.get_values(time, single_name)
       wall = this.get_closest(spot, walls)
       if (wall) {
-        const type = wall.Type
-        const _root = wall.get_label(time, 'root')
-        const _long = wall.get_label(time, 'long')
-        const _spot = spot.sub(type.to_root(_root))
-        const long = type.to_long(_long), short = type.to_short(_long)
+        const {short_sign} = wall.Type
+        const _root = wall.get_root(time)
+        const _spot = spot.sub(_root)
+        const long = wall.get_long(time), short = wall.get_short(time)
         const long_dot = _spot.dot(long,1) / long.scale
 
         const set_level_target = new Effect(
@@ -968,73 +1051,204 @@ module.exports = (project_name, Lib) => {
 
         if (long_dot < 0.5) {
           const new_root = (
-            type.short_sign ?
-            _root.sum(long).sum(short).at(time) :
-            _root.sum(long).at(time)
+            short_sign ?
+            _root.sum(long).sum(short) :
+            _root.sum(long)
+          ).at(time)
+          const new_long = spot.sub(new_root)
+          const flip_root_long = wall.set_root_long(
+            new_root, new_long, `flipped ${single_name} root and long`,
+            [set_level_target],
           )
-          new Effect(
-            time, `flipped ${single_name} root`, new_root,
-            [set_level_target], [wall, 'root'],
-          )
-          new Effect(
-            time, `flipped ${single_name} long`, spot.sub(new_root),
-            [set_level_target], [wall, 'long'],
-          )
-          wall.reroot_locks(time, [set_level_target])
         }
         else {
-          new Effect(
-            time, `flipped ${single_name} long`, _spot,
-            [set_level_target], [wall, 'long'],
+          wall.set_long(
+            _spot, `flipped ${single_name} long`,
+            [set_level_target],
           )
         }
+        wall.reroot_locks(time, [set_level_target])
         return set_level_target
       }
-
       const new_wall = new this(
-        spot, `added new ${single_name} to level`, level,
+        time, `added new ${single_name} to level`, level,
         [level], [level, 'target'],
         [level, single_name, time],
       )
+      new_wall.set_root_long(
+        spot, default_long.at(time), `set root and long`,
+        [new_wall]
+      )
+      new Effect(
+        time, 'set long_open', default_long_open,
+        [new_wall], [new_wall, `long_open`],
+      )
+      new_wall.set_is_open(time, true, `set is_open`, [new_wall])
       return new_wall
     }
 
     constructor(
-      root, // Point @ time
+      time, // Int
       description, // String
       level, // Level
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
-      const time = root.time
       super( time, description, undefined, ...prereq_paths )
       this._level = level
-      new Effect(
-        time, 'set root', this.Type.to_root(root),
-        [this, 'root'],
-      )
-      new Effect(
-        time, 'set long', this.Type.default_long.at(time),
-        [this, 'long'],
-      )
     }
     get level() { return this._level }
+
+    set_root_long(
+      root,long, // Point @ time
+      description, // String
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
+    ) {
+      const {time} = root, {
+        root_round,long_min,long_max,long_round,
+        short_min,short_max,short_round,
+      } = this.Type
+      const new_root_long = {
+        time:time, _long:long, root:root.round(root_round),
+        long: long.long.cramp(long_min,long_max,long_round),
+        short: long.short.cramp(short_min,short_max,short_round),
+      }
+      return new Effect(
+        time, description, new_root_long,
+        [this, `root_long`], ... prereq_paths
+      )
+    }
+    set_root(
+      root, // Point @ time
+      description, // String
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
+    ) {
+      const {time} = root, {long_min,short_min,root_round} = this.Type
+      const _root = root.round(root_round)
+      const _root_long = this.get_label(time, `root_long`)
+
+      const new_root_long = _root_long ? {
+        time:time, root:_root,
+        _long:_root_long._long.at(time),
+        long:_root_long.long.at(time),
+        short:_root_long.short.at(time),
+      } : {
+        time:time, root:_root,
+        _long:new Point(time,long_min,short_min),
+        long:new Point(time,1,0,long_min),
+        short:new Point(time,0,1,short_min),
+      }
+      return new Effect(
+        time, description, new_root_long,
+        [this, 'root_long'], ...prereq_paths,
+      )
+    }
+    get_root(
+      time, // Int
+    ) {
+      const _root_long = this.get_label(time, `root_long`)
+      return (_root_long ? _root_long.root : new Point(time,0,0,1)).at(time)
+    }
+    set_long(
+      long, // Point @ time
+      description, // String
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
+    ) {
+      const {time} = long
+      const {
+        short_min,short_max,short_round,
+        long_min,long_max,long_round
+      } = this.Type
+      const _root_long = this.get_label(time, `root_long`)
+      const new_root_long = {
+        time:time, _long:long,
+        long: long.long.cramp(long_min,long_max,long_round),
+        short: long.short.cramp(short_min,short_max,short_round),
+        root: (
+          _root_long ? _root_long.root :
+          new Point(time, long_min, short_min, 1)
+        ).at(time),
+      }
+      return new Effect(
+        time, description, new_root_long,
+        [this, 'root_long'], ...prereq_paths,
+      )
+    }
+    get_long(
+      time, // Int
+    ) {
+      const _root_long = this.get_label(time, `root_long`)
+      return (
+        _root_long ?
+        _root_long.long.at(time) : new Point(time,1,0,long_min)
+      )
+    }
+    get_short(
+      time, // Int
+    ) {
+      const {long_min,short_min} = this.Type
+      const _root_long = this.get_label(time, `root_long`)
+      return (
+        _root_long ?
+        _root_long.short.at(time) : new Point(time,0,1,short_min)
+      )
+    }
+    get_spot(
+      time, // Int
+    ) {
+      const {short_min,long_min} = this.Type
+      const _root_long = this.get_label(time, `root_long`)
+      if (_root_long) {
+        const {root,long} = _root_long
+        return root.sum(long).at(time)
+      }
+      else return new Point(time, long_min, short_min, 1)
+    }
+    set_long_open(
+      start_time,stop_time,
+      start_open,stop_open,
+      description, // String
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
+    ) {
+      return new Lerp(
+        start_time,stop_time, description, Float,
+        start_open,stop_open, [this, 'long_open'], ...prereq_paths,
+      )
+    }
+    get_long_open(
+      time, // Int
+    ) {
+      return this.get_label(time, 'long_open')
+    }
+    set_is_open(
+      time, // Time
+      is_open, // Boolean
+      description, // String
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
+    ) {
+      return new Effect(
+        time, `${description} to ${is_open}`, is_open,
+        [this, `is_open`], ...prereq_paths
+      )
+    }
+    get_is_open(
+      time, // Time
+    ) {
+      return this.get_label(time, 'is_open')
+    }
 
     reroot_lock(
       time, // Int
       lock_name, // String
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
       const lock = this.get_label(time, 'lock', lock_name)
       if (lock) {
         const type = this.Type, lock_type = lock.Type
-        const __root = this.get_label(time, 'root')
-        const __long = this.get_label(time, 'long')
         const _lock_long = lock.get_label(time, 'long')
-        const _root = type.to_root(__root)
-        const _long = type.to_long(__long)
-        const _short = type.to_short(__long)
+        const _root = this.get_root(time)
+        const _long = this.get_long(time)
+        const _short = this.get_short(time)
         const _long_short = _long.strip(_short.scale)
-
         const _key = lock.get_label(time, 'key')
 
         const [
@@ -1042,44 +1256,151 @@ module.exports = (project_name, Lib) => {
           lock_short,lock_long,
         ] = type.locks[lock_name]
 
-        const _new_root = lock_type.to_root(
-          _root.at(time).sum(_short.mul(short) )
+        const _new_root = (
+          _root.sum(_short.mul(short) )
           .sum(_long_short.mul(long_short))
           .sum(_long.mul(long))
-        )
-        const _new_long = lock_type.to_long(
-          _short.at(time).mul(lock_short)
+        ).at(time)
+        const __new_long = (
+          _short.mul(lock_short)
           .sum(_long.mul(lock_long))
           .unit.strip(_lock_long ? _lock_long.length : lock_type.long_min)
-        )
+        ).at(time)
 
-        const reset_root = new Effect(
-          time, `reset root`, _new_root,
-          [this], [lock], [lock, `root`], ...prereq_paths,
+        const reset_root = lock.set_root(
+          _new_root, `reset root`, [lock], ...prereq_paths,
         )
-        new Effect(
-          time, `reset long`, _new_long,
-          [reset_root], [lock, `long`]
+        const reset_long = lock.set_long(
+          __new_long, `reset long`, [reset_root],
         )
+        const _new_long = reset_long.value
+
         if (_key) {
           const _new_spot = _new_root.sum(_new_long)
-          _key.reset_root(time, _new_spot, [reset_root])
+          _key.set_root(_new_spot, [reset_root])
         }
       }
     }
 
     reroot_locks(
       time, // Int
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
       for (const name in this.Type.locks) {
         this.reroot_lock(time, name, ...prereq_paths)
       }
     }
 
+    _get_root_spot_array(
+      start_time,stop_time, // Int
+    ) {
+      const root_spot_array = []
+      const _root_long_array = this._get_effect_array('root_long')
+      if (!_root_long_array) return root_spot_array
+
+      const {default_long_open} = this.Type
+
+      const long_open_array = [{
+        start_time: start_time, stop_time: stop_time,
+        start_value: default_long_open, stop_value: default_long_open,
+      }]
+      const _long_open_array = this._get_effect_array('long_open')
+      if (_long_open_array) {
+        for (const idx in _long_open_array) {
+          const effect = _long_open_array[idx]
+          const {time, is_valid, value} = effect
+
+          if (!is_valid) continue
+
+          const last_long_open = long_open_array.pop()
+          if (time < start_time) {
+            long_open_array.push({
+              start_time: time, start_value: value,
+              stop_time: stop_time, stop_value: value,
+            })
+          }
+          else if (time < stop_time) {
+            if (last_long_open.start_time < time) {
+              last_long_open.stop_time = time
+              last_long_open.stop_value = value
+              long_open_array.push(last_long_open)
+            }
+            long_open_array.push({
+              start_time: time, start_value: value,
+              stop_time: stop_time, stop_value: value,
+            })
+          }
+          else {
+            last_long_open.stop_time = time
+            last_long_open.stop_value = value
+            long_open_array.push(last_long_open)
+            break
+          }
+        }
+        const first_long_open = long_open_array[0]
+        if (first_long_open.start_time < start_time) {
+          first_long_open.start_value = Float.lerp(
+            first_long_open.start_time, first_long_open.stop_time, start_time,
+            first_long_open.start_value, first_long_open.stop_value
+          )
+          first_long_open.start_time = start_time
+        }
+        const last_long_open = long_open_array.pop()
+        last_long_open.stop_value = Float.lerp(
+          last_long_open.start_time, last_long_open.stop_time, stop_time,
+          last_long_open.start_value, last_long_open.stop_value
+        )
+        last_long_open.stop_time = stop_time
+        long_open_array.push(last_long_open)
+      }
+
+      for (const idx in _root_long_array) {
+        const { is_valid, time, value:_root_long } = _root_long_array[idx]
+
+        if (!is_valid) continue
+        else if (stop_time <= time) break
+
+        const root = _root_long.root.at(time < start_time ? start_time : time)
+        const spot = root.sum(_root_long.long)
+
+        const last_root_spot = root_spot_array.pop()
+        if (
+          last_root_spot &&
+          start_time <= time &&
+          last_root_spot.time < time
+        ) {
+          last_root_spot.next_time = time
+          root_spot_array.push(last_root_spot)
+        }
+
+        root_spot_array.push({ time:time, root:root, spot:spot, })
+      }
+      const last_root_spot = root_spot_array.pop()
+      if (!last_root_spot) return root_spot_array
+      else {
+        last_root_spot.next_time = stop_time
+        root_spot_array.push(last_root_spot)
+      }
+
+
+
+      return root_spot_array
+    }
+
+    get_polys(
+      start_time,stop_time, // Int
+    ) {
+      const polys = []
+
+      const root_spot_array = this._get_root_spot_array()
+      log('root_spot_array', root_spot_array)
+
+      return polys
+    }
+
     remove(
       time, // Int
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
       const {locks,plural_name,single_name} = this.Type
       const remove_wall = new Effect(
@@ -1099,10 +1420,9 @@ module.exports = (project_name, Lib) => {
       root,center, // Point
     ) {
       const type = this.Type
-      const ___root = this.get_label(time, 'root')
-      const ___long = this.get_label(time, 'long')
-      const __root = type.to_root(___root)
-      const __long = type.to_long(___long), __short = type.to_short(___long)
+      const __root = this.get_root(time)
+      const __long = this.get_long(time)
+      const __short = this.get_short(time)
       const __spot = __long.sum(__short)
       const _root = __root.sub(root,1).mul(center.scale).sum(center,1)
       const _spot = _root.sum(__long.mul(center.scale))
@@ -1123,12 +1443,11 @@ module.exports = (project_name, Lib) => {
   class Door extends Wall {
     static key_bind = 'd'
     static root_round = 4
-    static long_min = 12
-    static long_round = 12
+    static long_min = 16
+    static long_round = 4
     static short_min = 4
     static short_max = 4
     static short_sign = true
-    static long_open = 0
 
     static locks = {
       root_short:[0.5,   0,0, 0,-1],
@@ -1139,21 +1458,18 @@ module.exports = (project_name, Lib) => {
     static lock_names = ['root_short','root_long','spot_long','spot_short']
 
     constructor(
-      root, // Point
+      time, // Int
       description, // String
       level, // Level
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
-      super(root, description, level, ...prereq_paths)
-      new Effect(
-        this.time, 'set long_open', this.Type.long_open,
-        [this], [this, 'long_open'],
-      )
-      new Effect(
-        this.time, 'set is_open', true,
-        [this], [this, 'is_open'],
+      super(
+        time, description, level,
+        [level, 'wall', time], ...prereq_paths
       )
     }
+
+
 
     draw(
       ctx, // CanvasRenderingContext2D
@@ -1161,12 +1477,13 @@ module.exports = (project_name, Lib) => {
       root,center, // Point
     ) {
       const type = this.Type
-      const __long_open = this.get_label(time, 'long_open')
-      const __root = type.to_root(this.get_label(time, 'root'))
+      const __long_open = this.get_long_open(time)
+      const __root = this.get_root(time)
       const _root = __root.sub(root,1).mul(center.scale).sum(center,1)
-      const __long = this.get_label(time, 'long')
-      const _long = type.to_long(__long).mul(center.scale)
-      const _short = type.to_short(__long).mul(center.scale)
+      const __long = this.get_long(time)
+      const __short = this.get_short(time)
+      const _long = __long.mul(center.scale)
+      const _short = __short.mul(center.scale)
       const _spot = _root.sum(_long).sum(_short)
       const line_width = type.line_width * center.scale
       const thin_line_width = type.thin_line_width * center.scale
@@ -1304,20 +1621,20 @@ module.exports = (project_name, Lib) => {
     }
 
     constructor(
-      root, // Point
+      time, // Int
       description, // String
       level, // Level
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
       super(
-        root, description, level,
-        [level, 'door', root.time], ...prereq_paths
+        time, description, level,
+        [level, 'door', time], ...prereq_paths
       )
     }
 
     remove(
       time, // Int
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
       return super.remove(
         time, [this.level, 'door', this.time],
@@ -1331,12 +1648,13 @@ module.exports = (project_name, Lib) => {
       root,center, // Point
     ) {
       const type = this.Type
-      const __long_open = this.get_label(time, 'long_open')
-      const __root = type.to_root(this.get_label(time, 'root'))
+      const __long_open = this.get_long_open(time)
+      const __root = this.get_root(time)
       const _root = __root.sub(root,1).mul(center.scale).sum(center,1)
-      const __long = this.get_label(time, 'long')
-      const _long = type.to_long(__long).mul(center.scale)
-      const _short = type.to_short(__long).mul(center.scale)
+      const __long = this.get_long(time)
+      const __short = this.get_short(time)
+      const _long = __long.mul(center.scale)
+      const _short = __short.mul(center.scale)
       const _spot = _root.sum(_long).sum(_short)
       const _center = (
         _root.sum(_short, center.scale * type.center_short)
@@ -1424,24 +1742,16 @@ module.exports = (project_name, Lib) => {
     static radius = 1.5
     static center_radius = Lock.radius
 
-    static to_root(
-      point, // Point
-    ) {
-      return point
-    }
-
     static get_closest(
-      spot, // Point
+      spot, // Point @ time
       keys, // Key[],Key{}
     ) {
+      const time = spot.time
       let min_dist = Infinity, return_key = null
       for (const label in keys) {
-        const key = keys[label], type = key.Type
-
-        const _root = type.to_root(key.get_label(spot.time, 'root'))
-        const _dist = _root.sub(spot).length
-
-        if (_dist < min_dist && _dist < type.radius * 2) {
+        const key = keys[label], {radius} = key.Type
+        const _dist = key.get_root(time).sub(spot).length
+        if (_dist < min_dist && _dist < radius * 2) {
           return_key = key
           min_dist = _dist
         }
@@ -1456,9 +1766,11 @@ module.exports = (project_name, Lib) => {
       const time = spot.time
       const level = game.get_label(time, 'level')
       if (!level || time < level.time) return null
-      const {single_name,plural_name} = this
+      const {single_name,plural_name,default_long} = this
 
+      const locks = level.get_values(time, 'lock') // call before new Jack
       const keys = level.get_values(time, 'key')
+
       let key = this.get_closest(spot, keys)
       if (key) {
         const set_level_target = new Effect(
@@ -1469,106 +1781,117 @@ module.exports = (project_name, Lib) => {
       }
 
       key = level.get_label(time, 'target')
-
-      const locks = level.get_values(time, 'lock')
-      const lock = Lock.get_closest(spot, locks)
-      let lock_spot = null
-      if (lock) {
-        const type = lock.Type
-        const _root = lock.get_label(time, 'root')
-        const _long = lock.get_label(time, 'long')
-        const root = type.to_root(_root), long = type.to_long(_long)
-        lock_spot = root.sum(long).at(time)
+      const new_effect = key ? new Effect(
+        time, `clear level target`, null,
+        [level], [key], [level, `target`],
+      ) : new this(
+        time, `added new ${single_name}`, level,
+        [level], [level, single_name, time],
+      )
+      if (!key) {
+        key = new_effect
+        if (default_long) key.set_long(default_long.at(time))
+        key.set_is_open(time, true, `set is_open`, [new_effect])
       }
 
-      const effect = (
-        key ? new Effect(
-          time, `clear target`, null,
-          [key], [level], [level, 'target'],
-        ) : (
-          key = new this(
-            time, `added new ${single_name}`, level,
-            [level], [level, single_name, time],
-          )
-        )
-      )
-      const key_type = key.Type
       const key_lock = key.get_label(time, 'lock')
       if (key_lock) {
-        const unlink_key_lock = new Effect(
-          time, `unlink ${key_lock.Type.name} and ${key.Type.name}`, null,
-          [effect], [key_lock], [key_lock, 'key'], [key, 'lock'],
+        const clear_lock_key = new Effect(
+          time, `clear lock and key`, null,
+          [new_effect], [key_lock], [key_lock, `key`], [key, `lock`],
         )
-        new Effect(
-          time, `set is_open to false`, false,
-          [unlink_key_lock], [lock, 'is_open'],
-        )
+        key_lock.set_is_open(time, false, `set_is_open`, [clear_lock_key])
       }
 
-      const _key_is_open = key.get_label(time, 'is_open')
-      if (lock && lock != key.nose) {
+      const lock = Lock.get_closest(spot, locks)
+      if (lock && !(lock.is_nose && key.nose)) {
+        const _spot = lock.get_spot(time)
+        const key_is_open = key.get_is_open(time)
         const set_lock = new Effect(
           time, `set lock`, lock,
-          [effect], [lock], [key, 'lock'],
+          [new_effect], [lock], [key], [key, `lock`],
         )
         new Effect(
           time, `set key`, key,
-          [set_lock], [lock, 'key'],
+          [set_lock], [lock, `key`]
         )
-        new Effect(
-          time, `set is_open to ${_key_is_open}`, _key_is_open,
-          [set_lock], [lock, 'is_open'],
-        )
-        key.reset_root(time, lock_spot, [set_lock])
+        lock.set_is_open(time, key_is_open, `set_is_open`, [set_lock])
+        key.set_root(_spot, `set root as lock spot`, [set_lock])
       }
       else {
-        key.reset_root(time, spot, [effect])
+        key.set_root(spot, `set root`, [new_effect])
       }
-      return effect
+
+      return new_effect
     }
 
     constructor(
       time, // Int
       description, // String
       level, // Level
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
       super( time, description, undefined, ...prereq_paths )
-      new Effect(
-        time, `set is_open`, true,
-        [this], [this, 'is_open'],
-      )
       this._level = level
+    }
+
+    get_root(
+      time, // Int
+    ) {
+      return this.get_label(time, 'root').at(time)
+    }
+    set_root(
+      root, // Point @ time
+      description, // String
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
+    ) {
+      const {time} = root
+      return new Effect(
+        time, description, root,
+        [this, 'root'], ...prereq_paths
+      )
+    }
+    set_long() {}
+    set_is_open(
+      time, // Time
+      is_open, // Boolean
+      description, // String
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
+    ) {
+      return new Effect(
+        time, `${description} to ${is_open}`, is_open,
+        [this, `is_open`], ...prereq_paths
+      )
+    }
+    get_is_open(
+      time, // Time
+    ) {
+      return this.get_label(time, 'is_open')
     }
 
     get level() { return this._level }
 
-    reset_root(
-      time, // Int
-      point, // Point
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
-    ) {
-      const reset_root = new Effect(
-        time, `reset root`, point,
-        [this], [this, 'root'], ...prereq_paths
-      )
-      return reset_root
-    }
-
     remove(
       time, // Int
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
       const {_level, _target, _name, } = this
       const {single_name} = this.Type
 
-      const _lock = this.get_label(time, 'lock')
       const remove_key = new Effect(
         time, `remove ${single_name} from level`, null,
         [this], [_level, single_name, this.time],
-        ...(_lock ? [[_lock], [_lock, 'key'], [this, 'lock']] : []),
         ...prereq_paths,
       )
+      const lock = this.get_label(time, 'lock')
+      if (lock) {
+        const clear_lock_key = new Effect(
+          time, `remove ${lock.Type.single_name} from ${single_name}`, null,
+          [lock], [this, 'lock'], [lock, 'key'], [remove_key],
+        )
+        lock.set_is_open(time, false, `set is_open`, [clear_lock_key])
+      }
+
       if (this.nose) this.nose.remove(time, [remove_key])
       return remove_key
     }
@@ -1578,19 +1901,21 @@ module.exports = (project_name, Lib) => {
       time, // Int
       root,center, // Point
     ) {
-      const type = this.Type
-      const ___is_open = this.get_label(time, 'is_open')
-      const ___root = this.get_label(time, 'root')
-      const __root = type.to_root(___root)
+      const {
+        stroke_color,fill_color,line_width,
+        radius,center_radius
+      } = this.Type
+      const __is_open = this.get_label(time, 'is_open')
+      const __root = this.get_root(time)
       const _root = __root.sub(root,1).mul(center.scale).sum(center,1)
-      const _radius = type.radius * center.scale
-      const _center_radius = type.center_radius * center.scale
+      const _radius = radius * center.scale
+      const _center_radius = center_radius * center.scale
 
       ctx.lineJoin = 'round'
       ctx.lineCap = 'round'
-      ctx.strokeStyle = type.stroke_color
-      ctx.fillStyle = type.fill_color
-      ctx.lineWidth = type.line_width * center.scale
+      ctx.strokeStyle = stroke_color
+      ctx.fillStyle = fill_color
+      ctx.lineWidth = line_width * center.scale
 
       ctx.beginPath()
       ctx.arc(_root.x, _root.y, _radius, 0, pi2)
@@ -1598,8 +1923,8 @@ module.exports = (project_name, Lib) => {
       ctx.fill()
       ctx.stroke()
 
-      if (___is_open) {
-        ctx.fillStyle = type.stroke_color
+      if (__is_open) {
+        ctx.fillStyle = stroke_color
         ctx.beginPath()
         ctx.arc(_root.x, _root.y, _center_radius, 0, pi2)
         ctx.closePath()
@@ -1637,55 +1962,58 @@ module.exports = (project_name, Lib) => {
       time, // Int
       description, // String
       level, // Level
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
       super(
         time, description, level,
         [level, 'key', time], ...prereq_paths
       )
-      const {default_long} = this.Type
       this._nose = new Lock(
-        time, `added nose to Jack`, 'nose', level, this,
-        [level, 'lock', time],
-      )
-      new Effect(
-        time, `set long`, default_long.at(time),
-        [this], [this, 'long'], [this._nose], [this._nose, 'long'],
+        time, `added nose to Jack`, `nose`,
+        level, this, [level, 'lock', time],
       )
     }
 
     get nose() { return this._nose }
-
-    reset_root(
-      time, // Int
-      __root, // Point @ time
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+    set_root(
+      root, // Point @ time
+      description, // String
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
-      const type = this.Type, {radius} = type
-      const {_nose} = this, nose_type = _nose.Type
-      const reset_root = super.reset_root(time, __root, ...prereq_paths)
-      const __long = this.get_label(time, 'long')
-      const _root = type.to_root(__root)
-      const _long = type.to_long(__long)
-      const _nose_root = _root.sum(_long, radius)
-      const reset_nose_root = new Effect(
-        time, `reset root`, _nose_root,
-        [reset_root], [_nose], [_nose, 'root'],
+      const {time} = root, {radius} = this.Type
+      const set_root = super.set_root(root,description,...prereq_paths)
+      const _root = set_root.value
+      const _long = this.get_long(time).mul(radius)
+      const _spot = _root.sum(_long)
+      this._nose.set_root( _spot, `set nose root`, [set_root], )
+      return set_root
+    }
+    set_long(
+      long, // Point @ time
+      description, // String
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
+    ) {
+      const {time} = long
+      const set_long = new Effect(
+        time, description, long.unit,
+        [this, `long`], ...prereq_paths,
       )
-      const nose_key = _nose.get_label(time, 'key')
-      if (nose_key) {
-        const _spot = _nose_root.sum(_long, nose_type.long_min)
-        nose_key.reset_root(time, _spot, [reset_nose_root])
-      }
-      return reset_root
+      this._nose.set_long(long, `set nose long`, [set_long])
+      return set_long
+    }
+    get_long(
+      time, // Int
+    ) {
+      const {default_long} = this.Type
+      const long = this.get_label(time, 'long')
+      return (long || default_long).at(time)
     }
 
     remove(
       time, // Int
-      ...prereq_paths // [prereq: Tracker, ...labels: String,Int]
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
-      const {level} = this
-      super.remove(time, [level, 'key', this.time], ...prereq_paths)
+      super.remove(time, [this.level, 'key', this.time], ...prereq_paths)
     }
 
     draw(
@@ -1693,18 +2021,16 @@ module.exports = (project_name, Lib) => {
       time, // Int
       root,center, // Point
     ) {
-      const type = this.Type
-      const ___root = this.get_label(time, 'root')
-      const ___long = this.get_label(time, 'long')
-      const __root = type.to_root(___root)
-      const __long = type.to_long(___long)
+      const {line_width, stroke_color, leg_radius} = this.Type
+      const __root = this.get_root(time)
+      const __long = this.get_long(time)
       const _root = __root.sub(root,1).mul(center.scale).sum(center,1)
-      const _radius = type.leg_radius * center.scale
+      const _radius = leg_radius * center.scale
       const i_long = __long.strip(_radius).invert
       const h_long = __long.strip(_radius / 2)
 
-      ctx.lineWidth = type.line_width * center.scale
-      ctx.strokeStyle = type.stroke_color
+      ctx.lineWidth = line_width * center.scale
+      ctx.strokeStyle = stroke_color
       ctx.lineJoin = 'round'
       ctx.lineCap = 'round'
 
