@@ -66,6 +66,10 @@ function MazeGame() {
 			[game], [game, 'state'],
 		)
 		const level = new Level( time, 'added new level', game, [game, 'level'], )
+		new Effect(
+			time, `set max_time`, -Infinity,
+			[level], [level, 'max_time'],
+		)
 		client.game = game
 	  tick()
 	})
@@ -105,7 +109,7 @@ function MazeGame() {
 			const level_action = state && state.act_at(game, spot.at(time))
 			if (level_action) {
 				log(level_action.description)
-				log('polys', level.get_polys(time - 2000, time))
+				log('polys', level.get_polys(time - 2000, time + 2000))
 				level.check(time, [level_action])
 				effect_stack.push(level_action)
 			}

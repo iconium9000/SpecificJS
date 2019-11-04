@@ -70,6 +70,37 @@ module.exports = (project_name, Lib) => {
       return new Point( mid_t, (dst.x-x)*ratio+x, (dst.y-y)*ratio+y, 1, )
     }
 
+    static dot(
+      {time:rt,x:rx,y:ry}, {time:at,x:ax,y:ay}, {time:bt,x:bx,y:by},
+    ) {
+      return (at-rt)*bt + (ax-rx)*bx + (ay-ry)*by
+    }
+    static cross(
+      {time:rt,x:rx,y:ry}, {time:at,x:ax,y:ay}, {time:bt,x:bx,y:by},
+    ) {
+      const pt = at-rt, px = ax-rx, py = ay-ry
+      const qt = bt-rt, qx = bx-rx, qy = by-ry
+      return new this( px*qy-py*qx, py*qt-pt*qy, pt*qx-px*qt, 1)
+    }
+    static signed_volume(
+      a,b,c,d, // Point
+    ) {
+      return this.dot( a,d, this.cross(a,b,c) ) // /6
+    }
+    static line_through(
+      qr,qs, pr,pa,pb, // Point
+    ) {
+      // https://stackoverflow.com/questions/42740765/
+      // intersection-between-line-and-triangle-in-3d
+      const va = this.signed_volume(qa,pr,pa,pb)
+      const vb = this.signed_volume(qb,pr,pa,pb)
+      const vra = this.signed_volume(qr,qs,pr,pa)
+      const vab = this.signed_volume(qr,qs,pa,pb)
+      if (0<va != 0<vb && 0<vra == 0<vab) return Infinity
+      const qrt = qr.time, qst = qs.time, pn = this.cross(pr,pa,pb)
+      return qrt + (qrt-qst)*this.dot(pr,qa,pn)/this.dot(qa,qb,pn)
+    }
+
     get x() { return this._x * this._scale }
     get y() { return this._y * this._scale }
     get abs_x() { return Math.abs(this._x * this._scale) }
@@ -506,6 +537,22 @@ module.exports = (project_name, Lib) => {
       this._game = game
     }
 
+    set_max_time(
+      time,new_max_time, // Int
+      description, // String
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
+    ) {
+      const max_time = this.get_label(time, `max_time`)
+      return max_time < new_max_time ? new Effect(
+        time, description, new_max_time,
+        [this, `max_time`], ...prereq_paths
+      ) : null
+    }
+    get_max_time(
+      time, // Int
+    ) {
+      return this.get_label(time, `max_time`)
+    }
     get game() { return this._game }
 
     get_polys(
@@ -1109,9 +1156,11 @@ module.exports = (project_name, Lib) => {
       } = this.Type
       const new_root_long = {
         time:time, _long:long, root:root.round(root_round),
+        long_open: this.get_long_open(time),
         long: long.long.cramp(long_min,long_max,long_round),
         short: long.short.cramp(short_min,short_max,short_round),
       }
+      new_root_long.spot = new_root_long.root.sum(new_root_long.long)
       return new Effect(
         time, description, new_root_long,
         [this, `root_long`], ... prereq_paths
@@ -1125,18 +1174,19 @@ module.exports = (project_name, Lib) => {
       const {time} = root, {long_min,short_min,root_round} = this.Type
       const _root = root.round(root_round)
       const _root_long = this.get_label(time, `root_long`)
-
+      const long_open = this.get_long_open(time)
       const new_root_long = _root_long ? {
-        time:time, root:_root,
+        time:time, root:_root, long_open:long_open,
         _long:_root_long._long.at(time),
         long:_root_long.long.at(time),
         short:_root_long.short.at(time),
       } : {
-        time:time, root:_root,
+        time:time, root:_root, long_open:long_open,
         _long:new Point(time,long_min,short_min),
         long:new Point(time,1,0,long_min),
         short:new Point(time,0,1,short_min),
       }
+      new_root_long.spot = new_root_long.root.sum(new_root_long.long)
       return new Effect(
         time, description, new_root_long,
         [this, 'root_long'], ...prereq_paths,
@@ -1146,7 +1196,7 @@ module.exports = (project_name, Lib) => {
       time, // Int
     ) {
       const _root_long = this.get_label(time, `root_long`)
-      return (_root_long ? _root_long.root : new Point(time,0,0,1)).at(time)
+      return _root_long ? _root_long.root.at(time) : new Point(time,0,0,1)
     }
     set_long(
       long, // Point @ time
@@ -1159,15 +1209,14 @@ module.exports = (project_name, Lib) => {
         long_min,long_max,long_round
       } = this.Type
       const _root_long = this.get_label(time, `root_long`)
+      const long_open = this.get_long_open(time)
       const new_root_long = {
-        time:time, _long:long,
+        time:time, _long:long, long_open:long_open,
         long: long.long.cramp(long_min,long_max,long_round),
         short: long.short.cramp(short_min,short_max,short_round),
-        root: (
-          _root_long ? _root_long.root :
-          new Point(time, long_min, short_min, 1)
-        ).at(time),
+        root: _root_long ? _root_long.root.at(time) : new Point(time,0,0,1),
       }
+      new_root_long.spot = new_root_long.root.sum(new_root_long.long)
       return new Effect(
         time, description, new_root_long,
         [this, 'root_long'], ...prereq_paths,
@@ -1197,11 +1246,10 @@ module.exports = (project_name, Lib) => {
     ) {
       const {short_min,long_min} = this.Type
       const _root_long = this.get_label(time, `root_long`)
-      if (_root_long) {
-        const {root,long} = _root_long
-        return root.sum(long).at(time)
-      }
-      else return new Point(time, long_min, short_min, 1)
+      return (
+        _root_long ?
+        _root_long.spot.at(time) : new Point(time,1,0,long_min)
+      )
     }
     set_long_open(
       start_time,stop_time,
@@ -1209,10 +1257,61 @@ module.exports = (project_name, Lib) => {
       description, // String
       ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
-      return new Lerp(
+      const {
+        short_min,short_max,short_round,
+        long_min,long_max,long_round
+      } = this.Type
+      const set_long_open = new Lerp(
         start_time,stop_time, description, Float,
         start_open,stop_open, [this, 'long_open'], ...prereq_paths,
       )
+      const start_root_long = this.get_label(start_time, `root_long`)
+      const new_start_root_long = start_root_long ? {
+        time: start_time, long_open:start_open,
+        root: start_root_long.root.at(start_time),
+        _long: start_root_long._long.at(start_time),
+        long: start_root_long.long.at(start_time),
+        short: start_root_long.short.at(start_time),
+      } : {
+        time:start_time, long_open:start_open,
+        root: new Point(start_time,0,0,1),
+        _long:new Point(start_time,long_min,short_min),
+        long:new Point(start_time,1,0,long_min),
+        short:new Point(start_time,0,1,short_min),
+      }
+      new_start_root_long.spot = new_start_root_long.root.sum(
+        new_start_root_long.long
+      )
+      new Effect(
+        start_time, 'start root_long from long_open', new_start_root_long,
+        [set_long_open], [this, 'root_long'],
+      )
+      const stop_root_long = this.get_label(stop_time, `root_long`)
+      const new_stop_root_long = stop_root_long ? {
+        time: stop_time, long_open:stop_open,
+        root: stop_root_long.root.at(stop_time),
+        _long: stop_root_long._long.at(stop_time),
+        long: stop_root_long.long.at(stop_time),
+        short: stop_root_long.short.at(stop_time),
+      } : {
+        time:stop_time, long_open:stop_open,
+        root: new Point(stop_time,0,0,1),
+        _long: new Point(stop_time,long_min,short_min),
+        long: new Point(stop_time,1,0,long_min),
+        short: new Point(stop_time,0,1,short_min),
+      }
+      new_stop_root_long.spot = new_stop_root_long.root.sum(
+        new_stop_root_long.long
+      )
+      new Effect(
+        stop_time, 'stop root_long from long_open', new_stop_root_long,
+        [set_long_open], [this, 'root_long'],
+      )
+      this.level.set_max_time(
+        start_time,stop_time, `set max_time?`,
+        [set_long_open]
+      )
+      return set_long_open
     }
     get_long_open(
       time, // Int
@@ -1298,92 +1397,28 @@ module.exports = (project_name, Lib) => {
       const _root_long_array = this._get_effect_array('root_long')
       if (!_root_long_array) return root_spot_array
 
-      const {default_long_open} = this.Type
-
-      const long_open_array = [{
-        start_time: start_time, stop_time: stop_time,
-        start_value: default_long_open, stop_value: default_long_open,
-      }]
-      const _long_open_array = this._get_effect_array('long_open')
-      if (_long_open_array) {
-        for (const idx in _long_open_array) {
-          const effect = _long_open_array[idx]
-          const {time, is_valid, value} = effect
-
-          if (!is_valid) continue
-
-          const last_long_open = long_open_array.pop()
-          if (time < start_time) {
-            long_open_array.push({
-              start_time: time, start_value: value,
-              stop_time: stop_time, stop_value: value,
-            })
-          }
-          else if (time < stop_time) {
-            if (last_long_open.start_time < time) {
-              last_long_open.stop_time = time
-              last_long_open.stop_value = value
-              long_open_array.push(last_long_open)
-            }
-            long_open_array.push({
-              start_time: time, start_value: value,
-              stop_time: stop_time, stop_value: value,
-            })
-          }
-          else {
-            last_long_open.stop_time = time
-            last_long_open.stop_value = value
-            long_open_array.push(last_long_open)
-            break
-          }
-        }
-        const first_long_open = long_open_array[0]
-        if (first_long_open.start_time < start_time) {
-          first_long_open.start_value = Float.lerp(
-            first_long_open.start_time, first_long_open.stop_time, start_time,
-            first_long_open.start_value, first_long_open.stop_value
-          )
-          first_long_open.start_time = start_time
-        }
-        const last_long_open = long_open_array.pop()
-        last_long_open.stop_value = Float.lerp(
-          last_long_open.start_time, last_long_open.stop_time, stop_time,
-          last_long_open.start_value, last_long_open.stop_value
-        )
-        last_long_open.stop_time = stop_time
-        long_open_array.push(last_long_open)
-      }
-
-      for (const idx in _root_long_array) {
-        const { is_valid, time, value:_root_long } = _root_long_array[idx]
-
+      const stop_long_open = this.get_long_open(stop_time)
+      for (let idx = 0; idx < _root_long_array.length; ++idx) {
+        const {
+          time,is_valid,value:{root,spot,long_open}
+        } = _root_long_array[idx]
         if (!is_valid) continue
-        else if (stop_time <= time) break
-
-        const root = _root_long.root.at(time < start_time ? start_time : time)
-        const spot = root.sum(_root_long.long)
 
         const last_root_spot = root_spot_array.pop()
-        if (
-          last_root_spot &&
-          start_time <= time &&
-          last_root_spot.time < time
-        ) {
-          last_root_spot.next_time = time
+        if (start_time <= time&&last_root_spot) {
+          last_root_spot.stop_root = last_root_spot.start_root.at(time)
+          last_root_spot.stop_spot = last_root_spot.start_spot.at(time)
+          last_root_spot.stop_long_open = long_open
           root_spot_array.push(last_root_spot)
         }
-
-        root_spot_array.push({ time:time, root:root, spot:spot, })
+        if (stop_time <= time) break
+        root_spot_array.push({
+          start_root:root, start_spot:spot,
+          start_long_open:long_open,
+          stop_root:root.at(stop_time), stop_spot:spot.at(stop_time),
+          stop_long_open:stop_long_open,
+        })
       }
-      const last_root_spot = root_spot_array.pop()
-      if (!last_root_spot) return root_spot_array
-      else {
-        last_root_spot.next_time = stop_time
-        root_spot_array.push(last_root_spot)
-      }
-
-
-
       return root_spot_array
     }
 
@@ -1392,8 +1427,16 @@ module.exports = (project_name, Lib) => {
     ) {
       const polys = []
 
-      const root_spot_array = this._get_root_spot_array()
-      log('root_spot_array', root_spot_array)
+      const root_spot_array = this._get_root_spot_array(start_time,stop_time)
+      for (const idx in root_spot_array) {
+        const {
+          start_root,start_spot, stop_root,stop_spot
+        } = root_spot_array[idx]
+        polys.push(
+          [start_root,start_spot,stop_root],
+          [stop_root, stop_spot,start_spot],
+        )
+      }
 
       return polys
     }
@@ -1469,7 +1512,15 @@ module.exports = (project_name, Lib) => {
       )
     }
 
-
+    remove(
+      time, // Int
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
+    ) {
+      return super.remove(
+        time, [this.level, 'wall', this.time],
+        ...prereq_paths,
+      )
+    }
 
     draw(
       ctx, // CanvasRenderingContext2D
