@@ -125,22 +125,24 @@ function MazeGame() {
 		const time = Lib.time
 		const game = client.game
 		const level = game && game.get_label(time, 'level')
+		const game_state = game && game.get_label(time, 'state')
 		const target = level && level.get_label(time, 'target')
 
 		if (state) {
-			const update_state = new Effect(
-				time, `set state to ${state.name}`, state,
-				[game], [game, 'state'],
-			)
-			if (target) {
-				const clear_target = new Effect(
-	        time, `clear level target`, null,
-	        [update_state], [target], [level], [level, 'target'],
-	      )
-				level.check(time, [clear_target])
+			if (level) {
+				const update_state = new Effect(
+					time, `set state to ${state.name}`, state,
+					[game], [game, 'state'],
+				)
+				if (target && game_state) {
+					const clear_target = game_state.clear_target(
+						time,level,target, [update_state]
+					)
+					if (clear_target) level.check(time, [clear_target])
+				}
+				log(update_state.description)
+				effect_stack.push(update_state)
 			}
-			log(update_state.description)
-			effect_stack.push(update_state)
 		}
 		// delete: e.which = 127
 		else if (e.which == 127) {
