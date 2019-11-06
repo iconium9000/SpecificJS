@@ -333,7 +333,7 @@ module.exports = (project_name, Lib) => {
       super(time)
       this._description = description
       this._value = value === undefined ? this : value
-      this._prereq_paths = prereq_paths
+      this._prereq_paths = []
       this._prereqs = []
       this._prexcls = []
       this._postreqs = []
@@ -346,7 +346,9 @@ module.exports = (project_name, Lib) => {
       this._is_dead = false
 
       for (const idx in prereq_paths) {
-        const [prereq, ...labels] = prereq_paths[idx]
+        const prereq_path = prereq_paths[idx]
+        const [prereq, ...labels] = prereq_path
+        if (!prereq) continue
 
         let {_effect_array} = prereq
         for (const idx in labels) {
@@ -372,6 +374,7 @@ module.exports = (project_name, Lib) => {
         Lib.bin_insert(this._prereqs, prereq, 'time')
         Lib.bin_insert(prereq._postreqs, this, 'time')
         if (!prereq._is_valid) this._is_valid = false
+        this._prereq_paths.push(prereq_path)
       }
 
       for (const idx in this._is_valid && this._postxcls) {
@@ -515,15 +518,9 @@ module.exports = (project_name, Lib) => {
         start_time, `start ${description}`, start_value,
         ...prereq_paths
       )
-      this._stop_effect = new Effect(
-        stop_time, `stop ${description}`, stop_value,
-        [this,], ...prereq_paths
-      )
       this._stop_time = stop_time; this._stop_value = stop_value
       this._type = type
     }
-
-    get stop_effect() { return this._stop_effect }
 
     get_value(
       time, // Int
@@ -565,168 +562,184 @@ module.exports = (project_name, Lib) => {
       const level = game.get_label(time, 'level')
       if (!level || time < level.time) return null
 
-      const jack = level.get_label(time, `target`)
-      const keys = level.get_values(time, `key`)
-      const spot_key = Key.get_closest(spot, keys)
-      const locks = level.get_values(time, `lock`)
-      const spot_lock = Lock.get_closest(spot, locks)
+      const target_jack = level.get_label(time, `target`)
+      const target_jack_root = target_jack && target_jack.get_root(time)
+      const nose_key = target_jack && target_jack.nose.get_label(time, `key`)
+      nose_key && log('nose_key')
+      const level_locks = level.get_values(time, `lock`)
+      let spot_lock = Lock.get_closest(spot, level_locks)
+      const level_keys = level.get_values(time, `key`)
+      const spot_key = Key.get_closest(spot, level_keys) || (
+        spot_lock && spot_lock.target.nose == spot_lock && spot_lock.target
+      ) || null
 
       if (spot_key && spot_key.nose) {
-        if (spot_key == jack) {
-          return this.clear_target(time, level, jack,)
-        }
-        const spot_jack = spot_key
-        const set_level_target = new Effect(
-          time, `set ${spot_jack.Type.name} as target`, spot_jack,
-          [spot_jack], [level], [level, `target`],
-        )
-        const set_is_open = spot_jack.set_is_open(
-          time, false, `set_is_open`, [set_level_target],
-        )
-        if (jack) jack.set_is_open(
-          time, true, `set_is_open`, [set_level_target],
-        )
-        return set_level_target
-      }
-      if (!jack) return null
-
-      const nose = jack.nose, nose_key = nose.get_label(time, 'key')
-      const jack_lock = jack.get_label(time, 'lock')
-      const lock_key = spot_key || (
-        spot_lock && spot_lock.get_label(time, 'key')
-      )
-      if (lock_key && nose_key) return null
-      const nose_radius = (
-        nose_key || lock_key ?
-        2*jack.Type.radius + nose.Type.long_min : 0
-      )
-      const _root = jack.get_root(time)
-      const __long = spot.sub(_root)
-      const _dist = __long.length - nose_radius
-      if (_dist < 0) return null
-      const _long = __long.unit.strip(_dist)
-      const _spot = _root.sum(_long)
-
-      const speed = jack.Type.speed
-      let max_time = time + _dist / speed
-      const paths = [ [ max_time, _root, _spot.at(max_time) ], ]
-
-      const root_portal = level.get_label(time, 'root_portal')
-      const spot_portal = level.get_label(time, 'spot_portal')
-      if (root_portal && spot_portal) {
-        const pr = root_portal.get_center(time)
-        const ps = spot_portal.get_center(time)
-        const jr_pr = pr.sub(_root), ps_js = _spot.sub(ps)
-        const jr_pr_time = time + jr_pr.length / speed
-        const ps_js_time = jr_pr_time + ps_js.length / speed
-        if (max_time < ps_js_time) max_time = ps_js_time
-
-        const jr_ps = ps.sub(_root), pr_js = _spot.sub(pr)
-        const jr_ps_time = time + jr_ps.length / speed
-        const pr_js_time = jr_ps_time + pr_js.length / speed
-        if (max_time < pr_js_time) max_time = pr_js_time
-
-        paths.push(
-          [ps_js_time, _root, pr.at(jr_pr_time), ps.at(ps_js_time), _spot],
-          [pr_js_time, _root, ps.at(jr_ps_time), pr.at(pr_js_time), _spot]
-        )
-      }
-      paths.sort(([a],[b])=>a-b)
-
-
-      // TODO POLYS max_time
-      for (const idx in paths) {
-        const path = paths[idx]
-        const [stop_time] = path
-
-        // check line_through_polys
-        if (true) {
-          const clear_target = new Effect(
-            time, `start new path (clear_target)`, null,
-            [jack], [level], [level, `target`],
-          )
-          jack.set_is_open(time, true, `set is_open`, [clear_target])
-          if (jack_lock) {
-            const clear_lock_key = new Effect(
-              time, `clear jack and lock`, null, [clear_target],
-              [jack_lock], [jack, 'lock'], [spot_lock, 'key'],
+        const root = spot_key.get_root(time)
+        const long = spot.sub(root)
+        if (spot_key == target_jack) {
+          const clear_target = this.clear_target( time, level, target_jack, )
+          if (spot_lock && spot_lock != target_jack.nose) {
+            const spot = spot_lock.get_spot(time)
+            const set_lock = target_jack.set_lock(
+              time, spot_lock, `set jack lock`, [clear_target],
             )
-            jack_lock.set_is_open(time, false, `set is_open`, [clear_lock_key])
-          }
-          let move_to = clear_target
-          for (let path_idx = 2; path_idx < path.length; ++path_idx) {
-            const _spot = path[path_idx]
-            move_to = jack.lerp_to(
-              move_to.time, _spot, `lerp to`,
-              [move_to],
+            target_jack.set_root(
+              spot, `set jack root as lock spot`, [set_lock],
             )
           }
-          if (lock_key) {
-            const set_nose_key = new Effect(
-              stop_time, `set nose key`, lock_key,
-              [move_to], [lock_key], [nose], [nose, `key`],
-            )
-            const set_key_lock = new Effect(
-              stop_time, `set key lock to nose`, nose,
-              [set_nose_key], [lock_key, `lock`],
-            )
-            if (spot_lock) {
-              const clear_lock_key = new Effect(
-                stop_time, `clear lock key`, null,
-                [set_key_lock], [spot_lock], [spot_lock, `key`],
-              )
-              spot_lock.set_is_open(
-                stop_time, false, `set is_open`,
-                [clear_lock_key]
-              )
-            }
-          }
-          else if (nose_key) {
-            if (spot_lock) {
-              const set_key_lock = new Effect(
-                stop_time, `set key lock`, spot_lock, [move_to],
-                [spot_lock], [nose_key], [nose_key, `lock`]
-              )
-              new Effect(
-                stop_time, `set lock key`, nose_key, [set_key_lock],
-                [spot_lock, `key`],
-              )
-              new Effect(
-                stop_time, `clear lock key`, null, [set_key_lock],
-                [nose], [nose, `key`],
-              )
-              const is_open = nose_key.get_is_open(stop_time)
-              spot_lock.set_is_open(
-                stop_time, is_open, `set is_open`, [set_key_lock],
-              )
-              nose.set_is_open(
-                stop_time, false, `set nose is_open`, [set_key_lock],
-              )
-            }
-            else {
-              const clear_lock_key = new Effect(
-                stop_time, `clear lock key`, null, [move_to],
-                [nose], [nose_key], [nose, `key`], [nose_key, `lock`],
-              )
-              nose.set_is_open(
-                stop_time, false, `set nose is_open`, [clear_lock_key],
-              )
-            }
-          }
-          else if (spot_lock) {
-            const set_jack_lock = new Effect(
-              stop_time, `set jack lock`, spot_lock, [move_to],
-              [spot_lock], [jack], [jack, 'lock'],
-            )
-            const set_lock_jack = new Effect(
-              stop_time, `set lock jack`, jack, [set_jack_lock],
-              [spot_lock, `key`],
-            )
-            spot_lock.set_is_open(time, true, `set is_open`, [set_lock_jack])
+          if (long.length) {
+            target_jack.set_long(long, `set long`, [clear_target])
           }
           return clear_target
         }
+        const set_level_target = new Effect(
+          time, `set level target`, spot_key,
+          [spot_key], [level], [level, `target`],
+        )
+        if (target_jack) {
+          target_jack.set_is_open(
+            time, true, `set is_open`,
+            [set_level_target],
+          )
+        }
+        spot_key.set_is_open(
+          time, false, `set is_open`,
+          [set_level_target],
+        )
+        if (long.length) {
+          spot_key.set_long(long, `set long`, [set_level_target])
+        }
+        return set_level_target
       }
+      else if (!target_jack) return null
+
+      if (spot_key && spot_key != nose_key) {
+        spot = spot_key.get_root(time)
+      }
+      else if (spot_lock) spot = spot_lock.get_spot(time)
+
+      const long = spot.sub(target_jack_root)
+      const speed = target_jack.Type.speed
+      const jack_radius = target_jack.Type.radius
+      const radius = jack_radius + target_jack.nose.Type.long_min
+      const long_length = long.length
+
+      if ( long_length < jack_radius + radius ) {
+        let set_lock = null
+        if (nose_key) {
+          set_lock = nose_key.set_lock(
+            time, spot_lock, `set nose key lock to spot_lock`,
+          )
+          const root = target_jack_root.sum(long.unit, radius)
+          nose_key.set_root(root, `set root as spot`, [set_lock], )
+        }
+        else if (!nose_key && spot_key) {
+          set_lock = spot_key.set_lock(
+            time, target_jack.nose, `set key lock as jack nose`,
+          )
+          spot_key.set_root(spot, `set root as spot`, [set_lock])
+        }
+        const set_long = !long_length ? null : target_jack.set_long(
+          long, `set jack long`, [set_lock],
+        )
+        return set_lock || set_long
+      }
+
+      const paths = []
+      const sub_radius = nose_key || spot_key ? radius : 0
+      const long_unit = long.unit
+      {
+        const stop_dist = long_length - sub_radius
+        const stop_time = time + stop_dist / speed
+        const _long = long_unit.strip(stop_dist)
+        const spot = target_jack_root.at(stop_time).sum(_long)
+        paths.push([stop_time, [target_jack_root, spot, _long]])
+      }
+      const root_portal = level.get_label(time, `root_portal`)
+      const spot_portal = level.get_label(time, `spot_portal`)
+      if (root_portal && spot_portal) {
+        const jr = target_jack_root, js = spot
+        const pr = root_portal.get_center(time)
+        const ps = spot_portal.get_center(time)
+
+        const temp = [[pr,ps],[ps,pr]]
+        for (const idx in temp) {
+          const [pr,ps] = temp[idx]
+
+          const jr_pr = pr.sub(jr)
+          const jr_pr_dist = jr_pr.length
+          const mid_time = time + jr_pr_dist / speed
+
+          const ps_js = js.sub(ps).at(mid_time)
+          const ps_js_dist = ps_js.length - sub_radius
+          const stop_time = mid_time + ps_js_dist / speed
+
+          paths.push([
+            stop_time,
+            [jr, pr.at(mid_time)],
+            [ps.at(mid_time), ps.sum(ps_js.unit, ps_js_dist).at(stop_time)],
+          ])
+        }
+      }
+      paths.sort(([a],[b])=>a-b)
+
+      for (const idx in paths) {
+        const [stop_time, ...lerps] = paths[idx]
+
+        // TODO check is valid path
+
+        const start_path = new Effect(
+          time, `start_path`, target_jack,
+          [target_jack],
+        )
+        if (nose_key && spot_key) {
+          const [[root,spot]] = lerps
+          const new_root = root.sum(spot.sub(root).unit, radius)
+          nose_key.set_lock(time, null, `clear nose key lock`, [start_path])
+          nose_key.set_root(new_root, `set new root`, [start_path])
+        }
+        const target_jack_lock = target_jack.get_label(time, `lock`)
+        if (target_jack_lock) {
+          target_jack.set_lock(
+            time, null, `clear jack lock`,
+            [start_path],
+          )
+        }
+
+        let prev_lerp = start_path
+        for (const lerp_idx in lerps) {
+          const [root,spot] = lerps[lerp_idx]
+          prev_lerp = target_jack.lerp_to(
+            root, spot, `lerp to`, [prev_lerp],
+          ).stop_effect
+        }
+        // if (prev_lerp) log('prev_lerp')
+
+        // let set_lock = null
+        // if (nose_key) {
+        //   set_lock = nose_key.set_lock(
+        //     stop_time, spot_lock, `set nose key lock to spot_lock`,
+        //     [prev_lerp],
+        //   )
+        // }
+        // else
+        // if (!nose_key && spot_key) {
+        //   set_lock = spot_key.set_lock(
+        //     stop_time, target_jack.nose, `set key lock as jack nose`,
+        //     [prev_lerp],
+        //   )
+        // }
+        // if (set_lock) {
+        //   level.check(stop_time, [set_lock])
+        // }
+        return start_path
+      }
+
+      if (long_length) {
+        const set_long = target_jack.set_long( long, `set jack long`, )
+        return set_long
+      }
+      return null
     }
 
     constructor(
@@ -846,12 +859,12 @@ module.exports = (project_name, Lib) => {
       const _root_portal = this.get_label(time, 'root_portal')
       if (root_portal != _root_portal) new Effect(
         time, `set root_portal`, root_portal,
-        [this], [this, 'root_portal'], ...(root_portal ? [[root_portal]] : []),
+        [root_portal], [this], [this, 'root_portal'],
       )
       const _spot_portal = this.get_label(time, 'spot_portal')
       if (spot_portal != _spot_portal) new Effect(
         time, `set spot_portal`, spot_portal,
-        [this], [this, 'spot_portal'], ...(spot_portal ? [[spot_portal]] : []),
+        [spot_portal], [this], [this, 'spot_portal'],
       )
 
       for (const label in doors) {
@@ -1480,7 +1493,7 @@ module.exports = (project_name, Lib) => {
         short_min,short_max,short_round,
         long_min,long_max,long_round
       } = this.Type
-      const set_long_open = new Lerp(
+      const start_set_long_open = new Lerp(
         start_time,stop_time, description, Float,
         start_open,stop_open, [this, 'long_open'], ...prereq_paths,
       )
@@ -1503,7 +1516,11 @@ module.exports = (project_name, Lib) => {
       )
       new Effect(
         start_time, 'start root_long from long_open', new_start_root_long,
-        [set_long_open], [this, 'root_long'],
+        [start_set_long_open], [this, 'root_long'],
+      )
+      const stop_set_long_open = new Effect(
+        stop_time, `stop ${description}`, stop_open,
+        [this, `long_open`], ...prereq_paths,
       )
       const stop_root_long = this.get_label(stop_time, `root_long`)
       const new_stop_root_long = stop_root_long ? {
@@ -1524,13 +1541,13 @@ module.exports = (project_name, Lib) => {
       )
       new Effect(
         stop_time, 'stop root_long from long_open', new_stop_root_long,
-        [set_long_open], [this, 'root_long'],
+        [stop_set_long_open], [this, 'root_long'],
       )
       this.level.set_max_time(
         start_time,stop_time, `set max_time?`,
-        [set_long_open]
+        [stop_set_long_open]
       )
-      return set_long_open
+      return start_set_long_open
     }
     get_long_open(
       time, // Int
@@ -1884,12 +1901,6 @@ module.exports = (project_name, Lib) => {
     }
     static lock_names = ['root','cent','spot',]
     static is_portal = true
-    static to_center(
-      root,short,long, // Point
-    ) {
-      const {short_mid,center_long} = this.Type
-      return root.sum(long, center_long).sum(short, short_mid)
-    }
 
     constructor(
       time, // Int
@@ -1907,7 +1918,7 @@ module.exports = (project_name, Lib) => {
       time, // Int
     ) {
       const {root,short,long} = this.get_label(time, `root_long`)
-      return this.Type.to_center(root,short,long).at(time)
+      return short.sum(long).div(2).sum(root).at(time)
     }
 
     remove(
@@ -2152,6 +2163,40 @@ module.exports = (project_name, Lib) => {
       return this.get_label(time, 'is_open') || false
     }
 
+    // NOTE: assumes that lock != this lock @ time
+    // NOTE: if lock is Lock, then lock key @ time is assumed to be Null
+    set_lock(
+      time, // Int
+      lock, // Lock,Null
+      description, // String
+      ...prereq_paths // [prereq: Effect, ...labels: String,Int]
+    ) {
+      const prev_lock = this.get_label(time, `lock`)
+      const set_key_lock = new Effect(
+        time, description, lock, ...prereq_paths,
+        [lock], [this], [this, `lock`],
+      )
+      if (prev_lock) {
+        const clear_lock_key = new Effect(
+          time, `clear lock key`, null,
+          [set_key_lock], [prev_lock], [prev_lock, `key`],
+        )
+        if (prev_lock.get_is_open(time)) {
+          prev_lock.set_is_open(time, false, `set is_open`, [clear_lock_key])
+        }
+      }
+      if (lock) {
+        const set_lock_key = new Effect(
+          time, `set lock key`, this,
+          [set_key_lock], [lock, `key`],
+        )
+        if (this.get_is_open(time)) {
+          lock.set_is_open(time, true, `set is_open`, [set_lock_key])
+        }
+      }
+      return set_key_lock
+    }
+
     get level() { return this._level }
 
     remove(
@@ -2276,12 +2321,14 @@ module.exports = (project_name, Lib) => {
       description, // String
       ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
-      const {time} = long
+      const {time} = long, {radius} = this.Type
       const set_long = new Effect(
-        time, description, long.unit,
+        time, description, long = long.unit,
         [this, `long`], ...prereq_paths,
       )
+      const root = this.get_root(time)
       this._nose.set_long(long, `set nose long`, [set_long])
+      this._nose.set_root(root.sum(long, radius), `set nose root`, [set_long])
       return set_long
     }
     get_long(
@@ -2330,46 +2377,50 @@ module.exports = (project_name, Lib) => {
     }
 
     lerp_to(
-      start_time, // Int
+      root, // Point @ start_time
       spot, // Point @ stop_time
       description, // String
       ...prereq_paths // [prereq: Effect, ...labels: String,Int]
     ) {
-      const stop_time = spot.time, nose = this.nose
-      const root = this.get_root(start_time)
+      const start_time = root.time, stop_time = spot.time, nose = this.nose
       const long = spot.sub(root).unit.at(start_time)
       const this_radius = this.Type.radius
       const nose_radius = nose.Type.long_min
 
-      const lerp_to = new Lerp(
-        start_time, stop_time, `lerp root to spot`, Point, root, spot,
+      const lerp_this_root_spot = new Lerp(
+        start_time, stop_time, `lerp root to spot`,
+        Point, root, spot, ...prereq_paths,
         [this], [this, `root`],
-        ...prereq_paths,
       )
       new Effect(
         start_time, `set long`, long,
-        [this], [this, `long`], [lerp_to],
+        [this, `long`], [lerp_this_root_spot],
       )
       new Effect(
         start_time, `set long`, long.strip(nose_radius),
-        [nose], [nose, `long`], [lerp_to],
+        [nose], [nose, `long`], [lerp_this_root_spot],
       )
       const lock_long = long.strip(this_radius)
       const lerp_nose_to = new Lerp(
         start_time, stop_time, `lerp nose root to spot`, Point,
-        root.sum(lock_long), spot.sum(lock_long),
-        [nose], [nose, `root`], [lerp_to],
+        root.sum(lock_long), spot.sum(lock_long), [nose, `root`],
+        [nose], [lerp_this_root_spot],
       )
       const nose_key = nose.get_label(start_time, 'key')
       if (nose_key) {
         const key_long = long.strip(this_radius + nose_radius)
-        new Lerp(
+        const lerp_nose_key_root = new Lerp(
           start_time, stop_time, `lerp nose key root to spot`, Point,
-          root.sum(key_long), spot.sum(key_long),
-          [nose_key], [nose_key, `root`], [lerp_nose_to],
+          root.sum(key_long), spot.sum(key_long), [nose_key, `root`],
+          [nose_key], [lerp_nose_to],
         )
       }
-      return lerp_to
+      const set_root = this.set_root(
+        spot, `set jack root to spot`, ...prereq_paths,
+        [lerp_this_root_spot], [this], [this, `root`],
+      )
+      lerp_this_root_spot.stop_effect = set_root
+      return lerp_this_root_spot
     }
   }
   MazeGame.Jack = Jack
