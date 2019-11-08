@@ -60,17 +60,7 @@ function MazeGame() {
 	  log(client.full_name, 'connected to server')
 
 		const time = Lib.time
-		const game = new Game(time)
-		new Effect(
-			time, 'init state as Wall', MazeGame.Wall,
-			[game], [game, 'state'],
-		)
-		const level = new Level( time, 'added new level', game, [game, 'level'], )
-		new Effect(
-			time, `set max_time`, -Infinity,
-			[level], [level, 'max_time'],
-		)
-		client.game = game
+		// TODO NEW GAME
 	  tick()
 	})
 
@@ -100,19 +90,10 @@ function MazeGame() {
 		const center = get_center(canvas)
 		set_spot(e, center)
 
-		const {root,spot} = client
+		const {root,spot,left_down} = client
 
-		const {game,state,left_down,right_down} = client
-		if ((left_down || right_down) && game) {
-			const level = game.get_label(game, 'level')
-			const state = game.get_label(time, 'state')
-			const level_action = state && state.act_at(game, spot.at(time))
-			if (level_action) {
-				log(level_action.description)
-				log('polys', level.get_polys(time - 2000, time + 2000))
-				level.check(time, [level_action])
-				effect_stack.push(level_action)
-			}
+		if (left_down) {
+			// TODO ACTION
 		}
 
 		client[e.button == 2 ? 'right_down' : 'left_down'] = false
@@ -121,58 +102,23 @@ function MazeGame() {
 
 	$(document).keypress(e => {
     var c = String.fromCharCode(e.which | 0x20)
-		const state = key_bindings[c]
+		const new_state = key_bindings[c]
 		const time = Lib.time
-		const game = client.game
-		const level = game && game.get_label(time, 'level')
-		const game_state = game && game.get_label(time, 'state')
-		const target = level && level.get_label(time, 'target')
 
-		if (state) {
-			if (level) {
-				const update_state = new Effect(
-					time, `set state to ${state.name}`, state,
-					[game], [game, 'state'],
-				)
-				if (target && game_state) {
-					const clear_target = game_state.clear_target(
-						time,level,target, [update_state]
-					)
-					if (clear_target) level.check(time, [clear_target])
-				}
-				log(update_state.description)
-				effect_stack.push(update_state)
-			}
+		if (new_state) {
+			// TODO SET STATE
 		}
 		// delete: e.which = 127
 		else if (e.which == 127) {
-			if (target) {
-				const remove_target = target.remove( time, [level], [level, 'target'],)
-				if (remove_target) {
-					log(remove_target.description)
-					level.check(time, [remove_target])
-					effect_stack.push(remove_target)
-				}
-			}
+			// TODO DELETE
 		}
 		else if (c == 'z') {
-			if (game) {
-				const effect = effect_stack.pop()
-				if (effect) {
-					effect.kill(game)
-					log(`removed '${effect.description}'`)
-				}
-			}
+			// TODO KILL
 		}
 		else if (c == ' ') {
-			log( game, level, effect_stack, )
+			// TODO DISPLAY
 		}
   })
-
-  $(document).keyup(e => {
-    var c = String.fromCharCode(e.which | 0x20)
-
-	})
 
 	function tick() {
 
@@ -192,21 +138,12 @@ function MazeGame() {
 		const _center = center.strip()
 		const _spot = spot.sub(root,1).mul(center.scale).sum(_center)
 
-
-		try {
-			const state = game.get_label(time, 'state')
-			const effect = state && state.act_at(game, spot.at(time))
-			game.draw(ctx,time,root,center)
-			ctx.fillStyle = 'white'
-			if (effect) {
-				const start = Lib.time
-				effect.kill(game)
-				const stop = Lib.time
-				ctx.fillText(stop-start, 20, 50)
+		if (game) {
+			try {
+				// TODO DRAW
+			} catch (e) {
+				log(e)
 			}
-			ctx.fillText(Math.round(1/deltaT), 20, 20)
-		} catch (e) {
-			log(e)
 		}
 		client.prev_now = now
 	}
