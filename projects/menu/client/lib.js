@@ -25,6 +25,14 @@ const Lib = module.exports = {
 const pi = Math.PI
 const pi2 = pi * 2
 
+Lib.set = (object, label, value) => {
+  if (value == undefined) delete object[label]
+  else object[label] = value
+}
+Lib.get_first = object => {
+  for (const i in object) return object[i]
+}
+
 Lib.now = () => (new Date()).getTime() * 1e-3
 
 Lib.get_cookie = get_cookie

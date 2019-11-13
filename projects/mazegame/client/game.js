@@ -4,6 +4,39 @@ module.exports = (project_name, Lib) => {
   const err = console.error
   const pi = Math.PI, pi2 = pi*2
 
+  function table_to_string(
+    table, // Object{}
+  ) {
+    return JSON.stringify(table, null, '  ')
+  }
+  let sanity = 100
+  function object_to_type(
+    object, // Object,Type,Null
+  ) {
+    if (sanity-- < 0) throw `bad sanity`
+    if (object == undefined) return null
+    const {_time,_type} = object
+    if (typeof object != 'object') return object
+
+    let type = object
+    if (_type) type = new MazeGame[_type](_time)
+    for (const label in object) {
+      type[label] = object_to_type(object[label])
+    }
+    return type
+  }
+  function string_to_table(
+    string, // String
+  ) {
+    try {
+      return object_to_type(JSON.parse(string))
+    }
+    catch(e) {
+      log(e)
+      return {}
+    }
+  }
+
   MazeGame = {}
 
   class Type {
@@ -27,7 +60,8 @@ module.exports = (project_name, Lib) => {
     constructor(
       time, // Float
     ) {
-      return this._time = time
+      this._type = this.Type.name
+      this._time = time
     }
 
     get time() { return this._time }
@@ -291,261 +325,187 @@ module.exports = (project_name, Lib) => {
   }
   MazeGame.Point = Point
 
-  class Effect extends Type {
-    static _Node = class {
-      constructor(
-        label, // String,Null
-        super_node, // _Node,Null
-      ) {
-        this._map = {}
-        this._count = 0
-        this._array = []
-        this._listeners = []
-        if (super_node) {
-          ++super_node._count
-          super_node._map[label] = this
-        }
-      }
-      get is_empty() {
-        const {_count,_array,_listeners} = this
-        return _count + _array.length + _listeners.length <= 0
-      }
-      // return Undefined
-      insert(
-        effect, // Effect @ time
-        ...labels // String
-      ) {
-        const {_map,_array,constructor:_Node} = this
-        if (labels.length) {
-          const [label, ...sub_labels] = labels
-          const sub_node = _map[label] || new _Node(label, this)
-          return sub_node.insert(effect, sub_labels)
-        }
-        const insert_idx = Lib.bin_insert(_array, effect, 'time')
-        for (let idx = insert_idx; idx < _array.length; ++idx) {
-          const postxcl = _array[idx]
-          Lib.bin_insert(effect._postxcls, postxcl, 'time')
-          Lib.bin_insert(postxcl._prexcls, effect, 'time')
-        }
-      }
-      // return Boolean
-      kill(
-        effect, // Effect @ time
-        ...labels // String
-      ) {
-        const {_map,_array} = this
-        if (labels.length) {
-          const [label, ...sub_labels] = labels
-          const sub_node = _map[label]
-          if (!sub_node) return false
-          let kill = sub_node.kill(effect, sub_labels)
-          if (sub_node.is_empty) {
-            delete _map[label]
-            --this._count
-          }
-          return kill
-        }
-        return Lib.bin_delete(_array, effect, 'time')
-      }
+  class Action extends Type {
+    get idx() { return this._idx }
+    get prev_action() { return this._prev_action }
 
-      // return Object,Null,Undefined
-      get_value(
-        time, // Float
-        ...labels // String
-      ) {
-        const {_array,_map} = this
-        if (labels.length) {
-          const [label, ...sub_labels] = labels
-          const sub_node = _map[label]
-          if (!sub_node) return undefined
-          return sub_node.get_value( time, ...sub_labels, )
-        }
-        let idx = Lib.bin_idx_high(_array, time, 'time')
-        while (idx >= 0) {
-          const effect = _array[idx]
-          if (effect._is_valid) return effect.get_value(time)
-          else --idx
-        }
-        return undefined
-      }
-
-      // return Object[]
-      get_values(
-        time, // Float
-        ...labels // String
-      ) {
-        const {_array,_map} = this
-        if (labels.length) {
-          const [label, ...sub_labels] = labels
-          const sub_node = _map[label]
-          if (!sub_node) return {}
-          return sub_node.get_values( time, ...sub_labels, )
-        }
-        const values = {}
-        for (const label in _map) {
-          const value = _map[label].get_value(time)
-          if (value != undefined) values[label] = value
-        }
-        return values
-      }
-    }
-    static _Listener = class extends Type {
-
-      // NOTE: assumes that method is the label for a method with format:
-      // (listener: _Listener, old_effect,new_effect: Effect)
-      constructor(
-        time, // Float
-        description, // String
-        prereq, // Effect
-        method, // String
-        prereq, // Effect
-        ...labels // String
-      ) {
-        super(time)
-        
-      }
-    }
-
-    // Note: if value is undefined, defaults to this
-    constructor(
+    static init(
       time, // Float
-      description, // String
-      value, // Object,Undefined,Null
-      ...prereq_paths // [prereq: Effect, ...labels: String]
+      table, // Object{}
+      holder, // Game,Level
+      idx_label, // String
     ) {
-      super(time)
-      this._description = description
-      this._value = value === undefined ? this : value
-      this._prereq_paths = []; this._listeners = []
-      this._prereqs = []; this._prexcls = []
-      this._postreqs = []; this._postxcls = []
-      this._root_node = new this.Type._Node
-      this._is_valid = true
-      this._is_dead = false
-
-      for (const idx in prereq_paths) {
-        const prereq_path = prereq_paths[idx]
-        const [prereq, ...labels] = prereq_path
-        if (!prereq) continue
-        prereq._root_node.insert(this, ...labels)
-        Lib.bin_insert(this._prereqs, prereq, 'time')
-        Lib.bin_insert(prereq._postreqs, this, 'time')
-        if (!prereq._is_valid) this._is_valid = false
-        this._prereq_paths.push(prereq_path)
+      const action = new Action(time)
+      let {tally} = holder
+      action._idx = ++tally
+      action._old = {}; action._new = {}
+      action._prev_action = holder.action
+      action._table_old = {}; action._table_new = {}
+      action.set_table(action.idx, table, action)
+      const prev_action = table[holder.action]
+      if (prev_action) {
+        action.set(prev_action.idx, table, 'prev_action', )
       }
-
-      for (const idx in this._is_valid && this._postxcls) {
-        const postxcl = this._postxcls[idx]
-        postxcl.check_is_valid()
-      }
+      action.set(holder[idx_label], table, 'action', action.idx)
+      action.set(holder[idx_label], table, 'tally', tally)
+      return action
     }
-
-    get value() { return this._value }
-    get description() { return this._description }
-    get is_valid() { return this._is_valid }
-    check_is_valid() {
-      const {_prereqs,_prexcls,_postreqs,_postxcls} = this
-      let is_valid = true
-      for (const idx in _prereqs) {
-        if (!_prereqs[idx]._is_valid) {
-          is_valid = false
-          break
-        }
-      }
-      for (const idx in is_valid && _prexcls) {
-        if (_prexcls[idx]._is_valid) {
-          is_valid = false
-          break
-        }
-      }
-      if (is_valid == this._is_valid) return
-      this._is_valid = is_valid
-
-      for (const idx in _postreqs) {
-        _postreqs[idx].check_is_valid()
-      }
-      for (const idx in _postxcls) {
-        _postxcls[idx].check_is_valid()
-      }
-    }
-    add_listener(
-      time, // Float
-      description, // String
-
-    )
-
-    kill() {
-      if (this._is_dead) return
-      const {
-        _prereq_paths,_listeners,
-        _prereqs,_prexcls,
-        _postreqs,_postxcls,
-      } = this
-      this._is_dead = true; this._is_valid = false
-      this._prereq_paths = []; this._listeners = []
-      this._prereqs = []; this._prexcls = []
-      this._postreqs = []; this._postxcls = []
-
-      for (const idx in _prereq_paths) {
-        const [prereq, ...labels] = _prereq_paths[idx]
-        prereq.kill(this, ...labels)
-      }
-      for (const idx in _prereqs) {
-        Lib.bin_delete(_prereqs[idx]._postreqs, this, 'time')
-      }
-      for (const idx in _prexcls) {
-        Lib.bin_delete(_prexcls[idx]._postxcls, this, 'time')
-      }
-      for (const idx in _postreqs) {
-        _postreqs[idx].kill()
-      }
-      for (const idx in _listeners) {
-        _listeners[idx].kill()
-      }
-      for (const idx in _postxcls) {
-        const postxcl = _postxcls[idx]
-        if (Lib.bin_delete(postxcl._prexcls, this, 'time')) {
-          postxcl.check_is_valid()
-        }
-      }
-    }
-
-    get_value(
-      time, // Int
+    set_table(
+      idx, // Int
+      table, // Object{}
+      object, // Object
     ) {
-      return time < this.time ? undefined : this._value
+      const {_table_old} = this
+      if (_table_old[idx] !== undefined) return
+      _table_old[idx] = table[idx] || null
+      table[idx] = object
     }
-    get_label(
-      time, // Float
-      ...labels // String
+    // NOTE: assumes that table @ idx is defined
+    save(
+      idx, // Int
+      table, // Object{}
+      label, // String
     ) {
-      return this._root_node.get_value(time, ...labels)
+      const {_old} = this
+      if (!_old[idx]) _old[idx] = {}
+      const map = _old[idx]
+      if (map[label] === undefined) map[label] = table[idx][label] || null
     }
-    get_labels(
-      time, // Float
-      ...labels // String
+    // NOTE: assumes that table @ idx is defined
+    set(
+      idx, // Int
+      table, // Object{}
+      label, // String
+      value, // Object,Null,Undefined
     ) {
-      return this._root_node.get_values(time, ...labels)
+      this.save(idx,table,label)
+      
+      const {_new} = this
+      if (!_new[idx]) _new[idx] = {}
+      _new[idx][label] = value || null
+      Lib.set(table[idx],label,value)
+    }
+    restore(
+      table, // Int
+    ) {
+      const {_old,_table_old} = this
+      for (const idx in _old) {
+        const map = _old[idx], object = table[idx]
+        for (const label in map) Lib.set(object, label, map[label])
+      }
+      for (const idx in _table_old) Lib.set(table, idx, _table_old[idx])
     }
   }
-  MazeGame.Effect = Effect
+  MazeGame.Action = Action
 
-  class Game extends Effect {}
+  class Game extends Type {
+    get g_idx() { return 0 }
+    get root_level() { return this._root_level }
+    get editors() { return this._editors }
+
+    static init(
+      time, // Float
+    ) {
+      const game = new Game(time)
+      const g_table = {[game.tally = game.g_idx]: game}
+      game.prev_action = -1
+      const g_action = Action.init(time,g_table,game,'g_idx')
+      g_action.set_table(game._editors = ++game.tally, g_table, {})
+      game._root_level = -1
+      Level.init(time,g_table,game)
+      return g_table
+    }
+  }
   MazeGame.Game = Game
 
-  class Editor extends Effect {}
+  class Editor extends Type {
+    get g_idx() { return this._g_idx }
+    get l_idx() { return this._l_idx }
+    get game() { return this._game }
+    get level() { return this._level }
+    get id() { return this._id }
+    get name() { return this._name }
+
+    static init(
+      time, // Float
+      g_table, // Object{}
+      game, // Game
+      name,id, // String
+    ) {
+
+    }
+  }
   MazeGame.Editor = Editor
 
-  class Level extends Effect {}
+  class Level extends Type {
+    get g_idx() { return this._g_idx }
+    get l_idx() { return 0 }
+    get l_table() { return this._l_table }
+    get walls() { return this._map_walls }
+    get doors() { return this._map_doors }
+    get portals() { return this._map_portals }
+    get locks() { return this._map_locks }
+    get lasers() { return this._map_lasers }
+    get keys() { return this._map_keys }
+    get jacks() { return this._map_jacks }
+
+    static init(
+      time, // Float
+      g_table, // Object{}
+      game, // Game
+    ) {
+      const level = new Level(time)
+
+      const g_action = g_table[game.action]
+      g_action.set_table(level._g_idx = ++game.tally, g_table, level)
+
+      const prev_level = g_table[game.root_level]
+      if (prev_level) {
+        const next_level = g_table[prev_level.next_level]
+        if (next_level) {
+          g_action.set(next_level.g_idx, g_table, `prev_level`, level.g_idx)
+        }
+        g_action.set(level.g_idx, g_table, `next_level`, prev_level.next_level)
+        g_action.set(prev_level.g_idx, g_table, `next_level`, level.g_idx)
+      }
+      else g_action.set(level.g_idx, g_table, `next_level`, game.root_level)
+      g_action.set(level.g_idx, g_table, `prev_level`, game.root_level)
+      g_action.set(game.g_idx, g_table, `root_level`, level.g_idx)
+
+      const l_table = {
+        [level.tally = level.l_idx]: level,
+        [level._map_walls = ++level.tally]: {},
+        [level._map_doors = ++level.tally]: {},
+        [level._map_portals = ++level.tally]: {},
+        [level._map_locks = ++level.tally]: {},
+        [level._map_lasers = ++level.tally]: {},
+        [level._map_keys = ++level.tally]: {},
+        [level._map_jacks = ++level.tally]: {},
+      }
+      g_action.set_table(level._l_table = ++game.tally, g_table, l_table)
+
+      level.action = -1
+      Action.init(time, l_table, level,'l_idx')
+    }
+  }
   MazeGame.Level = Level
 
-  class Lock extends Effect {}
+  {
+    const time = Lib.time
+    const g_table = Game.init(time)
+    const game = g_table[0]
+    const txt = table_to_string(g_table)
+    // log(txt)
+    log(g_table, string_to_table(txt))
+  }
+
+  class Lock extends Type {}
   MazeGame.Lock = Lock
 
   class Laser extends Lock {}
   MazeGame.Laser = Laser
 
-  class Wall extends Effect {}
+  class Wall extends Type {}
   MazeGame.Wall = Wall
 
   class Door extends Wall {}
@@ -554,7 +514,7 @@ module.exports = (project_name, Lib) => {
   class Portal extends Door {}
   MazeGame.Portal = Portal
 
-  class Key extends Effect {}
+  class Key extends Type {}
   MazeGame.Key = Key
 
   class Jack extends Key {}
