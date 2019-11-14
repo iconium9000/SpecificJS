@@ -4,38 +4,7 @@ module.exports = (project_name, Lib) => {
   const err = console.error
   const pi = Math.PI, pi2 = pi*2
 
-  function table_to_string(
-    table, // Object{}
-  ) {
-    return JSON.stringify(table, null, '  ')
-  }
   let sanity = 100
-  function object_to_type(
-    object, // Object,Type,Null
-  ) {
-    if (sanity-- < 0) throw `bad sanity`
-    if (object == undefined) return null
-    const {_time,_type} = object
-    if (typeof object != 'object') return object
-
-    let type = object
-    if (_type) type = new MazeGame[_type](_time)
-    for (const label in object) {
-      type[label] = object_to_type(object[label])
-    }
-    return type
-  }
-  function string_to_table(
-    string, // String
-  ) {
-    try {
-      return object_to_type(JSON.parse(string))
-    }
-    catch(e) {
-      log(e)
-      return {}
-    }
-  }
 
   MazeGame = {}
 
@@ -51,10 +20,23 @@ module.exports = (project_name, Lib) => {
     static get single_name() { return this.name.toLowerCase() }
     static get plural_name() { return this.single_name + 's' }
 
-    static to_line_dash(
-      line_width, // Float
+    static to_type(
+      object, // Object,Type,Null
     ) {
-      return [1 * line_width, 1 * line_width]
+      if (object == undefined) return null
+      const {_time,_type} = object
+      if (typeof object != 'object') return object
+
+      let type = object
+      if (_type) type = new MazeGame[_type](_time)
+      for (const label in object) type[label] = this.to_type(object[label])
+      return type
+    }
+
+    static init(
+      time, // Float
+    ) {
+      return new this(time)
     }
 
     constructor(
@@ -325,187 +307,232 @@ module.exports = (project_name, Lib) => {
   }
   MazeGame.Point = Point
 
-  class Action extends Type {
-    get idx() { return this._idx }
-    get prev_action() { return this._prev_action }
+  // Like a scope
+  class Table extends Type {
+    // Path: (String,Int)[]
+    get path() { return this._path } // Table.Path (from table)
+    get table() { return this._table } // Table.Path (from root table to this table)
+
+    tally = 0
+
+    static to_string(
+      table, // Table
+    ) {
+      return JSON.stringify(table, null, '  ')
+    }
+
+    static to_table(
+      string, // String
+    ) {
+      try {
+        return this.to_type(JSON.parse(string))
+      }
+      catch(e) {
+        log(e)
+        return {}
+      }
+    }
+
+    static get(
+      table, // Table
+      label, // String,Null
+      ...labels // String
+    ) {
+      return (
+        !table || !label ? table :
+        labels.length ? this.get(table[label], labels) : table[label]
+      )
+    }
+
+    static set(
+      table, // Table
+      value, // Object,Null
+      label, // String
+      ...labels // String
+    ) {
+      if (labels.length) this.set(table[label], value, ...labels)
+      else Lib.set(table, label, value)
+    }
+
+    static fill(
+      table, // Table
+      value, // Object,Null
+      label, // String
+      ...labels // String
+    ) {
+      if (labels.length) {
+        if (!table[label]) table[label] = {}
+        this.fill(table[label], value, ...labels)
+      }
+      else table[label] = value
+    }
 
     static init(
       time, // Float
-      table, // Object{}
-      holder, // Game,Level
-      idx_label, // String
+      table, // Table,Null
+      ...path // String
     ) {
-      const action = new Action(time)
-      let {tally} = holder
-      action._idx = ++tally
-      action._old = {}; action._new = {}
-      action._prev_action = holder.action
-      action._table_old = {}; action._table_new = {}
-      action.set_table(action.idx, table, action)
-      const prev_action = table[holder.action]
-      if (prev_action) {
-        action.set(prev_action.idx, table, 'prev_action', )
-      }
-      action.set(holder[idx_label], table, 'action', action.idx)
-      action.set(holder[idx_label], table, 'tally', tally)
-      return action
+      const _table = super.init(time)
+      _table._path = path
+      _table._table = table ? table.path : []
+      return _table
     }
-    set_table(
-      idx, // Int
-      table, // Object{}
-      object, // Object
+  }
+  MazeGame.Table = Table
+
+  class Action extends Table {
+    // Idx: Int (action = this table @ idx)
+
+    get idx() { return this._path[0] } // Int
+    get prev_action() { return this._prev_action } // Action.Idx
+    get editor() { return this._editor } // Editor.Path,Null
+
+    static init(
+      time, // Float
+      table, // Table
+      editor, // Editor,Null
     ) {
-      const {_table_old} = this
-      if (_table_old[idx] !== undefined) return
-      _table_old[idx] = table[idx] || null
-      table[idx] = object
+      let {tally} = table
+      const _action_idx = ++tally
+      const _action = super.init(time, table, _action_idx)
+      _action._prev_action = table.action
+      _action._editor = editor ? editor.path : null
+      table[_action_idx] = _action
+      _action.set(table, _action_idx, 'action')
+      _action.set(table, tally, 'tally')
+      return _action
     }
-    // NOTE: assumes that table @ idx is defined
-    save(
-      idx, // Int
-      table, // Object{}
-      label, // String
-    ) {
-      const {_old} = this
-      if (!_old[idx]) _old[idx] = {}
-      const map = _old[idx]
-      if (map[label] === undefined) map[label] = table[idx][label] || null
-    }
-    // NOTE: assumes that table @ idx is defined
+
     set(
-      idx, // Int
-      table, // Object{}
-      label, // String
+      table, // Table
       value, // Object,Null,Undefined
+      label, // String
+      ...labels // String
     ) {
-      this.save(idx,table,label)
-      
-      const {_new} = this
-      if (!_new[idx]) _new[idx] = {}
-      _new[idx][label] = value || null
-      Lib.set(table[idx],label,value)
+      const {_map} = this
+      const old_value = Table.get(table, label, ...labels)
+      this[++this.tally] = [old_value, value, label, ...labels]
+      Table.set(table, value, label, ...labels)
     }
-    restore(
-      table, // Int
+
+    clear() {
+      let tally = 0
+      while (tally < this.tally) this[++tally][0] = 0
+    }
+
+    static apply(
+      time, // Float
+      table, // Table
+      action, // Action
     ) {
-      const {_old,_table_old} = this
-      for (const idx in _old) {
-        const map = _old[idx], object = table[idx]
-        for (const label in map) Lib.set(object, label, map[label])
+      table = Table.get(table, ...action.table)
+      
+    }
+
+    apply(
+      table, // Table
+    ) {
+      let tally = 0
+      while (tally < this.tally) {
+        const _this = this[++tally]
+        const [ _, new_value, label, ...labels] = _this
+        const old_value = Table.get(table, label, ...labels)
+        _this[0] = old_value
+        Table.set(table, new_value, label, ...labels)
       }
-      for (const idx in _table_old) Lib.set(table, idx, _table_old[idx])
+    }
+
+    reset(
+      table, // Table
+    ) {
+      let {tally} = this
+      while (tally > 0) {
+        const [old_value, new_value, label, ...labels] = this[tally--]
+        Table.set(table, old_value, label, ...labels)
+      }
     }
   }
   MazeGame.Action = Action
 
-  class Game extends Type {
-    get g_idx() { return 0 }
-    get root_level() { return this._root_level }
+  class Game extends Table {
     get editors() { return this._editors }
+
+    action = 0
+    root_level = 0
+    _editors = {}
 
     static init(
       time, // Float
     ) {
-      const game = new Game(time)
-      const g_table = {[game.tally = game.g_idx]: game}
-      game.prev_action = -1
-      const g_action = Action.init(time,g_table,game,'g_idx')
-      g_action.set_table(game._editors = ++game.tally, g_table, {})
-      game._root_level = -1
-      Level.init(time,g_table,game)
-      return g_table
+      const _game = super.init(time)
+      Action.init(time, _game)
+      Level.init(time, _game)
+      return _game
     }
+
   }
   MazeGame.Game = Game
 
-  class Editor extends Type {
-    get g_idx() { return this._g_idx }
-    get l_idx() { return this._l_idx }
-    get game() { return this._game }
-    get level() { return this._level }
-    get id() { return this._id }
-    get name() { return this._name }
+  class Editor extends Table {
 
-    static init(
-      time, // Float
-      g_table, // Object{}
-      game, // Game
-      name,id, // String
-    ) {
-
-    }
   }
   MazeGame.Editor = Editor
 
-  class Level extends Type {
-    get g_idx() { return this._g_idx }
-    get l_idx() { return 0 }
-    get l_table() { return this._l_table }
-    get walls() { return this._map_walls }
-    get doors() { return this._map_doors }
-    get portals() { return this._map_portals }
-    get locks() { return this._map_locks }
-    get lasers() { return this._map_lasers }
-    get keys() { return this._map_keys }
-    get jacks() { return this._map_jacks }
+  class Level extends Table {
+    get editors() { return this._editors }
+
+    _editors = {}
+    next_level = 0
+    action = 0
 
     static init(
       time, // Float
-      g_table, // Object{}
       game, // Game
     ) {
-      const level = new Level(time)
+      const action = game[game.action]
+      let {tally} = game
+      const _level_idx = ++tally
+      const _level = super.init(time, game, _level_idx)
 
-      const g_action = g_table[game.action]
-      g_action.set_table(level._g_idx = ++game.tally, g_table, level)
+      Action.init(time, _level)
 
-      const prev_level = g_table[game.root_level]
+      _level.prev_level = game.root_level
+      const prev_level = game[game.root_level]
       if (prev_level) {
-        const next_level = g_table[prev_level.next_level]
+        _level.next_level = prev_level.next_level
+        const next_level = game[prev_level.next_level]
         if (next_level) {
-          g_action.set(next_level.g_idx, g_table, `prev_level`, level.g_idx)
+          action.set(game, _level_idx, ...next_level.path, 'prev_level')
         }
-        g_action.set(level.g_idx, g_table, `next_level`, prev_level.next_level)
-        g_action.set(prev_level.g_idx, g_table, `next_level`, level.g_idx)
+        action.set(game, _level_idx, ...prev_level.path, 'next_level')
       }
-      else g_action.set(level.g_idx, g_table, `next_level`, game.root_level)
-      g_action.set(level.g_idx, g_table, `prev_level`, game.root_level)
-      g_action.set(game.g_idx, g_table, `root_level`, level.g_idx)
+      else _level.next_level = 0
 
-      const l_table = {
-        [level.tally = level.l_idx]: level,
-        [level._map_walls = ++level.tally]: {},
-        [level._map_doors = ++level.tally]: {},
-        [level._map_portals = ++level.tally]: {},
-        [level._map_locks = ++level.tally]: {},
-        [level._map_lasers = ++level.tally]: {},
-        [level._map_keys = ++level.tally]: {},
-        [level._map_jacks = ++level.tally]: {},
-      }
-      g_action.set_table(level._l_table = ++game.tally, g_table, l_table)
+      action.set(game, _level_idx, 'root_level')
+      action.set(game, tally, 'tally')
 
-      level.action = -1
-      Action.init(time, l_table, level,'l_idx')
+      action.set(game, Type.to_type(_level), _level_idx)
+      Table.set(game, _level, _level_idx)
+
+      return _level
     }
   }
   MazeGame.Level = Level
 
   {
     const time = Lib.time
-    const g_table = Game.init(time)
-    const game = g_table[0]
-    const txt = table_to_string(g_table)
-    // log(txt)
-    log(g_table, string_to_table(txt))
+    const game = Game.init(time)
+    const txt = Table.to_string(game)
+    log(Table.to_table(txt))
   }
 
-  class Lock extends Type {}
+  class Lock extends Table {}
   MazeGame.Lock = Lock
 
   class Laser extends Lock {}
   MazeGame.Laser = Laser
 
-  class Wall extends Type {}
+  class Wall extends Table {}
   MazeGame.Wall = Wall
 
   class Door extends Wall {}
@@ -514,7 +541,7 @@ module.exports = (project_name, Lib) => {
   class Portal extends Door {}
   MazeGame.Portal = Portal
 
-  class Key extends Type {}
+  class Key extends Table {}
   MazeGame.Key = Key
 
   class Jack extends Key {}
