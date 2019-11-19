@@ -25,7 +25,7 @@ const Lib = module.exports = {
 const pi = Math.PI
 const pi2 = pi * 2
 
-Lib.set = (object, label, value) => {
+Lib.set = (object, value, label) => {
   if (value == undefined) delete object[label]
   else object[label] = value
 }

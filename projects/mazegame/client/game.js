@@ -20,15 +20,34 @@ module.exports = (project_name, Lib) => {
     static get single_name() { return this.name.toLowerCase() }
     static get plural_name() { return this.single_name + 's' }
 
+    static serialize(
+      object, // Object,Type,Null
+    ) {
+      if (!object || typeof object != 'object') return object
+      else if (MazeGame[object._type]) return object.serialize
+      const serialize = Array.isArray(object) ? [] : {}
+      for (const label in object) {
+        serialize[label] = this.serialize(object[label])
+      }
+      return serialize
+    }
+
+    get serialize() {
+      const {Type} = this, serialize = {}
+      for (const label in this) serialize[label] = Type.serialize(this[label])
+      return serialize
+    }
+
+    get to_string() { return JSON.stringify(this.serialize, null, '  ') }
+
     static to_type(
       object, // Object,Type,Null
     ) {
-      if (object == undefined) return null
+      if (!object || typeof object != 'object') return object
       const {_time,_type} = object
-      if (typeof object != 'object') return object
 
       let type = object
-      if (_type) type = new MazeGame[_type](_time)
+      if (MazeGame[_type]) type = new MazeGame[_type](_time)
       for (const label in object) type[label] = this.to_type(object[label])
       return type
     }
@@ -48,35 +67,57 @@ module.exports = (project_name, Lib) => {
 
     get time() { return this._time }
 
-    static lerp(
-      src_t,dst_t,mid_t, // Float
-      src,dst, // Object
-    ) {
-      return src
-    }
-
     // returns this.Type
     get Type() {
       return this.constructor
     }
-  }
-  class Float extends Type {
-    static lerp(
-      src_t,dst_t,mid_t, // Float
-      src,dst, // Float
+
+    at(
+      time, // Float
     ) {
-      return (dst-src)*(mid_t-src_t)/(dst_t-src_t) + src
+      return this
     }
   }
+  class FloatType extends Type {
+
+    static init(
+      time, // Float
+      float, // Float
+    ) {
+      const _float = super.init(time)
+      _float._float = float
+      return _float
+    }
+
+    at(
+      time, // Float
+    ) {
+      return this._float
+    }
+  }
+  MazeGame.FloatType = FloatType
+  class FloatLerp extends FloatType {
+
+    static init(
+      time, // Float
+      start_float,stop_float,
+    ) {
+      const _float_lerp = super.init(start_time,start_float)
+      _float_lerp._stop_time = stop_time
+      _float_lerp._stop_float = stop_float
+      return _float_lerp
+    }
+
+    at(
+      time, // Float
+    ) {
+      const {_time,_stop_time, _float,_stop_float} = this
+      const ratio = (time - _time) / (_stop_time - _time)
+      return (_stop_float - _float) * ratio + _float
+    }
+  }
+  MazeGame.FloatLerp = FloatLerp
   class Point extends Type {
-    static lerp(
-      src_t,dst_t,mid_t, // Float
-      src,dst, // Point
-    ) {
-      const ratio = (mid_t-src_t)/(dst_t-src_t)
-      const {x,y} = src
-      return new Point( mid_t, (dst.x-x)*ratio+x, (dst.y-y)*ratio+y, 1, )
-    }
 
     static dot(
       {time:rt,x:rx,y:ry}, {time:at,x:ax,y:ay}, {time:bt,x:bx,y:by},
@@ -138,29 +179,29 @@ module.exports = (project_name, Lib) => {
       const {_x,_y,_scale,_length} = this
       return (
         _scale < 0 ?
-        new Point(this.time, -_x/_length, -_y/_length, _length * -_scale) :
-        new Point(this.time, _x/_length, _y/_length, _length * _scale)
+        Point.init(this.time, -_x/_length, -_y/_length, _length * -_scale) :
+        Point.init(this.time, _x/_length, _y/_length, _length * _scale)
       )
     }
     get long() {
       const {time,x,y,abs_x,abs_y} = this
       return (
         abs_x < abs_y ?
-        new Point(time, 0, y < -1 ? -1 : 1, abs_y) :
-        new Point(time, x < -1 ? -1 : 1, 0, abs_x)
+        Point.init(time, 0, y < -1 ? -1 : 1, abs_y) :
+        Point.init(time, x < -1 ? -1 : 1, 0, abs_x)
       )
     }
     get short() {
       const {time,x,y,abs_x,abs_y} = this
       return (
         abs_x < abs_y ?
-        new Point(time, x < -1 ? -1 : 1, 0, abs_x) :
-        new Point(time, 0, y < -1 ? -1 : 1, abs_y)
+        Point.init(time, x < -1 ? -1 : 1, 0, abs_x) :
+        Point.init(time, 0, y < -1 ? -1 : 1, abs_y)
       )
     }
     get invert() {
       const {time,x,y} = this
-      return new Point(time,-y,x)
+      return Point.init(time,-y,x)
     }
 
     set lineTo(
@@ -174,14 +215,15 @@ module.exports = (project_name, Lib) => {
       ctx.moveTo(this.x, this.y)
     }
 
-    constructor(
+    static init(
       time, // Float
       x,y,scale, // Float,Null
     ) {
-      super(time)
-      this._x = x != undefined ? x : 0
-      this._y = y != undefined ? y : 0
-      this._scale = scale != undefined ? scale : 1
+      const _point = super.init(time)
+      _point._x = x != undefined ? x : 0
+      _point._y = y != undefined ? y : 0
+      _point._scale = scale != undefined ? scale : 1
+      return _point
     }
     equals(
       point, // Point,Null
@@ -195,19 +237,19 @@ module.exports = (project_name, Lib) => {
       scale, // Float,Null
     ) {
       const {time,x,y} = this
-      return new Point(time, x,y, scale)
+      return Point.init(time, x,y, scale)
     }
     strip(
       scale, // Float,Null
     ) {
       const {time,_x,_y} = this
-      return new Point(time, _x,_y, scale)
+      return Point.init(time, _x,_y, scale)
     }
     at(
       time, // Float
     ) {
       const {_x,_y,_scale} = this
-      return new Point(time, _x,_y,_scale)
+      return Point.init(time, _x,_y,_scale)
     }
 
     atan2(
@@ -231,10 +273,10 @@ module.exports = (project_name, Lib) => {
     ) {
       const {time,x,y} = this
       if (point_scale == undefined) {
-        return new Point(time, x + point.x, y + point.y, scale )
+        return Point.init(time, x + point.x, y + point.y, scale )
       }
       const {_x,_y} = point
-      return new Point(
+      return Point.init(
         time, x + _x * point_scale,
         y + _y * point_scale, scale
       )
@@ -247,23 +289,23 @@ module.exports = (project_name, Lib) => {
       const {time,x,y} = this
       if (scale == undefined) scale = 1
       if (point_scale == undefined) {
-        return new Point(time, x - point.x, y - point.y, scale )
+        return Point.init(time, x - point.x, y - point.y, scale )
       }
       const {_x,_y} = point
-      return new Point(time,x - _x * point_scale, y - _y * point_scale, scale)
+      return Point.init(time,x - _x * point_scale, y - _y * point_scale, scale)
     }
 
     mul(
       mul, // Float
     ) {
       const {time,_x,_y,_scale} = this
-      return new Point(time,_x,_y,_scale*mul)
+      return Point.init(time,_x,_y,_scale*mul)
     }
     div(
       div, // Float
     ) {
       const {time,_x,_y,_scale} = this
-      return new Point(time,_x,_y,_scale/div)
+      return Point.init(time,_x,_y,_scale/div)
     }
 
     // NOTE: assumes that this._length == 1
@@ -273,7 +315,7 @@ module.exports = (project_name, Lib) => {
       scale, // Float,Null
     ) {
       const {time,_x,_y,_scale} = this
-      return new Point(time,_x,_y,
+      return Point.init(time,_x,_y,
         scale != undefined ? scale :
         _scale < min ? min :
         Math.ceil(_scale / ceil) * ceil
@@ -288,7 +330,7 @@ module.exports = (project_name, Lib) => {
     ) {
       const {time,_x,_y,_scale} = this
       if (scale == undefined) scale = _scale
-      return new Point(time, _x,_y,
+      return Point.init(time, _x,_y,
         scale < min ? min : max < scale ? max :
         0 < round ? Math.ceil(scale / round) * round : scale
       )
@@ -300,26 +342,38 @@ module.exports = (project_name, Lib) => {
       const {time,x,y} = this
       return (
         round > 0 ?
-        new Point(time, Math.round(x/round), Math.round(y/round), round) :
-        new Point(time, x, y, 1)
+        Point.init(time, Math.round(x/round), Math.round(y/round), round) :
+        Point.init(time, x, y, 1)
       )
     }
   }
   MazeGame.Point = Point
 
+  class PointLerp extends Point {
+
+    static init(
+      start_point,stop_point, // Point
+    ) {
+      const {time,x,y} = start_point
+      const _point_lerp = super.init(time,x,y)
+      _point_lerp._stop_point = stop_point
+      return _point_lerp
+    }
+
+    at(
+      time, // Float
+    ) {
+      const {_time:at,x:ax,y:ay,_stop_point:{_time:bt,x:bx,y:by}} = this
+      const r = (time - at) / (bt - at)
+      return Point.init(time, (bx-ax)*r+ax, (by-ay)*r+ay)
+    }
+  }
+  MazeGame.PointLerp = PointLerp
+
   // Like a scope
   class Table extends Type {
-    // Path: (String,Int)[]
-    get path() { return this._path } // Table.Path (from table)
-    get table() { return this._table } // Table.Path (from root table to this table)
-
-    tally = 0
-
-    static to_string(
-      table, // Table
-    ) {
-      return JSON.stringify(table, null, '  ')
-    }
+    // Path: (String)[]
+    get path() { return this._path } // Table.Path
 
     static to_table(
       string, // String
@@ -335,194 +389,151 @@ module.exports = (project_name, Lib) => {
 
     static get(
       table, // Table
-      label, // String,Null
       ...labels // String
     ) {
-      return (
-        !table || !label ? table :
-        labels.length ? this.get(table[label], labels) : table[label]
-      )
+      if (labels.length && table) {
+        const [_label, ..._labels] = labels
+        return this.get(table[_label], ..._labels)
+      }
+      else return table
     }
 
     static set(
       table, // Table
       value, // Object,Null
-      label, // String
-      ...labels // String
+      label,...labels // String
     ) {
       if (labels.length) this.set(table[label], value, ...labels)
-      else Lib.set(table, label, value)
+      else Lib.set(table, value, label)
     }
 
     static fill(
       table, // Table
       value, // Object,Null
-      label, // String
-      ...labels // String
+      label,...labels // String
     ) {
       if (labels.length) {
         if (!table[label]) table[label] = {}
         this.fill(table[label], value, ...labels)
       }
-      else table[label] = value
+      else Lib.set(table, value, label)
     }
 
     static init(
       time, // Float
-      table, // Table,Null
-      ...path // String
+      ...labels // String
     ) {
       const _table = super.init(time)
-      _table._path = path
-      _table._table = table ? table.path : []
+      _table._path = labels
+      _table.tally = 0
       return _table
     }
   }
   MazeGame.Table = Table
 
   class Action extends Table {
-    // Idx: Int (action = this table @ idx)
-
-    get idx() { return this._path[0] } // Int
-    get prev_action() { return this._prev_action } // Action.Idx
-    get editor() { return this._editor } // Editor.Path,Null
 
     static init(
       time, // Float
       table, // Table
-      editor, // Editor,Null
+      ...labels // String
     ) {
-      let {tally} = table
-      const _action_idx = ++tally
-      const _action = super.init(time, table, _action_idx)
-      _action._prev_action = table.action
-      _action._editor = editor ? editor.path : null
-      table[_action_idx] = _action
-      _action.set(table, _action_idx, 'action')
-      _action.set(table, tally, 'tally')
+      _action._idx = ++table.tally
+      const _action = super.init(time, ...labels, _action._idx)
+      _action._prev_action = table.prev_action || 0
+      Table.set(table, _action, ..._action.path)
       return _action
     }
 
+    get serialize() {
+      const serialize = super.serialize
+      let tally = 0
+      while (tally < this.tally) this[++tally][1] = 0
+      return serialize
+    }
+
+    get idx() { return this._idx }
+    get prev_action() { return this._prev_action }
+
     set(
       table, // Table
-      value, // Object,Null,Undefined
-      label, // String
-      ...labels // String
+      value, // Object,Null
+      label,...labels // String
     ) {
-      const {_map} = this
-      const old_value = Table.get(table, label, ...labels)
-      this[++this.tally] = [old_value, value, label, ...labels]
+      const _value = Table.get(table, label, ...labels)
+      this[++this.tally] = ['set', _value, value, label, ...labels]
       Table.set(table, value, label, ...labels)
     }
 
-    clear() {
-      let tally = 0
-      while (tally < this.tally) this[++tally][0] = 0
+    new(
+      table, // Table
+      type, // Type in MazeGame @ name
+      args, // (Object,Null)[]
+      label,...labels // String
+    ) {
+      const _value = Table.get(table, label, ...labels)
+      this[++this.tally] = [
+        'new', _value, [type.name, ...args],
+        label, ...labels
+      ]
+      Table.set(table, MazeGame[type.name].init(...args), label, ...labels)
+    }
+
+    revert(
+      table, // Table
+    ) {
+      let {tally,path} = this
+      while (tally > 0) {
+        const [tok, old_value, new_value, ...labels] = this[tally--]
+        Table.set(table, old_value, ...labels)
+      }
+    }
+
+    apply(
+      table, // Table
+    ) {
+      let _tally = 0
+      Table.set(table, this, ...this.path)
+      while (_tally < this.tally) {
+        const this_tally = this[++_tally]
+        const [tok, old_value, new_value, ...labels] = this_tally
+        this_tally[1] = Table.get(table, ...labels)
+        switch (tok) {
+          case 'set':
+            Table.set(table, new_value, ...labels)
+            break
+          case 'new':
+            const [type_name, ...args] = new_value
+            Table.set(table, MazeGame[type_name].init(...args))
+            break
+        }
+      }
     }
 
     static apply(
       time, // Float
       table, // Table
       action, // Action
+      actions, // Action[]
     ) {
-      table = Table.get(table, ...action.table)
-      
-    }
 
-    apply(
-      table, // Table
-    ) {
-      let tally = 0
-      while (tally < this.tally) {
-        const _this = this[++tally]
-        const [ _, new_value, label, ...labels] = _this
-        const old_value = Table.get(table, label, ...labels)
-        _this[0] = old_value
-        Table.set(table, new_value, label, ...labels)
-      }
-    }
-
-    reset(
-      table, // Table
-    ) {
-      let {tally} = this
-      while (tally > 0) {
-        const [old_value, new_value, label, ...labels] = this[tally--]
-        Table.set(table, old_value, label, ...labels)
-      }
     }
   }
   MazeGame.Action = Action
 
-  class Game extends Table {
-    get editors() { return this._editors }
-
-    action = 0
-    root_level = 0
-    _editors = {}
-
-    static init(
-      time, // Float
-    ) {
-      const _game = super.init(time)
-      Action.init(time, _game)
-      Level.init(time, _game)
-      return _game
-    }
-
-  }
+  class Game extends Table {}
   MazeGame.Game = Game
 
-  class Editor extends Table {
-
-  }
+  class Editor extends Table {}
   MazeGame.Editor = Editor
 
-  class Level extends Table {
-    get editors() { return this._editors }
-
-    _editors = {}
-    next_level = 0
-    action = 0
-
-    static init(
-      time, // Float
-      game, // Game
-    ) {
-      const action = game[game.action]
-      let {tally} = game
-      const _level_idx = ++tally
-      const _level = super.init(time, game, _level_idx)
-
-      Action.init(time, _level)
-
-      _level.prev_level = game.root_level
-      const prev_level = game[game.root_level]
-      if (prev_level) {
-        _level.next_level = prev_level.next_level
-        const next_level = game[prev_level.next_level]
-        if (next_level) {
-          action.set(game, _level_idx, ...next_level.path, 'prev_level')
-        }
-        action.set(game, _level_idx, ...prev_level.path, 'next_level')
-      }
-      else _level.next_level = 0
-
-      action.set(game, _level_idx, 'root_level')
-      action.set(game, tally, 'tally')
-
-      action.set(game, Type.to_type(_level), _level_idx)
-      Table.set(game, _level, _level_idx)
-
-      return _level
-    }
-  }
+  class Level extends Table {}
   MazeGame.Level = Level
 
   {
     const time = Lib.time
     const game = Game.init(time)
-    const txt = Table.to_string(game)
+    const txt = game.to_string
     log(Table.to_table(txt))
   }
 
