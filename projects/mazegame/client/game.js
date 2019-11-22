@@ -20,6 +20,11 @@ module.exports = (project_name, Lib) => {
     static get single_name() { return this.name.toLowerCase() }
     static get plural_name() { return this.single_name + 's' }
 
+    static is_valid_label(
+      string, // String @ splice
+    ) {
+      return string.slice(0,2) != '__'
+    }
     static serialize(
       object, // Object,Type,Null
     ) {
@@ -27,14 +32,20 @@ module.exports = (project_name, Lib) => {
       else if (MazeGame[object._type]) return object.serialize
       const serialize = Array.isArray(object) ? [] : {}
       for (const label in object) {
-        serialize[label] = this.serialize(object[label])
+        if (this.is_valid_label(label)) {
+          serialize[label] = this.serialize(object[label])
+        }
       }
       return serialize
     }
 
     get serialize() {
       const {Type} = this, serialize = {}
-      for (const label in this) serialize[label] = Type.serialize(this[label])
+      for (const label in this) {
+        if (Type.is_valid_label(label)) {
+          serialize[label] = Type.serialize(this[label])
+        }
+      }
       return serialize
     }
 
@@ -415,7 +426,7 @@ module.exports = (project_name, Lib) => {
       idx, // String
     ) {
       const action = table[table.action]
-      const _table = action.new(table, this, idx)
+      const _table = action.new(this, idx)
       return _table
     }
 
@@ -428,11 +439,42 @@ module.exports = (project_name, Lib) => {
       return _table
     }
 
+    build() {}
+
+    // returns String[]
+    // array of idxs of actions in reverse order to get back to previous state
     at(
       time, // Float
     ) {
-      while (time < this[this.action].time && this[this.action].revert(this));
+      const actions = []
+      let {action} = this
+      while (time < this[action].time && this[action].revert(this)) {
+        actions.push(action); action = this.action
+      }
+      return actions
     }
+
+    draw(
+      ctx, // CanvasRenderingContext2D
+      root,center, // Point @ time
+      table, // Table,Null
+    ) {}
+
+    apply(
+      actions, // String[]
+    ) {
+      while (actions.length) {
+        const action = this[actions.pop()]
+        action.apply(this)
+      }
+    }
+
+    static action(
+      time, // Float
+      game, // Game
+      editor, // Editor
+      ...args
+    ) {}
   }
   MazeGame.Table = Table
 
@@ -451,39 +493,38 @@ module.exports = (project_name, Lib) => {
     ) {
       const _action = super.init(time)
       const _table = Table.get(table, ...labels)
+      _action.__table = table
 
       _action._table = labels
       _action._idx = action_idx
 
       _action._prev_action = _table.action
-      _action.set(_table, action_idx, 'action')
+      _action.set(action_idx, 'action')
       Table.set(_table, _action, action_idx)
 
       return _action
     }
 
     set(
-      table, // Table
       value, // Object,Null
       label,...labels // String
     ) {
-      const {_table} = this
-      const _old_value = Table.get(table, label, ...labels)
+      const {__table} = this
+      const _old_value = Table.get(__table, label, ...labels)
       this[++this.tally] = ['set', _old_value, value, label, ...labels]
-      Table.set(table, value, label, ...labels)
+      Table.set(__table, value, label, ...labels)
       return value
     }
 
     new(
-      table, // Table
       type, // Type
       label,...labels // String
     ) {
-      const {_table,time} = this
-      const _old_value = Table.get(table, label, ...labels)
+      const {__table,time} = this
+      const _old_value = Table.get(__table, label, ...labels)
       this[++this.tally] = ['new', _old_value, type.name, label, ...labels]
       const _new_value = new MazeGame[type.name](time)
-      Table.set(table, _new_value, label, ...labels)
+      Table.set(__table, _new_value, label, ...labels)
       return _new_value
     }
 
@@ -497,34 +538,30 @@ module.exports = (project_name, Lib) => {
       return serialize
     }
 
-    apply(
-      table, // Table
-    ) {
-      const {tally, _table, _idx, time, } = this
-      Table.set(table, this, _idx)
+    apply() {
+      const {tally, __table, _idx, time, } = this
+      Table.set(__table, this, _idx)
       let idx = 0
       while (idx < tally) {
         const setter = this[++idx]
         const [tok, old_value, new_value, ...labels] = setter
-        setter[1] = Table.get(table, ...labels)
+        setter[1] = Table.get(__table, ...labels)
         if (tok == 'new') {
-          Table.set(table, new MazeGame[new_value](time), ..._labels)
+          Table.set(__table, new MazeGame[new_value](time), ..._labels)
         }
-        else if (tok == 'set') Table.set(table, new_value, ..._labels)
+        else if (tok == 'set') Table.set(__table, new_value, ..._labels)
       }
     }
 
-    revert(
-      table, // Table
-    ) {
-      const {tally, _table, _idx, _prev_action} = this
+    revert() {
+      const {tally, __table, _idx, _prev_action} = this
       if (!_prev_action) return false
 
       let idx = tally
       while (idx > 0) {
         const setter = this[--idx]
         const [tok, old_value, new_value, ...labels] = setter
-        Table.set(table, old_value, ..._labels)
+        Table.set(__table, old_value, ..._labels)
       }
 
       return true
@@ -549,12 +586,24 @@ module.exports = (project_name, Lib) => {
 
       return _game
     }
-
-
   }
   MazeGame.Game = Game
 
   class Editor extends Table {
+
+    get target() { return this._target }
+    set target(
+      target, // Int (0 OR this.__game @ target)
+    ) {
+      const {__game, _target, id} = this
+      const action = __game[__game.action]
+
+      if (_target == target) return
+      else if (__game[_target]) action.set(0, _target, 'editor')
+
+      this._target = target
+      if (__game[target]) action.set(id, target, 'editor')
+    }
 
     static _init(
       game, // Game
@@ -562,9 +611,9 @@ module.exports = (project_name, Lib) => {
     ) {
       const _editor = super._init(game, id)
       const action = game[game.action]
-      action.set(game, game.level, id, 'level')
-      action.set(game, id, id, 'id')
-      action.set(game, true, 'editors', id)
+      action.set(game.level, id, 'level')
+      action.set(id, id, 'id')
+      action.set(true, 'editors', id)
       return _editor
     }
     static init(
@@ -572,9 +621,41 @@ module.exports = (project_name, Lib) => {
       id,name, // String
     ) {
       const _editor = this._init(game, id)
+      _editor.__game = game
       const action = game[game.action]
-      action.set(game, name, id, 'name')
+      action.set(name, id, 'name')
       return _editor
+    }
+
+    draw(
+      ctx, // CanvasRenderingContext2D
+      root,center, // Point @ time
+      game, // Game
+    ) {
+      const level = game[this.level]
+      if (level) level.draw(ctx, root, center)
+    }
+
+    static action(
+      time, // Float
+      game, // Game
+      editor, // Editor
+      type, // Type
+    ) {
+      const {name} = type
+      const _actions = game.at(time)
+
+      if (name == editor.type) return game.apply(_actions)
+
+      const _action_idx = ++game.tally
+      const _action = Action.init(time, game,null, _action_idx)
+      _action.set(name, editor.id, 'type')
+      if (editor.target) {
+        const level = game[editor.level]
+        _action.set(null, editor.id, 'target')
+        level.build()
+      }
+      game.build()
     }
   }
   MazeGame.Editor = Editor
@@ -587,29 +668,41 @@ module.exports = (project_name, Lib) => {
     ) {
       const action = game[game.action]
       const {time} = action
-      const _level = action.new(game, Level, level_idx)
+      const _level = action.new(Level, level_idx)
+      _level.__game = game
 
       _level.tally = _level.action = 0
       const _action_idx = ++_level.tally
       const _action = Action.init(time, game, null, _action_idx, level_idx)
 
       const prev_level = game.level
-      action.set(game, level_idx, 'level')
-      action.set(game, prev_level, level_idx, 'prev_level')
+      action.set(level_idx, 'level')
+      action.set(prev_level, level_idx, 'prev_level')
       if (game[prev_level]) {
         const {next_level} = game[prev_level]
         if (game[next_level]) {
-          action.set(game, level_idx, next_level, 'prev_level')
+          action.set(level_idx, next_level, 'prev_level')
         }
-        action.set(game, level_idx, prev_level, 'next_level')
-        action.set(game, next_level, level_idx, 'next_level')
+        action.set(level_idx, prev_level, 'next_level')
+        action.set(next_level, level_idx, 'next_level')
       }
-      else action.set(game, 0, level_idx, 'next_level')
+      else action.set(0, level_idx, 'next_level')
 
-      _action.set(_level, _level.tally, 'tally')
       return _level
     }
 
+    draw(
+      ctx, // CanvasRenderingContext2D
+      root,center, // Point @ time
+    ) {
+      for (const idx in this.locks) this[idx].draw(ctx,root,center,this)
+      for (const idx in this.keys) this[idx].draw(ctx,root,center,this)
+      for (const idx in this.walls) this[idx].draw(ctx,root,center,this)
+    }
+
+    build() {
+      // TODO build
+    }
   }
   MazeGame.Level = Level
 
@@ -667,7 +760,7 @@ module.exports = (project_name, Lib) => {
     ) {
       const _wall = super._init(level, wall_idx)
       const action = level[level.action]
-      action.set(level, true, 'walls', wall_idx)
+      action.set(true, 'walls', wall_idx)
       return _wall
     }
     static init(
@@ -676,10 +769,11 @@ module.exports = (project_name, Lib) => {
       wall_idx, // String
     ) {
       const _wall = this._init(level, wall_idx)
+      _wall.__level = level
       const action = level[level.action]
-      action.set(level, root, wall_idx, 'root')
-      action.set(level, true, wall_idx, 'is_open')
-      action.set(level, 1, wall_idx, 'open')
+      action.set(root, wall_idx, 'root')
+      action.set(true, wall_idx, 'is_open')
+      action.set(1, wall_idx, 'open')
       return _wall
     }
   }
@@ -708,7 +802,7 @@ module.exports = (project_name, Lib) => {
     ) {
       const _door = super._init(level, door_idx)
       const action = level[level.action]
-      action.set(level, true, 'doors', door_idx)
+      action.set(true, 'doors', door_idx)
       return _door
     }
   }
@@ -744,7 +838,7 @@ module.exports = (project_name, Lib) => {
     ) {
       const _portal = super._init(level, portal_idx)
       const action = level[level.action]
-      action.set(level, true, 'portals', portal_idx)
+      action.set(true, 'portals', portal_idx)
       return _portal
     }
   }

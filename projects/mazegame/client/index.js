@@ -120,7 +120,8 @@ function MazeGame() {
 		}
 		else if (c == ' ') {
 			// TODO DISPLAY
-			log(client.game)
+			const txt = client.game.to_string
+			log(Table.to_table(txt))
 		}
   })
 
