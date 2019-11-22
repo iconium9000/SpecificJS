@@ -60,7 +60,8 @@ function MazeGame() {
 	  log(client.full_name, 'connected to server')
 
 		const time = Lib.time
-		// TODO NEW GAME
+		client.game = Game.init(time)
+		client.editor = Editor.init(client.game, client.socket.id, client.name)
 	  tick()
 	})
 
@@ -103,10 +104,12 @@ function MazeGame() {
 	$(document).keypress(e => {
     var c = String.fromCharCode(e.which | 0x20)
 		const new_state = key_bindings[c]
-		const time = Lib.time
+		const {time} = Lib, {game,editor} = client
 
 		if (new_state) {
-			// TODO SET STATE
+			if (game && editor) {
+				const _action = Action.init(time, game)
+			}
 		}
 		// delete: e.which = 127
 		else if (e.which == 127) {
@@ -117,6 +120,7 @@ function MazeGame() {
 		}
 		else if (c == ' ') {
 			// TODO DISPLAY
+			log(client.game)
 		}
   })
 
