@@ -21,6 +21,14 @@ const Lib = module.exports = {
     return (new Date()).getTime()
   }
 }
+Lib.arrays_equal = (
+  a, // (Object,Null)[]
+  b, // (Object,Null)[]
+) => {
+  if (a.length != b.length) return false
+  for (const i in a) if (a[i] != b[i]) return false
+  return true
+}
 
 const pi = Math.PI
 const pi2 = pi * 2

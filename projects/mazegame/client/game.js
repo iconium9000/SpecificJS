@@ -4,9 +4,12 @@ module.exports = (project_name, Lib) => {
   const err = console.error
   const pi = Math.PI, pi2 = pi*2
 
-  let sanity = 100
+  let sanity = 1000
 
-  MazeGame = {}
+  MazeGame = {
+    Array: Array,
+    Object: Object,
+  }
 
   class Type {
     static Type = this
@@ -20,75 +23,82 @@ module.exports = (project_name, Lib) => {
     static get single_name() { return this.name.toLowerCase() }
     static get plural_name() { return this.single_name + 's' }
 
-    static is_valid_label(
-      string, // String @ splice
-    ) {
-      return string.slice(0,2) != '__'
-    }
-    static serialize(
+    static get_type(
       object, // Object,Type,Null
     ) {
-      if (!object || typeof object != 'object') return object
-      else if (MazeGame[object._type]) return object.serialize
-      const serialize = Array.isArray(object) ? [] : {}
-      for (const label in object) {
-        if (this.is_valid_label(label)) {
-          serialize[label] = this.serialize(object[label])
-        }
-      }
-      return serialize
+      return !object || typeof object != 'object' ? null : object.constructor
     }
 
-    get serialize() {
-      const {Type} = this, serialize = {}
-      for (const label in this) {
-        if (Type.is_valid_label(label)) {
-          serialize[label] = Type.serialize(this[label])
-        }
-      }
-      return serialize
-    }
-
-    get to_string() { return JSON.stringify(this.serialize, null, '  ') }
-
-    static to_type(
-      object, // Object,Type,Null
+    static get(
+      object, // Object,Null
+      ...path // String
     ) {
-      if (!object || typeof object != 'object') return object
-      const {_time,_type} = object
-
-      let type = object
-      if (MazeGame[_type]) type = new MazeGame[_type](_time)
-      for (const label in object) type[label] = this.to_type(object[label])
-      return type
+      if (!object || !path.length) return object
+      return this.get(object[path[0]], ...path.slice(1))
+    }
+    static set(
+      action, // Object
+      object, // Object
+      value, // Object,Null
+      label,...path // String
+    ) {
+      if (!path.length) return Lib.set(object, value, label)
+      if (!object[label]) object[label] = {__action:action}
+      this.set(action, object[label], value, ...path)
     }
 
     static init(
       time, // Float
     ) {
-      return new this(time)
-    }
-
-    constructor(
-      time, // Float
-    ) {
-      this._type = this.Type.name
-      this._time = time
+      const _type = new this
+      _type._time = time
+      return _type
     }
 
     get time() { return this._time }
-
-    // returns this.Type
-    get Type() {
-      return this.constructor
-    }
+    get Type() { return this.constructor }
 
     at(
       time, // Float
     ) {
       return this
     }
+
+    get tally() { return this._tally || 0 }
+    set tally(
+      tally, // Int
+    ) {
+      const {__action, _tally} = this
+      if (_tally == tally) return
+      else __action.set(tally,'_tally')
+    }
+
+    get name() { return this._name }
+    get idx() { return this._idx }
+    get editor() { return this._editor }
+    set editor(
+      editor, // Editor,Null
+    ) {
+      const {idx,_editor,__action} = this
+      if (_editor != editor) return
+
+      if (editor) __action.get(_editor.idx, idx, '_editor')
+      else __action.set(null, idx, '_editor')
+    }
+
+    get is_open() { return this._is_open }
+    set is_open(
+      is_open, // Boolean
+    ) {
+      const {idx,_is_open,__action} = this
+      if (_is_open == is_open) return
+      __action.set(is_open, idx, '_is_open')
+    }
   }
+  MazeGame.Type = Type
+  Array.Type = Type
+  Object.Type = Type
+
   class FloatType extends Type {
 
     static init(
@@ -167,7 +177,7 @@ module.exports = (project_name, Lib) => {
       polys, // Point[]
     ) {
       let min_dist = Infinity
-      for (const idx in polys) {
+      for (const label in polys) {
         const dist = this.line_through(qr,qs, ...polys[idx])
         if (dist < min_dist) {
           min_dist = dst
@@ -381,338 +391,351 @@ module.exports = (project_name, Lib) => {
   }
   MazeGame.PointLerp = PointLerp
 
-  // Like a scope
-  class Table extends Type {
-    // Path: (String)[]
-    get build() { return this } // Table
+  class Action extends Type {
 
-    static to_table(
-      string, // String
-    ) {
-      try {
-        return this.to_type(JSON.parse(string))
-      }
-      catch(e) {
-        log(e)
-        return {}
-      }
-    }
-
-    static get(
-      table, // Table
-      ...labels // String
-    ) {
-      if (labels.length && table) {
-        const [_label, ..._labels] = labels
-        return this.get(table[_label], ..._labels)
-      }
-      else return table
-    }
-
-    static set(
-      table, // Table
-      value, // Object,Null
-      label,...labels // String
-    ) {
-      if (labels.length) {
-        if (!table[label]) table[label] = {}
-        this.set(table[label], value, ...labels)
-      }
-      else Lib.set(table, value, label)
-    }
-
-    static _init(
-      table, // Table @ idx
-      idx, // String
-    ) {
-      const action = table[table.action]
-      const _table = action.new(this, idx)
-      return _table
-    }
+    get child() { return this.__child }
 
     static init(
       time, // Float
-      ...labels // String
-    ) {
-      const _table = super.init(time)
-      _table.tally = 0
-      return _table
-    }
-
-    build() {}
-
-    // returns String[]
-    // array of idxs of actions in reverse order to get back to previous state
-    at(
-      time, // Float
-    ) {
-      const actions = []
-      let {action} = this
-      while (time < this[action].time && this[action].revert(this)) {
-        actions.push(action); action = this.action
-      }
-      return actions
-    }
-
-    draw(
-      ctx, // CanvasRenderingContext2D
-      root,center, // Point @ time
-      table, // Table,Null
-    ) {}
-
-    apply(
-      actions, // String[]
-    ) {
-      while (actions.length) {
-        const action = this[actions.pop()]
-        action.apply(this)
-      }
-    }
-
-    static action(
-      time, // Float
-      game, // Game
-      editor, // Editor
-      ...args
-    ) {}
-  }
-  MazeGame.Table = Table
-
-  class Action extends Table {
-
-    get idx() { return this._idx }
-    get table() { return this._table }
-    get prev_action() { return this._prev_action }
-
-    static init(
-      time, // Float
-      table, // Table @ ...labels
-      root_action, // Action,Null
-      action_idx, // String
-      ...labels // String
+      prev_action, // Action,Null
     ) {
       const _action = super.init(time)
-      const _table = Table.get(table, ...labels)
-      _action.__table = table
-
-      _action._table = labels
-      _action._idx = action_idx
-
-      _action._prev_action = _table.action
-      _action.set(action_idx, 'action')
-      Table.set(_table, _action, action_idx)
-
+      _action._array = []
+      if (prev_action) {
+        _action._prev_action = prev_action
+        _action.__child = prev_action.build
+      }
       return _action
+    }
+
+    get build() {
+      const {time,_prev_action,_array} = this
+      this.__child = _prev_action ? _prev_action.build : null
+
+      for (const idx in _array) {
+        const [tok, value, ...path] = _array[idx]
+        Type.set(
+          this, this,
+          tok == 'set' ? value :
+          tok == 'new' ? Object.assign(new MazeGame[value], {__action:this}) :
+          tok == 'get' ? Type.get(this, '__child', value) : null,
+          '__child', ...path,
+        )
+      }
+      return this.__child
     }
 
     set(
       value, // Object,Null
-      label,...labels // String
+      ...path // String
     ) {
-      const {__table} = this
-      const _old_value = Table.get(__table, label, ...labels)
-      this[++this.tally] = ['set', _old_value, value, label, ...labels]
-      Table.set(__table, value, label, ...labels)
+      this._array.push([ 'set', value, ...path ])
+      Type.set(this, this, value, '__child', ...path)
       return value
     }
 
     new(
       type, // Type
-      label,...labels // String
+      ...path // String
     ) {
-      const {__table,time} = this
-      const _old_value = Table.get(__table, label, ...labels)
-      this[++this.tally] = ['new', _old_value, type.name, label, ...labels]
-      const _new_value = new MazeGame[type.name](time)
-      Table.set(__table, _new_value, label, ...labels)
-      return _new_value
+      this._array.push([ 'new', type.name, ...path ])
+      const _value = Object.assign(new type, {__action:this})
+      Type.set(this, this, _value, '__child', ...path)
+      return _value
     }
 
-    get serialize() {
-      const serialize = super.serialize
-
-      const {tally} = this
-      let idx = 0
-      while (idx < tally) serialize[++idx][1] = 0
-
-      return serialize
+    get(
+      label, // String
+      ...path // String
+    ) {
+      this._array.push([ 'get', label, ...path ])
+      const _value = Type.get(this, '__child', label)
+      Type.set(this, this, _value, '__child', ...path)
+      return _value
     }
 
-    apply() {
-      const {tally, __table, _idx, time, } = this
-      Table.set(__table, this, _idx)
-      let idx = 0
-      while (idx < tally) {
-        const setter = this[++idx]
-        const [tok, old_value, new_value, ...labels] = setter
-        setter[1] = Table.get(__table, ...labels)
-        if (tok == 'new') {
-          Table.set(__table, new MazeGame[new_value](time), ..._labels)
-        }
-        else if (tok == 'set') Table.set(__table, new_value, ..._labels)
-      }
-    }
-
-    revert() {
-      const {tally, __table, _idx, _prev_action} = this
-      if (!_prev_action) return false
-
-      let idx = tally
-      while (idx > 0) {
-        const setter = this[--idx]
-        const [tok, old_value, new_value, ...labels] = setter
-        Table.set(__table, old_value, ..._labels)
-      }
-
-      return true
+    at(
+      time, // Float
+    ) {
+      const {_time,_prev_action} = this
+      return (
+        _time == time ? this :
+        _time < time ? Action.init(time, this) :
+        _prev_action ? _prev_action.at(time) : Action.init(time)
+      )
     }
   }
   MazeGame.Action = Action
 
-  class Game extends Table {
+  class Game extends Type {
 
     static init(
       time, // Float
     ) {
-      const _game = super.init(time)
+      const _action = Action.init(time)
+      _action.new(this)
+      Level.init(_action)
+      return _action
+    }
 
-      _game.action = 0
-      const _action_idx = ++_game.tally
-      const _action = Action.init(time, _game, null, _action_idx)
-
-      _game.level = 0
-      const _level_idx = ++_game.tally
-      const _level = Level.init(_game, _level_idx)
-
-      return _game
+    get level_node() { return this._level_node }
+    set level_node(
+      level_node, // LevelNode
+    ) {
+      const {idx,__action,_level_node} = this
+      if (_level_node == level_node) return
+      else __action.get(level_node.idx, '_level_node')
     }
   }
   MazeGame.Game = Game
 
-  class Editor extends Table {
+  class Editor extends Type {
 
     get target() { return this._target }
     set target(
-      target, // Int (0 OR this.__game @ target)
+      target, // Object,Null
     ) {
-      const {__game, _target, id} = this
-      const action = __game[__game.action]
+      const {Type,_target,idx,__action} = this
 
-      if (_target == target) return
-      else if (__game[_target]) action.set(0, _target, 'editor')
-
-      this._target = target
-      if (__game[target]) action.set(id, target, 'editor')
-    }
-
-    static _init(
-      game, // Game
-      id, // String
-    ) {
-      const _editor = super._init(game, id)
-      const action = game[game.action]
-      action.set(game.level, id, 'level')
-      action.set(id, id, 'id')
-      action.set(true, 'editors', id)
-      return _editor
-    }
-    static init(
-      game, // Game
-      id,name, // String
-    ) {
-      const _editor = this._init(game, id)
-      _editor.__game = game
-      const action = game[game.action]
-      action.set(name, id, 'name')
-      return _editor
-    }
-
-    draw(
-      ctx, // CanvasRenderingContext2D
-      root,center, // Point @ time
-      game, // Game
-    ) {
-      const level = game[this.level]
-      if (level) level.draw(ctx, root, center)
-    }
-
-    static action(
-      time, // Float
-      game, // Game
-      editor, // Editor
-      type, // Type
-    ) {
-      const {name} = type
-      const _actions = game.at(time)
-
-      if (name == editor.type) return game.apply(_actions)
-
-      const _action_idx = ++game.tally
-      const _action = Action.init(time, game,null, _action_idx)
-      _action.set(name, editor.id, 'type')
-      if (editor.target) {
-        const level = game[editor.level]
-        _action.set(null, editor.id, 'target')
-        level.build()
+      if (_target) {
+        _target.editor = null
       }
-      game.build()
+
     }
+
+    get level_node() { return this._level_node }
+    set level_node(
+      level_node, // {action:Action @ child:Level}, Null
+    ) {
+      const {idx,name,__action,_level_node,Type} = this
+      const {time} = __action
+      if (_level_node == level_node) return
+      if (_level_node) {
+        _level_node.action = _level_node.action.at(time)
+        _level_node.action.child[idx].remove()
+      }
+      const _action = level_node.action = level_node.action.at(time)
+      Type.init(_action, idx, name)
+    }
+
+    static init(
+      action, // Action @ child:Game,Level
+      idx,name, // String
+    ) {
+      const _editor = action.new(this, idx)
+      action.get(idx, '_editors', idx)
+      action.set(idx, idx, '_idx')
+      action.set(name, idx, '_name')
+      _editor.level_node = action.child.level_node
+      return _editor
+    }
+
+    remove() {
+      const {idx,__action} = this
+      this.target = null
+      __action.set(null, idx)
+      __action.set(null, '_editors', idx)
+    }
+
   }
   MazeGame.Editor = Editor
 
-  class Level extends Table {
+  class LevelNode extends Type {
 
     static init(
-      game, // Game
-      level_idx, // String
+      game_action, // Action @ child:Game
+      level_action, // Action @ child:Level
     ) {
-      const action = game[game.action]
-      const {time} = action
-      const _level = action.new(Level, level_idx)
-      _level.__game = game
+      const game = game_action.child
 
-      _level.tally = _level.action = 0
-      const _action_idx = ++_level.tally
-      const _action = Action.init(time, game, null, _action_idx, level_idx)
+      const _idx = ++game.tally
+      const _level_node = game_action.new(this, _idx)
+      game_action.set(_idx, _idx, '_idx')
+      _level_node.action = level_action
 
-      const prev_level = game.level
-      action.set(level_idx, 'level')
-      action.set(prev_level, level_idx, 'prev_level')
-      if (game[prev_level]) {
-        const {next_level} = game[prev_level]
-        if (game[next_level]) {
-          action.set(level_idx, next_level, 'prev_level')
-        }
-        action.set(level_idx, prev_level, 'next_level')
-        action.set(next_level, level_idx, 'next_level')
+      const {level_node} = game
+      if (level_node) {
+        const {next_level} = level_node
+        _level_node.next_level = _level_node
+        if (next_level) next_level.prev_level = _level_node
       }
-      else action.set(0, level_idx, 'next_level')
-
-      return _level
+      game.level_node = _level_node
     }
 
-    draw(
-      ctx, // CanvasRenderingContext2D
-      root,center, // Point @ time
+    get prev_level() { return this._prev_level }
+    get next_level() { return this._next_level }
+    set prev_level(
+      prev_level, // LevelNode
     ) {
-      for (const idx in this.locks) this[idx].draw(ctx,root,center,this)
-      for (const idx in this.keys) this[idx].draw(ctx,root,center,this)
-      for (const idx in this.walls) this[idx].draw(ctx,root,center,this)
+      const {idx,__action,_prev_level} = this
+      if (_prev_level == prev_level) return
+      else if (prev_level) {
+        __action.get(prev_level.idx, idx, '_prev_level')
+        __action.get(idx, prev_level.idx, '_next_level')
+      }
+      else __action.set(null, idx, '_prev_level')
+    }
+    set next_level(
+      next_level, // LevelNode
+    ) {
+      const {idx,__action,_next_level} = this
+      if (_next_level == next_level) return
+      else if (next_level) {
+        __action.get(idx, next_level.idx, '_prev_level')
+        __action.get(next_level.idx, idx, '_next_level')
+      }
+      else __action.set(null, idx, '_next_level')
     }
 
-    build() {
-      // TODO build
+    get action() { return this._action }
+    set action(
+      action, // Action
+    ) {
+      const {idx,__action,_action} = this
+      if (_action == action) return
+      else __action.set(action, idx, '_action')
+    }
+  }
+  class Level extends Type {
+
+    static init(
+      game_action, // Action @ time:Float, child:Game
+    ) {
+      const {time} = game_action
+      const _action = Action.init(time)
+      _action.new(this)
+      LevelNode.init(game_action, _action)
+      return _action
     }
   }
   MazeGame.Level = Level
+  MazeGame.LevelNode = LevelNode
 
-  class Lock extends Table {}
+  class Lock extends Type {
+    static key_bind = 'l'
+    static long_min = 3
+    static long_max = 3
+    static long_round = 3
+    static radius = 0.5
+    static search_radius = 3 * this.radius
+
+    static get_closest(
+      spot, // Point
+      locks, // Lock[],Lock{},Null
+    ) {
+      let min_dist = Infinity, return_lock = null
+
+      for (const label in locks) {
+        const lock = locks[label], {search_radius} = lock.Type
+        const _dist = lock.spot.sub(spot).length
+        if (_dist < min_dist && _dist < search_radius) {
+          return_lock = lock
+          min_dist = _dist
+        }
+      }
+      return return_lock
+    }
+
+    set is_open(
+      is_open, // Boolean
+    ) {
+      const {idx, __action, _parent } = this
+      super.is_open = is_open
+      _parent.is_open = is_open
+    }
+
+    get root() { return this._root }
+    get long() { return this._long }
+    get spot() { return this._root.sum(this._long) }
+    set root(
+      root, // Point
+    ) {
+      const {idx,_long,__action,_key} = this
+      __action.set(root.unit, idx, '_root')
+      if (_key) _key.root = root.sum(_long)
+    }
+    set long(
+      long, // Point
+    ) {
+      const {idx,_root,__action,_key,Type:{long_min,long_max,long_round}} = this
+      const _long = long.unit.cramp(long_min,long_max,long_round)
+      __action.set(_long, idx, '_long')
+      if (_key) _key.root = _long.sum(_root)
+    }
+    set spot(
+      spot, // Point
+    ) {
+      if (this._key) this._key.root = spot
+    }
+
+    get key() { return this._key }
+    set key(
+      key, // Key,Null
+    ) {
+      const {idx, __action, _key} = this
+
+      if (_key == key) return
+
+      if (key) {
+        __action.get(key.idx, idx, '_key')
+        this.is_open = key.is_open
+      }
+      else {
+        __action.set(null, idx, '_key')
+        this.is_open = false
+      }
+    }
+
+    static init(
+      parent, // Door,Jack
+      name, // String
+    ) {
+      const {idx,__action} = parent
+      const level = __action.child
+      const _idx = ++level.tally
+      const _lock = __action.new(this, _idx)
+      __action.set(_idx, _idx, '_idx')
+      __action.set(name, _idx, '_name')
+      __action.get(_idx, '_locks', _idx)
+      __action.get(parent.idx, _idx, '_parent')
+      parent[name] = _lock
+      return _lock
+    }
+
+    remove() {
+      const {idx, __action, _parent, _name, _key} = this
+      __action.set(null, idx)
+      __action.set(null, '_locks', idx)
+      __action.set(null, _parent.idx, '_locks', _name)
+      if (_key) _key.remove()
+    }
+  }
   MazeGame.Lock = Lock
 
-  class Laser extends Lock {}
+  class Laser extends Lock {
+    static key_bind = 's'
+    static long_min = 9
+    static long_max = Infinity
+
+    static init(
+      parent, // Door,Jack
+      name, // String
+    ) {
+      const _laser = super.init(parent,name)
+      const {idx,__action} = _laser
+      __action.get(idx, '_lasers', idx)
+      return _laser
+    }
+
+    remove() {
+      const {idx, __action} = this
+      __action.set(null, '_lasers', idx)
+      super.remove()
+    }
+  }
   MazeGame.Laser = Laser
 
-  class Wall extends Table {
+  class Wall extends Type {
     static key_bind = 'w'
     static root_round = 2
     static long_round = 2
@@ -730,51 +753,49 @@ module.exports = (project_name, Lib) => {
     get long() { return this._long }
     get short() { return this._short }
     set long(
-      point, // Point
+      long, // Point
     ) {
+      const {idx,__action,_root} = this
       const {
         short_sign,
         short_min,short_max,short_round,
         long_min,long_max,long_round,
       } = this.Type
-      this._long = point.long.cramp(long_min, long_max, long_round)
-      this._short = point.short.cramp(short_min, short_max, short_round)
-      this._spot = this._root.sum(this._long)
-      if (short_sign) this._spot = this._spot.sum(this._short)
+      const _long = long.long.cramp(long_min, long_max, long_round)
+      __action.set(_long, idx, '_long')
+      const _short = long.short.cramp(short_min, short_max, short_round)
+      __action.set(_short, idx, '_short')
+      let _spot = _root.sum(_long)
+      if (short_sign) _spot = _spot.sum(_short)
+      __action.set(_spot, idx, '_spot')
     }
     set root(
-      point, // Point
+      root, // Point
     ) {
-      const {root_round,short_sign} = this.Type, {time} = point
-      this._root = point.round(root_round)
-      if (!this._long) this.long = Point.init(time,1,1)
+      const {root_round,short_sign,_long,_short} = this.Type, {time} = root
+      this._root = root.round(root_round)
+      if (!_long) this.long = Point.init(time,1,1)
       else {
-        this._spot = this._root.sum(this._long)
-        if (short_sign) this._spot = this._spot.sum(this._short)
+        this._spot = _root.sum(_long)
+        if (short_sign) this._spot = _spot.sum(_short)
       }
     }
 
-    static _init(
+    static init(
       level, // Level
-      wall_idx, // Wall
+      root, // Point
     ) {
-      const _wall = super._init(level, wall_idx)
-      const action = level[level.action]
-      action.set(true, 'walls', wall_idx)
+      const {idx,__action} = level
+      const _idx = ++level.tally
+      const _wall = __action.new(this, _idx)
+      __action.set(_idx, _idx, '_idx')
+      __action.get(_idx, 'walls', _idx)
+      _wall.root = root
       return _wall
     }
-    static init(
-      root, // Point @ time:action.time
-      level, // Level
-      wall_idx, // String
-    ) {
-      const _wall = this._init(level, wall_idx)
-      _wall.__level = level
-      const action = level[level.action]
-      action.set(root, wall_idx, 'root')
-      action.set(true, wall_idx, 'is_open')
-      action.set(1, wall_idx, 'open')
-      return _wall
+
+    remove() {
+      const {idx, __action, } = this
     }
   }
   MazeGame.Wall = Wall
@@ -788,22 +809,92 @@ module.exports = (project_name, Lib) => {
     static short_max = 4
     static short_sign = true
 
-    static locks = {
-      root_short:[0.5,   0,0, 0,-1],
-      root_long: [  0, 0.5,0,-1, 0],
-      spot_long: [  1,-0.5,1, 1, 0],
-      spot_short:[0.5,   0,1, 0, 1],
-    }
-    static lock_names = ['root_short','root_long','spot_long','spot_short']
+    static lock_names = ['root_short','root_long','spot_long','spot_short',]
 
-    static _init(
-      level, // Level
-      door_idx, // Door
+    set is_open(
+      is_open, // Boolean
     ) {
-      const _door = super._init(level, door_idx)
-      const action = level[level.action]
-      action.set(true, 'doors', door_idx)
+      const {idx,__action,locks} = this
+
+      for (const idx in locks) {
+        const lock = locks[idx]
+        if (lock && !lock.is_open) is_open = false
+      }
+      super.is_open = is_open
+    }
+
+    get locks() { return this._locks = this._locks || {} }
+    get root_short() { return this.locks._root_short }
+    get root_long() { return this.locks._root_long }
+    get spot_long() { return this.locks._spot_long }
+    get spot_short() { return this.locks._spot_short }
+
+    set_lock(
+      lock, // Lock,Null
+      name, // String
+    ) {
+      const {idx,__action, [name]:_lock} = this
+      if (_lock == lock) return
+      if (_lock) _lock.remove()
+      if (lock) __action.get(lock.idx, idx, '_locks', name)
+      this.is_open = true
+    }
+    set root_short(
+      lock, // Lock,Null
+    ) {
+      const {root,short,long} = this
+      if (lock) {
+        lock.root = short.div(2).sum(root)
+        lock.long = long.strip(-lock.long.length)
+      }
+      this.set_lock(lock,'_root_short')
+    }
+    set root_long(
+      lock, // Lock,Null
+    ) {
+      const {root,short,long} = this
+      if (lock) {
+        lock.root = long.strip(short.length/2).sum(root)
+        lock.long = short.strip(-lock.short.length)
+      }
+      this.set_lock(lock,'_root_long')
+    }
+    set spot_long(
+      lock, // Lock,Null
+    ) {
+      const {spot,short,long} = this
+      if (lock) {
+        lock.root = long.strip(-short.length/2).sum(spot)
+        lock.long = short.strip(lock.short.length)
+      }
+      this.set_lock(lock,'_spot_long')
+    }
+    set spot_short(
+      lock, // Lock,Null
+    ) {
+      const {spot,short,long} = this
+      if (lock) {
+        lock.root = short.div(-2).sum(spot)
+        lock.long = short.strip(-lock.long.length)
+      }
+      this.set_lock(lock,'_spot_short')
+    }
+
+    static init(
+      level, // Level
+      root, // Point
+    ) {
+      const _door = super.init(level,root)
+      const {idx,__action} = _door
+      __action.get(idx, '_doors', idx)
       return _door
+    }
+
+    remove() {
+      const {idx, __action, _locks} = this
+      __action.set(null, '_doors', idx)
+      for (const names in _locks) this[names] = null
+      super.remove()
     }
   }
   MazeGame.Door = Door
@@ -814,40 +905,219 @@ module.exports = (project_name, Lib) => {
     static short_max = this.short_min
     static long_min = 12
     static long_max = this.long_min
-    static short_mid = this.short_max / 2
+    static short_midx = this.short_max / 2
     static center_long = this.long_max / 2
     static center_short = (
-      this.short_max*this.short_max - this.short_mid*this.short_mid +
+      this.short_max*this.short_max - this.short_midx*this.short_midx +
       this.long_max * this.long_max / 4
-    ) / 2 / (this.short_max - this.short_mid)
+    ) / 2 / (this.short_max - this.short_midx)
     static radius = Math.sqrt(
       Math.pow(this.short_max - this.center_short, 2) +
       Math.pow(this.long_max - this.center_long, 2)
     )
-    static locks = {
-      root: [0,0,1/4,-1,0],
-      cent: [0,0,1/2,-1,0],
-      spot: [0,0,3/4,-1,0],
-    }
-    static lock_names = ['root','cent','spot',]
+    static lock_names = ['lock_root','lock_cent','lock_spot',]
     static is_portal = true
 
-    static _init(
-      level, // Level
-      portal_idx, // Portal
+    set_lock(
+      lock, // Lock,Null
+      name, // String
     ) {
-      const _portal = super._init(level, portal_idx)
-      const action = level[level.action]
-      action.set(true, 'portals', portal_idx)
+      const {short} = this
+      if (lock) lock.long = short.strip(-lock.long.length)
+      super.set_lock(lock,name)
+    }
+    get lock_root() { return this._lock_root }
+    get lock_cent() { return this._lock_cent }
+    get lock_spot() { return this._lock_spot }
+    set lock_root(
+      lock, // Lock,Null
+    ) {
+      const {root,long} = this
+      if (lock) lock.root = long.div(4).sum(root)
+      this.set_lock(lock,'_lock_root')
+    }
+    set lock_cent(
+      lock, // Lock,Null
+    ) {
+      const {root,long} = this
+      if (lock) lock.root = long.div(2).sum(root)
+      this.set_lock(lock,'_lock_cent')
+    }
+    set lock_spot(
+      lock, // Lock,Null
+    ) {
+      const {root,long} = this
+      if (lock) lock.root = long.div(4/3).sum(root)
+      this.set_lock(lock,'_lock_spot')
+    }
+    get is_open() {
+      if (!this._is_open) return false
+
+      const portals = this.__action.child.portals
+      let count = 0
+      for (const idx in portals) if (portals[idx]._is_open) ++count
+      return count == 2
+    }
+
+    static init(
+      level, // Level
+      root, // Point
+    ) {
+      const _portal = super.init(level,root)
+      const {idx,__action} = _portal
+      __action.get(idx, '_portals', idx)
       return _portal
+    }
+
+    remove() {
+      const {idx, __action} = this
+      __action.set(null, '_portals', idx)
+      super.remove()
     }
   }
   MazeGame.Portal = Portal
 
-  class Key extends Table {}
+  class Key extends Type {
+    static key_bind = 'k'
+    static radius = 1.5
+    static center_radius = Lock.radius
+    static search_radius = this.radius
+
+    static get_closest(
+      spot, // Point
+      keys, // Lock[],Lock{},Null
+    ) {
+      let min_dist = Infinity, return_key = null
+
+      for (const label in keys) {
+        const key = keys[label], {search_radius} = key.Type
+        const _dist = key.root.sub(spot).length
+        if (_dist < min_dist && _dist < search_radius) {
+          return_key = key
+          min_dist = _dist
+        }
+      }
+      return return_key
+    }
+
+    set root(
+      _root, // Point
+    ) {
+      const {idx, __action} = this
+      __action.set(_root, idx, '_root')
+    }
+
+    get lock() { return this._lock }
+    set lock(
+      lock, // Lock,Null
+    ) {
+      const {idx, _lock, __action} = this
+      if (_lock == lock) return
+
+      if (_lock) _lock.key = null
+      if (lock) {
+        __action.get(lock.idx, idx, '_lock')
+        lock.key = this
+      }
+      else __action.set(null, idx, '_lock')
+    }
+
+    static init(
+      level, // Level
+      root, // Point
+    ) {
+      const {idx,__action,_locks} = level
+      const closest_lock = Lock.get_closest(root, _locks)
+      if (closest_lock && closest_lock.key) return closest_lock.key
+
+      const _idx = ++level.tally
+      const _key = __action.new(this, _idx)
+      __action.set(_idx, _idx, '_idx')
+      __action.get(_idx, '_keys', _idx)
+
+      if (closest_lock) closest_lock.key = _key
+      else _key.root = root
+      return _key
+    }
+
+    remove() {
+      const {idx,__action,_lock} = this
+      __action.set(null, _idx)
+      __action.set(null, '_keys', _idx)
+      if (_lock) __action.set(null, _lock.idx, '_key')
+    }
+  }
   MazeGame.Key = Key
 
-  class Jack extends Key {}
+  class Jack extends Key {
+    static key_bind = 'j'
+    static leg_radius = 2
+
+    set nose(
+      nose, // Lock
+    ) {
+      const {idx, __action, _nose, _root, _long} = this
+      if (nose && _nose != nose) {
+        if (_nose) _nose.remove()
+
+        const {long_min} = nose.Type
+        __action.set(nose.idx, idx, '_nose')
+        __action.set(_long.strip(long_min), nose.idx, '_long')
+        nose.root = _root.sum(_long)
+      }
+    }
+
+    set long(
+      long, // Point
+    ) {
+      const {idx, __action, _nose, _root, Type:{radius}} = this
+      const _long = long.unit.strip(radius)
+      __action.set(_long, idx, '_long')
+
+      const {long_min} = _nose.Type
+      __action.set(_long.strip(long_min), _nose.idx, '_long')
+      _nose.root = _root.sum(_long)
+    }
+    set root(
+      _root, // Point
+    ) {
+      const {idx, __action, _nose, Type:{long_min}} = this
+      const {time} = __action
+      __action.set(_root, idx, '_root')
+
+      let {_long} = this
+      if (!_long) {
+        _long = Point.init(time,1,0,long_min)
+        __action.set(_long, idx, '_long')
+      }
+
+      _nose.root = _root.sum(_long)
+    }
+
+    set editor(
+      editor, // Editor,Null
+    ) {
+      super.editor = editor
+      this.is_open = !!editor
+    }
+
+    static init(
+      level, // Level
+      root, // Point
+    ) {
+      const _jack = super.init(level,root)
+      const {idx,__action, _nose} = _jack
+      if (!_nose) Lock.init(_jack, 'nose')
+      __action.get(idx, '_jacks', idx)
+      return _jack
+    }
+
+    remove() {
+      const {idx, __action} = this
+      __action.set(null, '_jacks', idx)
+      super.remove()
+    }
+  }
   MazeGame.Jack = Jack
 
   return MazeGame

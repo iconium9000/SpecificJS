@@ -51,17 +51,19 @@ function MazeGame() {
 	    client.name = prompt('Choose a name:', client.name)
 	    document.cookie = `name=${client.name}`
 	  }
+		const {name,socket:{id}} = client
 
-		client.full_name = `'${client.name}' (${client.socket.id})`
+		client.full_name = `'${name}' (${id})`
 
 	  // reply to server with name
-	  client.socket.emit('client name', {name: client.name})
+	  client.socket.emit('client name', {name: name})
 
 	  log(client.full_name, 'connected to server')
 
 		const time = Lib.time
-		client.game = Game.init(time)
-		client.editor = Editor.init(client.game, client.socket.id, client.name)
+		const game_action = client.game_action = Game.init(time)
+		Editor.init(game_action, id, name)
+		log(game_action)
 	  tick()
 	})
 
@@ -101,29 +103,42 @@ function MazeGame() {
 		client.prev_spot = spot
 	})
 
-	$(document).keypress(e => {
-    var c = String.fromCharCode(e.which | 0x20)
+	document.onkeydown = e => {
+		const code = e.which
+		var c = String.fromCharCode(code | 0x20)
 		const new_state = key_bindings[c]
-		const {time} = Lib, {game,editor} = client
+		if (!client.game) return
+		const {time} = Lib
+		const game = client.game.at(time).build
 
 		if (new_state) {
-			if (game && editor) {
-				const _action = Action.init(time, game)
-			}
+			// TODO set state
 		}
-		// delete: e.which = 127
-		else if (e.which == 127) {
+		// left: 37
+		// up: 38
+		// right: 39
+		// down: 40
+		else if (37 <= code && code <= 40) {
+			log(Level.key[code-37])
+			const [_revert, _apply] = Level.action(time, editor, code - 37)
+		}
+		// delete: code = 127
+		else if (code == 127) {
 			// TODO DELETE
 		}
 		else if (c == 'z') {
 			// TODO KILL
 		}
 		else if (c == ' ') {
+			log(game)
 			// TODO DISPLAY
-			const txt = client.game.to_string
-			log(Table.to_table(txt))
+			// log(client.game)
+			// const txt = client.game.to_string
+			// log(txt)
+			// log(Table.to_table(txt))
 		}
-  })
+	}
+
 
 	function tick() {
 
