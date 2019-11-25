@@ -63,7 +63,7 @@ function MazeGame() {
 		const time = Lib.time
 		const game = Game.init(time)
 		log(game)
-		// Editor.init(game_action, id, name)
+		Editor.init(game, id, name)
 		// log(game_action)
 	  tick()
 	})
