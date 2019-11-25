@@ -24,21 +24,21 @@ function MazeGame() {
 		name: null,
 		full_name: null,
 		editor: null,
-		root: new MazeGame.Point(0,0,0,60),
-		spot: new MazeGame.Point(0,0,0,1),
+		// root: new MazeGame.Point(0,0,0,60),
+		// spot: new MazeGame.Point(0,0,0,1),
 		right_down: false, left_down: false,
 	}
 
-	function get_center(canvas) {
-		const {root} = client
-		const {width:x,height:y} = canvas
-		const point = new Point(Lib.time,x,y)
-		return point.div(2).set((x < y ? x : y) / root.scale )
-	}
-	function set_spot({offsetX,offsetY}, center) {
-		const {root} = client, spot = new Point(Lib.time,offsetX,offsetY)
-		client.spot = spot.sub(center,1).div(center.scale).sum(root,1)
-	}
+	// function get_center(canvas) {
+	// 	const {root} = client
+	// 	const {width:x,height:y} = canvas
+	// 	const point = new Point(Lib.time,x,y)
+	// 	return point.div(2).set((x < y ? x : y) / root.scale )
+	// }
+	// function set_spot({offsetX,offsetY}, center) {
+	// 	const {root} = client, spot = new Point(Lib.time,offsetX,offsetY)
+	// 	client.spot = spot.sub(center,1).div(center.scale).sum(root,1)
+	// }
 
 	client.socket.on('connect', () => {
 		client.name = null
@@ -61,82 +61,82 @@ function MazeGame() {
 	  log(client.full_name, 'connected to server')
 
 		const time = Lib.time
-		const game_action = client.game_action = Game.init(time)
-		Editor.init(game_action, id, name)
-		log(game_action)
+		const game = Game.init(time)
+		log(game)
+		// Editor.init(game_action, id, name)
+		// log(game_action)
 	  tick()
 	})
 
 	$(document).mousemove(e => {
-		const center = get_center(canvas)
-		set_spot(e, center)
-		if ( client.right_down ) {
-			const {root,spot,prev_spot} = client
-			client.root = prev_spot.sub(spot).sum(root,1,root.scale)
-		}
-		client.prev_spot = client.spot
+		// const center = get_center(canvas)
+		// set_spot(e, center)
+		// if ( client.right_down ) {
+		// 	const {root,spot,prev_spot} = client
+		// 	client.root = prev_spot.sub(spot).sum(root,1,root.scale)
+		// }
+		// client.prev_spot = client.spot
 	})
 
 	$(document).mousedown(e => {
-		const canvas = e.target
-		const center = get_center(canvas)
-		set_spot(e, center)
+		// const canvas = e.target
+		// const center = get_center(canvas)
+		// set_spot(e, center)
 
-		const {root,spot} = client
+		// const {root,spot} = client
 		client[e.button == 2 ? 'right_down' : 'left_down'] = true
-		client.prev_spot = spot
+		// client.prev_spot = spot
 	})
 
 	$(document).mouseup(e => {
-		const canvas = e.target
-		const time = Lib.time
-		const center = get_center(canvas)
-		set_spot(e, center)
-
-		const {root,spot,left_down} = client
-
-		if (left_down) {
-			// TODO ACTION
-		}
-
-		client[e.button == 2 ? 'right_down' : 'left_down'] = false
-		client.prev_spot = spot
+		// const canvas = e.target
+		// const time = Lib.time
+		// const center = get_center(canvas)
+		// set_spot(e, center)
+		//
+		// const {root,spot,left_down} = client
+		//
+		// if (left_down) {
+		// 	// TODO ACTION
+		// }
+		//
+		// client[e.button == 2 ? 'right_down' : 'left_down'] = false
+		// client.prev_spot = spot
 	})
 
 	document.onkeydown = e => {
-		const code = e.which
-		var c = String.fromCharCode(code | 0x20)
-		const new_state = key_bindings[c]
-		if (!client.game) return
-		const {time} = Lib
-		const game = client.game.at(time).build
-
-		if (new_state) {
-			// TODO set state
-		}
-		// left: 37
-		// up: 38
-		// right: 39
-		// down: 40
-		else if (37 <= code && code <= 40) {
-			log(Level.key[code-37])
-			const [_revert, _apply] = Level.action(time, editor, code - 37)
-		}
-		// delete: code = 127
-		else if (code == 127) {
-			// TODO DELETE
-		}
-		else if (c == 'z') {
-			// TODO KILL
-		}
-		else if (c == ' ') {
-			log(game)
-			// TODO DISPLAY
-			// log(client.game)
-			// const txt = client.game.to_string
-			// log(txt)
-			// log(Table.to_table(txt))
-		}
+		// const code = e.which
+		// var c = String.fromCharCode(code | 0x20)
+		// const new_state = key_bindings[c]
+		// if (!client.game) return
+		// const {time} = Lib
+		// const game = client.game.at(time).build
+		//
+		// if (new_state) {
+		// 	// TODO set state
+		// }
+		// // left: 37
+		// // up: 38
+		// // right: 39
+		// // down: 40
+		// else if (37 <= code && code <= 40) {
+		// 	// TODO
+		// }
+		// // delete: code = 127
+		// else if (code == 127) {
+		// 	// TODO DELETE
+		// }
+		// else if (c == 'z') {
+		// 	// TODO KILL
+		// }
+		// else if (c == ' ') {
+		// 	log(game)
+		// 	// TODO DISPLAY
+		// 	// log(client.game)
+		// 	// const txt = client.game.to_string
+		// 	// log(txt)
+		// 	// log(Table.to_table(txt))
+		// }
 	}
 
 
@@ -148,24 +148,24 @@ function MazeGame() {
 		canvas.height = window.innerHeight - 20
 		window.requestAnimationFrame(tick)
 
-		const now = Lib.now()
-		const prev_now = client.prev_now
-		const deltaT = now - prev_now > max_deltaT ? max_deltaT : now - prev_now
-
-		const time = Lib.time
-		const center = get_center(canvas, time)
-		const {root,spot,game} = client
-		const _center = center.strip()
-		const _spot = spot.sub(root,1).mul(center.scale).sum(_center)
-
-		if (game) {
-			try {
-				// TODO DRAW
-			} catch (e) {
-				log(e)
-			}
-		}
-		client.prev_now = now
+		// const now = Lib.now()
+		// const prev_now = client.prev_now
+		// const deltaT = now - prev_now > max_deltaT ? max_deltaT : now - prev_now
+		//
+		// const time = Lib.time
+		// const center = get_center(canvas, time)
+		// const {root,spot,game} = client
+		// const _center = center.strip()
+		// const _spot = spot.sub(root,1).mul(center.scale).sum(_center)
+		//
+		// if (game) {
+		// 	try {
+		// 		// TODO DRAW
+		// 	} catch (e) {
+		// 		log(e)
+		// 	}
+		// }
+		// client.prev_now = now
 	}
 
 	log('index.js')
