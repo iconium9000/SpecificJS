@@ -62,9 +62,9 @@ function MazeGame() {
 
 		const time = Lib.time
 		const game = Game.init(time)
-		log(game)
 		Editor.init(game, id, name)
-		// log(game_action)
+		client.game = game
+		log(game)
 	  tick()
 	})
 
@@ -105,38 +105,38 @@ function MazeGame() {
 	})
 
 	document.onkeydown = e => {
-		// const code = e.which
-		// var c = String.fromCharCode(code | 0x20)
-		// const new_state = key_bindings[c]
-		// if (!client.game) return
-		// const {time} = Lib
-		// const game = client.game.at(time).build
-		//
-		// if (new_state) {
-		// 	// TODO set state
-		// }
-		// // left: 37
-		// // up: 38
-		// // right: 39
-		// // down: 40
-		// else if (37 <= code && code <= 40) {
-		// 	// TODO
-		// }
-		// // delete: code = 127
-		// else if (code == 127) {
-		// 	// TODO DELETE
-		// }
-		// else if (c == 'z') {
-		// 	// TODO KILL
-		// }
-		// else if (c == ' ') {
-		// 	log(game)
-		// 	// TODO DISPLAY
-		// 	// log(client.game)
-		// 	// const txt = client.game.to_string
-		// 	// log(txt)
-		// 	// log(Table.to_table(txt))
-		// }
+		const code = e.which
+		var c = String.fromCharCode(code | 0x20)
+		const new_state = key_bindings[c]
+		if (!client.game) return
+		const {time} = Lib
+		const game = client.game.at(time)
+
+		if (new_state) {
+			// TODO set state
+		}
+		// left: 37
+		// up: 38
+		// right: 39
+		// down: 40
+		else if (37 <= code && code <= 40) {
+			// TODO
+		}
+		// delete: code = 127
+		else if (code == 127) {
+			// TODO DELETE
+		}
+		else if (c == 'z') {
+			// TODO KILL
+		}
+		else if (c == ' ') {
+			log(game.__state.time)
+			// TODO DISPLAY
+			// log(client.game)
+			// const txt = client.game.to_string
+			// log(txt)
+			// log(Table.to_table(txt))
+		}
 	}
 
 
