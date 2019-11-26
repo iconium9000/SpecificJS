@@ -28,14 +28,14 @@ module.exports = (project_name, Lib) => {
     static set(
       parent, // Object,Null
       value, // Object,Null
-      action, // Action
+      state, // State
       ...path // String
     ) {
       let label = 'parent'
       const _parent = parent = {[label]: parent}
       for (const i in path) {
         if (parent[label] == null) {
-          parent[label] = Object.assign(new Object, {__action:action})
+          parent[label] = Object.assign(new Object, {__state:state})
         }
         parent = parent[label]
         label = path[i]
@@ -49,8 +49,8 @@ module.exports = (project_name, Lib) => {
     get idx() { return this._idx } // String,Number
 
     get tally() {
-      const {__action, _tally} = this
-      return __action.top((_tally || 0) + 1, '_tally')
+      const {__state, _tally} = this
+      return __state.top((_tally || 0) + 1, '_tally')
     }
   }
   MazeGame.Type = Type
@@ -286,10 +286,34 @@ module.exports = (project_name, Lib) => {
       )
     }
 
+    // NOTE: ignores tx,ty,time
+    // NOTE: assumes that sx*sx+sy*sy == 1 && _scale > 0
+    clamp(
+      min,ceil, // Number
+    ) {
+      const {_sx,_sy,_scale} = this
+      return Point.simple(
+        _sx,_sy,
+        _scale < min ? min : Math.ceil(_scale / ceil) * ceil
+      )
+    }
+
+    // NOTE: ignores tx,ty,time
+    // NOTE: assumes that sx*sx+sy*sy == 1 && _scale > 0
+    cramp(
+      min,max,round, // Float
+    ) {
+      const {_sx,_sy,_scale} = this
+      return Point.simple(_sx,_sy,
+        _scale < min ? min : max < _scale ? max :
+        0 < round ? Math.ceil(_scale / round) * round : _scale
+      )
+    }
+
   }
   MazeGame.Point = Point
 
-  class Action extends Type {
+  class State extends Type {
 
     /*
       sync is only true iff child == build (when sync is false)
@@ -299,22 +323,22 @@ module.exports = (project_name, Lib) => {
 
     get sync() { return this._sync } // Boolean,Null
     get child() { return this._child } // Object,Null
-    get parent() { return this._parent } // Action,Null
+    get parent() { return this._parent } // State,Null
 
     static init(
       time, // Number
-      parent, // Action,Null
+      parent, // State,Null
     ) {
-      const _action = new this
-      _action._time = time
-      _action._array = []
-      _action._sync = true
+      const _state = new this
+      _state._time = time
+      _state._array = []
+      _state._sync = true
       if (parent) {
-        _action._parent = parent
-        _action._child = parent.build
+        _state._parent = parent
+        _state._child = parent.build
         parent._sync = false
       }
-      return _action
+      return _state
     }
 
     _set(
@@ -361,7 +385,7 @@ module.exports = (project_name, Lib) => {
       ...path
     ) {
       return this._set(
-        'new', Object.assign(new constructor, {__action:this}),
+        'new', Object.assign(new constructor, {__state:this}),
         constructor.name, ...path
       )
     }
@@ -380,7 +404,7 @@ module.exports = (project_name, Lib) => {
         const {_child} = this
         Type.set(
           this,
-          tok == 'new' ? Object.assign(new MazeGame[value], {__action:this}) :
+          tok == 'new' ? Object.assign(new MazeGame[value], {__state:this}) :
           tok == 'get' ? _child == null ? null : _child[value] :
           tok == 'set' ? value : null,
           this, '_child', ...path
@@ -396,13 +420,13 @@ module.exports = (project_name, Lib) => {
     ) {
       const {_time,_parent} = this
       return (
-        _time == time ? this :
-        _time < time ? Action.init(time, this) :
-        _parent ? _parent.at(time) : Action.init(time)
+        time < _time ?
+        _parent ? _parent.at(time) : State.init(time)
+        State.init(time, this)
       )
     }
   }
-  MazeGame.Action = Action
+  MazeGame.State = State
 
   class Game extends Type {
 
@@ -412,17 +436,16 @@ module.exports = (project_name, Lib) => {
     set_level_node(
       level_node, // LevelNode
     ) {
-      const {__action,_level_node} = this, {idx} = level_node
+      const {__state,_level_node} = this, {idx} = level_node
       if (_level_node == level_node) return _level_node
-      else return __action.get(idx, '_level_node')
+      else return __state.get(idx, '_level_node')
     }
-
 
     static init(
       time, // Number
     ) {
-      const _action = Action.init(time)
-      const _game = _action.new(this)
+      const _state = State.init(time)
+      const _game = _state.new(this)
       Level.init(_game)
       return _game
     }
@@ -430,7 +453,7 @@ module.exports = (project_name, Lib) => {
     at(
       time, // Number
     ) {
-      return this.__action.at(time).build
+      return this.__state.at(time).build
     }
 
   }
@@ -442,48 +465,53 @@ module.exports = (project_name, Lib) => {
     set_target(
       target, // Target,Null
     ) {
-      const {_idx,__action,_target} = this
+      const {_idx,__state,_target} = this
       if (_target == target) return _target
       if (_target) {
         this._target = null // DANGER: this is ok...
         _target.set_editor(null)
       }
       if (target) {
-        __action.get(target.idx, _idx, '_target') // ...because of this
+        __state.get(target.idx, _idx, '_target') // ...because of this
         target.set_editor(this)
       }
-      else __action.set(null, _idx, '_target') // ...and this
+      else __state.set(null, _idx, '_target') // ...and this
     }
 
     get level_node() { return this._level_node }
     set_level_node(
       level_node, // LevelNode,Null
     ) {
-      const {_idx,_name,__action,_level_node,constructor} = this
+      const {_idx,_name,__state,_level_node,constructor} = this
       if (_level_node == level_node) return _level_node
+      const {time} = __state
       if (_level_node) {
-        const _level = _level_node.at_time.build
+        const _level = _level_node.state.at(time).build
         const _editor = _level[_idx]
-        if (_editor) _editor.remove()
+        if (_editor) {
+          _editor.remove()
+          _level_node.set_state(_level.extend.__state)
+        }
       }
       if (level_node) {
-        __action.get(level_node.idx, _idx, '_level_node')
-        const _level = level_node.at_time.build
+        __state.get(level_node.idx, _idx, '_level_node')
+        const _level = level_node.state.at(time).build
         constructor.init(_level, _idx, _name)
+        level_node.set_state(_level.extend.__state)
       }
-      else __action.set(null, _idx, '_level_node')
+      else __state.set(null, _idx, '_level_node')
     }
 
     static init(
       game_level, // Game,Level
       idx,name, // String
     ) {
-      const {__action,[idx]:editor,level_node} = game_level
+      const {__state,[idx]:editor,level_node} = game_level
       if (editor) return editor
 
-      const _editor = __action.new(this, idx)
-      __action.set(idx, idx, '_idx')
-      __action.set(name, idx, '_name')
+      const _editor = __state.new(this, idx)
+      __state.set(idx, idx, '_idx')
+      __state.set(name, idx, '_name')
       _editor.set_level_node(level_node)
       return _editor
     }
@@ -493,67 +521,61 @@ module.exports = (project_name, Lib) => {
 
   class LevelNode extends Type {
 
-    get action() { return this._action }
-    set_action(
-      action, // Action w/ child:Level
+    get state() { return this._state }
+    set_state(
+      state, // State w/ child:Level
     ) {
-      const {_idx,__action,_action} = this
-      if (_action == action) return _action
-      else return __action.set(action, _idx, '_action')
+      const {_idx,__state,_state} = this
+      if (_state == state) return _state
+      else return __state.set(state, _idx, '_state')
     }
     set_prev(
       prev, // LevelNode,Null
     ) {
-      const {_idx,__action,_prev} = this
+      const {_idx,__state,_prev} = this
       if (_prev == prev) return _prev
       else if (prev) {
-        __action.get(_prev.idx, _idx, '_prev')
-        __action.get(_idx, _prev.idx, '_next')
+        __state.get(_prev.idx, _idx, '_prev')
+        __state.get(_idx, _prev.idx, '_next')
       }
-      else __action.set(null, _idx, '_prev')
+      else __state.set(null, _idx, '_prev')
     }
     set_next(
       next, // LevelNode,Null
     ) {
-      const {_idx,__action,_next} = this
+      const {_idx,__state,_next} = this
       if (_next == next) return _next
       else if (next) {
-        __action.get(_next.idx, _idx, '_next')
-        __action.get(_idx, _next.idx, '_prev')
+        __state.get(_next.idx, _idx, '_next')
+        __state.get(_idx, _next.idx, '_prev')
       }
-      else __action.set(null, _idx, '_next')
-    }
-    get at_time() {
-      const {__action:{time},_action,} = this
-      return this.set_action(_action.at(time))
+      else __state.set(null, _idx, '_next')
     }
 
     static init(
       game, // Game
       level, // Level
     ) {
-      const game_action = game.__action
-      const level_action = level.__action
+      const {__state,level_node} = game
       const _idx = game.tally
-      const _level_node = game_action.new(this, _idx)
-      game_action.set(_idx, _idx, '_idx')
-      _level_node.set_action(level_action)
+      const _level_node = __state.new(this, _idx)
+      __state.set(_idx, _idx, '_idx')
+      _level_node.set_state(level.extend.__state)
 
-      const {level_node} = game
       if (level_node) _level_node.set_next(level_node.next_level)
       _level_node.set_prev(level_node)
       game.set_level_node(_level_node)
-
+      
       return _level_node
     }
 
     remove() {
-      const {_idx,__action,_action,_prev,_next} = this
-      // NOTE: __action w/ child:Game (child in sync)
+      const {_idx,__state,_state,_prev,_next} = this
+      // NOTE: __state w/ child:Game (child in sync)
       // NOTE: child w/ editors:Editor{},Null
       // NOTE: child w/ level_node:LevelNode
       // NOTE: child w/ [_idx]:LevelNode,Null
-      const {editors,level_node,[_idx]:_this} = __action.child
+      const {editors,level_node,[_idx]:_this} = __state.child
       if (!_this) return false
 
       for (const idx in editors) {
@@ -561,7 +583,7 @@ module.exports = (project_name, Lib) => {
         if (editor.level_node == this) editor.set_level_node(level_node)
       }
 
-      __action.set(null,_idx)
+      __state.set(null,_idx)
       if (_prev) _prev.set_next(_next)
       else if (_next) _next.set_prev(_prev)
       return true
@@ -569,6 +591,7 @@ module.exports = (project_name, Lib) => {
 
   }
   MazeGame.LevelNode = LevelNode
+
   class Level extends Type {
 
     get locks() { return this._locks }
@@ -582,11 +605,15 @@ module.exports = (project_name, Lib) => {
     static init(
       game, // Game
     ) {
-      const {__action} = game, {time} = __action
-      const _action = Action.init(time)
-      const _level = _action.new(this)
+      const {__state} = game, {time} = __state
+      const _state = State.init(time)
+      const _level = _state.new(this)
       LevelNode.init(game, _level)
       return _level
+    }
+
+    get extend() {
+      return this // TODO extend
     }
   }
   MazeGame.Level = Level
@@ -604,46 +631,47 @@ module.exports = (project_name, Lib) => {
     set_is_open(
       is_open, // Boolean
     ) {
-      const {_idx,__action,_is_open} = this
+      const {_idx,__state,_is_open} = this
       if (_is_open == is_open) return
-      return __action.set(_is_open, _idx, '_is_open')
+      return __state.set(_is_open, _idx, '_is_open')
     }
-    get level() { return this.__action.child }
+    get level() { return this.__state.child }
     get editor() { return this._editor }
     set_editor(
       editor, // Editor,Null
     ) {
-      const {_idx,__action,_editor} = this
+      const {_idx,__state,_editor} = this
       if (_editor == editor) return _editor
       if (_editor) {
-        __action.set(null, _idx, '_editor')
+        __state.set(null, _idx, '_editor')
         _editor.set_target(null)
       }
       if (editor) {
-        __action.get(editor.idx, _idx, '_editor')
+        __state.get(editor.idx, _idx, '_editor')
         editor.set_target(this)
         return editor
       }
-      else return __action.set(null, _idx, '_editor')
+      else return __state.set(null, _idx, '_editor')
     }
 
     static init(
       level, // Level
     ) {
-      const {__action} = level
+      const {__state} = level
       const _idx = level.tally
-      const _target = __action.new(this, _idx)
+      const _target = __state.new(this, _idx)
       _target.set(_idx,_idx,'_idx')
       return _target
     }
 
     remove() {
-      const {_idx,__action} = level
+      const {_idx,__state} = level
       if (!level[_idx]) return false
-      __action.set(null,_idx)
+      __state.set(null,_idx)
       return true
     }
   }
+  MazeGame.Target = Target
 
   class Lock extends Target {
     static key_bind = 'l'
@@ -661,24 +689,24 @@ module.exports = (project_name, Lib) => {
       if (lock) lock.remove()
 
       const _lock = super.init(level), {_idx} = _lock
-      __action.get(parent.idx, _lock, '_parent')
+      __state.get(parent.idx, _lock, '_parent')
       parent.set_lock(_lock, name)
-      return __action.get(_idx, '_locks', _idx)
+      return __state.get(_idx, '_locks', _idx)
     }
 
     remove() {
       if (!super.remove()) return false
-      const {_idx, _name, __action, _key, _parent} = this
+      const {_idx, _name, __state, _key, _parent} = this
 
       if (_key) {
         this._key = null // DANGER: this is ok...
         _key.remove() // ...because of this
       }
       if (_parent) {
-        __action.set(null, _idx, '_parent')
+        __state.set(null, _idx, '_parent')
         _parent.set_lock(null, _name)
       }
-      __action.set(null, '_locks', _idx)
+      __state.set(null, '_locks', _idx)
       return true
     }
   }
@@ -694,14 +722,14 @@ module.exports = (project_name, Lib) => {
       name, // String
     ) {
       const _laser = super.init(parent, name)
-      const {_idx,__action} = _laser
-      return __action.get(_idx, '_lasers', _idx)
+      const {_idx,__state} = _laser
+      return __state.get(_idx, '_lasers', _idx)
     }
 
     remove() {
       if (!super.remove()) return false
-      const {_idx,__action} = this
-      __action.set(null, '_lasers', _idx)
+      const {_idx,__state} = this
+      __state.set(null, '_lasers', _idx)
       return true
     }
   }
@@ -712,20 +740,52 @@ module.exports = (project_name, Lib) => {
     static root_round = 2
     static long_round = 2
     static long_min = 2
+    static long_max = Infinity
     static short_min = 2
     static short_max = 2
     static default_long_open = 0
     static short_sign = false
     static is_portal = false
 
+    get long() { return this._long }
+    get short() { return this._short }
+    get spot() { return this._spot }
+
+    set_long(
+      long, // Point
+    ) {
+      const {_idx, __state, _root} = this, {time} = __state
+      const {
+        short_min,short_max,short_round,
+        long_min,long_max,long_round,
+        short_sign,
+      } = this.constructor
+
+      const _long = long.long.cramp(long_min,long_max,long_round)
+      const _short = long.short.cramp(short_min,short_max,short_round)
+      let _spot = _root.sum(_long)
+      if (short_sign) _spot.sum(_short)
+      __state.set(_long, _idx, '_long')
+      __state.set(_short, _idx, '_short')
+      __state.set(_spot, _idx, '_spot')
+      return long
+    }
 
     get root() { return this._root }
     set_root(
       root, // Point
     ) {
-      const {_idx, __action, _root, constructor:{root_round}} = this
-      const {time} = __action
-      root = root.at(time).round(root_round)
+      const {_idx, __state, _long, _short} = this, {time} = __state
+      const {short_sign,root_round,long_min,short_min} = this.constructor
+      const _root = root.at(time).round(root_round)
+      __state.set(_root, _idx, '_root')
+      if (_long) {
+        let _spot = _root.sum(_long)
+        if (short_sign) _spot = _spot.sum(_short)
+        __state.set(_spot, _idx, '_spot')
+      }
+      else this.set_long(Point.simple(long_min,short_min,1))
+      return _root
     }
 
     static init(
@@ -733,16 +793,16 @@ module.exports = (project_name, Lib) => {
       root, // Point
     ) {
       const _wall = super.init(level)
-      const {_idx, __action} = _wall
+      const {_idx, __state} = _wall
       _wall.set_root(root)
-      __action.get(_idx, '_walls', _idx)
+      __state.get(_idx, '_walls', _idx)
       return _wall
     }
 
     remove() {
       if (!this.remove()) return false
-      const {_idx, __action} = this
-      __action.set(null, '_walls', _idx)
+      const {_idx, __state} = this
+      __state.set(null, '_walls', _idx)
       return true
     }
   }
