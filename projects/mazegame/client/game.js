@@ -49,8 +49,8 @@ module.exports = (project_name, Lib) => {
     get idx() { return this._idx } // String,Number
 
     get tally() {
-      const {__state, _tally} = this
-      return __state.top((_tally || 0) + 1, '_tally')
+      const {state, _tally} = this
+      return state.set((_tally || 0) + 1, '_tally')
     }
   }
   MazeGame.Type = Type
@@ -316,14 +316,13 @@ module.exports = (project_name, Lib) => {
   class State extends Type {
 
     get parent() { return this._parent } // State,Null
-    get child() { return this.__sync.child} // Object,Null
     assign(
       constructor, // Function
     ) {
       const _object = new constructor
       _object.__sync = this.__sync
       return Object.defineProperty(
-        _object, '__state',
+        _object, 'state',
         {get: function() { return this.__sync.state }}
       )
     }
@@ -335,12 +334,8 @@ module.exports = (project_name, Lib) => {
       const _state = new this
       _state._time = time
       _state._array = []
-      if (parent) {
-        _state._parent = parent
-        const {build} = parent
-        _state.__sync = parent.__sync
-      }
-      else _state.__sync = {}
+      if (parent) parent.build()
+      _state.__sync = parent ? parent.__sync : {}
       _state.__sync.state = _state
       return _state
     }
@@ -354,15 +349,6 @@ module.exports = (project_name, Lib) => {
       Type.set(this.__sync, real_value, this, 'child', ...path)
       this._array.push([tok, value, ...path])
       return real_value
-    }
-
-    top(
-      value, // Object,Null
-      label, // String
-    ) {
-      const {child} = this.__sync
-      if (child && child[label] != value) this.set(value, label)
-      return value
     }
 
     set(
@@ -394,30 +380,31 @@ module.exports = (project_name, Lib) => {
       )
     }
 
-    get build() {
-      if (this.__sync.state == this) return this.__sync.child
-      const {_parent,_array} = this
-      if (_parent) {
-        const {build} = _parent
-        this.__sync = _parent.__sync
-      }
-      else this.__sync = {}
-      this.__sync.state = this
+    get child() {
+      this.build()
+      return this.__sync.child
+    }
 
-      const {__sync} = this
+    build() {
+      if (this.__sync && this.__sync.state == this) return false
+
+      const {_parent,_array} = this
+      if (_parent) _parent.build()
+      const sync = this.__sync = _parent ? _parent.__sync : {}
+      sync.state = this
+
       for (const i in _array) {
         const [tok, value, ...path] = _array[i]
-        const {child} = __sync
+        const {child} = sync
         Type.set(
-          __sync,
+          sync,
           tok == 'new' ? this.assign(MazeGame[value]) :
           tok == 'get' ? child == null ? null : child[value] :
           tok == 'set' ? value : null,
           this, 'child', ...path
         )
       }
-
-      return __sync.child
+      return true
     }
 
     at(
@@ -441,9 +428,9 @@ module.exports = (project_name, Lib) => {
     set_level_node(
       level_node, // LevelNode
     ) {
-      const {__state,_level_node} = this, {idx} = level_node
+      const {state,_level_node} = this, {idx} = level_node
       if (_level_node == level_node) return _level_node
-      else return __state.get(idx, '_level_node')
+      else return state.get(idx, '_level_node')
     }
 
     static init(
@@ -458,7 +445,7 @@ module.exports = (project_name, Lib) => {
     at(
       time, // Number
     ) {
-      return this.__state.at(time).build
+      return this.state.at(time).build
     }
 
     draw(
@@ -468,7 +455,7 @@ module.exports = (project_name, Lib) => {
     ) {
       const _state = Type.get(this, editor_idx, 'level_node', 'state')
       if (_state) {
-        const _level = _state.at(this.__state.time).child
+        const _level = _state.at(this.state.time).child
         if (_level) _level.draw(ctx, center, mouse)
       }
     }
@@ -481,53 +468,52 @@ module.exports = (project_name, Lib) => {
     set_target(
       target, // Target,Null
     ) {
-      const {_idx,__state,_target} = this
+      const {_idx,state,_target} = this
       if (_target == target) return _target
       if (_target) {
         this._target = null // UNRECORDED MODIFICATION: this is ok...
         _target.set_editor(null)
       }
       if (target) {
-        __state.get(target.idx, _idx, '_target') // ...because of this
+        state.get(target.idx, _idx, '_target') // ...because of this
         target.set_editor(this)
       }
-      else __state.set(null, _idx, '_target') // ...or this
+      else state.set(null, _idx, '_target') // ...or this
     }
 
     get level_node() { return this._level_node }
     set_level_node(
       level_node, // LevelNode,Null
     ) {
-      const {_idx,_name,__state,_level_node,constructor} = this
+      const {_idx,_name,state,_level_node,constructor} = this, {time} = state
       if (_level_node == level_node) return _level_node
-      const {time} = __state
       if (_level_node) {
-        const _level = _level_node.state.at(time).build
+        const _level = _level_node.level_state.at(time).child
         const _editor = _level[_idx]
         if (_editor) {
           _editor.remove()
-          _level_node.set_state(_level.extend.__state)
+          _level_node.set_level_state(_level.extend.state)
         }
       }
       if (level_node) {
-        __state.get(level_node.idx, _idx, '_level_node')
-        const _level = level_node.state.at(time).build
-        constructor.init(_level, _idx, _name)
-        level_node.set_state(_level.extend.__state)
+        state.get(level_node.idx, _idx, '_level_node')
+        const _level = level_node.level_state.at(time).child
+        constructor.init(_level.state, _idx, _name)
+        level_node.set_level_state(_level.extend.state)
       }
-      else __state.set(null, _idx, '_level_node')
+      else state.set(null, _idx, '_level_node')
     }
 
     static init(
-      game_level, // Game,Level
+      state, // State @ child:Game,Level
       idx,name, // String
     ) {
-      const {__state,[idx]:editor,level_node} = game_level
+      const {[idx]:editor,level_node} = state.child
       if (editor) return editor
 
-      const _editor = __state.new(this, idx)
-      __state.set(idx, idx, '_idx')
-      __state.set(name, idx, '_name')
+      const _editor = state.new(this, idx)
+      state.set(idx, idx, '_idx')
+      state.set(name, idx, '_name')
       _editor.set_level_node(level_node)
       return _editor
     }
@@ -537,46 +523,46 @@ module.exports = (project_name, Lib) => {
 
   class LevelNode extends Type {
 
-    get state() { return this._state }
-    set_state(
-      state, // State w/ child:Level
+    get level_state() { return this._level_state }
+    set_level_state(
+      level_state, // State @ child:Level
     ) {
-      const {_idx,__state,_state} = this
-      if (_state == state) return _state
-      else return __state.set(state, _idx, '_state')
+      const {_idx,state,_level_state} = this
+      if (_level_state == level_state) return _level_state
+      else return state.set(level_state, _idx, '_level_state')
     }
     set_prev(
       prev, // LevelNode,Null
     ) {
-      const {_idx,__state,_prev} = this
+      const {_idx,state,_prev} = this
       if (_prev == prev) return _prev
       else if (prev) {
-        __state.get(_prev.idx, _idx, '_prev')
-        __state.get(_idx, _prev.idx, '_next')
+        state.get(_prev.idx, _idx, '_prev')
+        state.get(_idx, _prev.idx, '_next')
       }
-      else __state.set(null, _idx, '_prev')
+      else state.set(null, _idx, '_prev')
     }
     set_next(
       next, // LevelNode,Null
     ) {
-      const {_idx,__state,_next} = this
+      const {_idx,state,_next} = this
       if (_next == next) return _next
       else if (next) {
-        __state.get(_next.idx, _idx, '_next')
-        __state.get(_idx, _next.idx, '_prev')
+        state.get(_next.idx, _idx, '_next')
+        state.get(_idx, _next.idx, '_prev')
       }
-      else __state.set(null, _idx, '_next')
+      else state.set(null, _idx, '_next')
     }
 
     static init(
       game, // Game
       level, // Level
     ) {
-      const {__state,level_node} = game
+      const {state,level_node} = game
       const _idx = game.tally
-      const _level_node = __state.new(this, _idx)
-      __state.set(_idx, _idx, '_idx')
-      _level_node.set_state(level.extend.__state)
+      const _level_node = state.new(this, _idx)
+      state.set(_idx, _idx, '_idx')
+      _level_node.set_level_state(level.extend.state)
 
       if (level_node) _level_node.set_next(level_node.next_level)
       _level_node.set_prev(level_node)
@@ -586,8 +572,8 @@ module.exports = (project_name, Lib) => {
     }
 
     remove() {
-      const {_idx,__state,_state,_prev,_next} = this
-      const {editors,level_node,[_idx]:_this} = __state.child
+      const {_idx,state,_level_state,_prev,_next} = this
+      const {editors,level_node,[_idx]:_this} = state.child
       if (!_this) return false
 
       for (const idx in editors) {
@@ -595,7 +581,7 @@ module.exports = (project_name, Lib) => {
         if (editor.level_node == this) editor.set_level_node(level_node)
       }
 
-      __state.set(null,_idx)
+      state.set(null,_idx)
       if (_prev) _prev.set_next(_next)
       else if (_next) _next.set_prev(_prev)
       return true
@@ -617,7 +603,7 @@ module.exports = (project_name, Lib) => {
     static init(
       game, // Game
     ) {
-      const {__state} = game, {time} = __state
+      const {state} = game, {time} = state
       const _state = State.init(time)
       const _level = _state.new(this)
       LevelNode.init(game, _level)
@@ -650,43 +636,43 @@ module.exports = (project_name, Lib) => {
     set_is_open(
       is_open, // Boolean
     ) {
-      const {_idx,__state,_is_open} = this
+      const {_idx,state,_is_open} = this
       if (_is_open == is_open) return
-      return __state.set(_is_open, _idx, '_is_open')
+      return state.set(_is_open, _idx, '_is_open')
     }
-    get level() { return this.__state.child }
+    get level() { return this.state.child }
     get editor() { return this._editor }
     set_editor(
       editor, // Editor,Null
     ) {
-      const {_idx,__state,_editor} = this
+      const {_idx,state,_editor} = this
       if (_editor == editor) return _editor
       if (_editor) {
-        __state.set(null, _idx, '_editor')
+        state.set(null, _idx, '_editor')
         _editor.set_target(null)
       }
       if (editor) {
-        __state.get(editor.idx, _idx, '_editor')
+        state.get(editor.idx, _idx, '_editor')
         editor.set_target(this)
         return editor
       }
-      else return __state.set(null, _idx, '_editor')
+      else return state.set(null, _idx, '_editor')
     }
 
     static init(
       level, // Level
     ) {
-      const {__state} = level
+      const {state} = level
       const _idx = level.tally
-      const _target = __state.new(this, _idx)
+      const _target = state.new(this, _idx)
       _target.set(_idx,_idx,'_idx')
       return _target
     }
 
     remove() {
-      const {_idx,__state} = level
+      const {_idx,state} = level
       if (!level[_idx]) return false
-      __state.set(null,_idx)
+      state.set(null,_idx)
       return true
     }
   }
@@ -705,10 +691,10 @@ module.exports = (project_name, Lib) => {
       length, // Number
     ) {
       const {long_min,long_max,long_round} = this.constructor
-      const {_idx,__state,_long,_length} = this
+      const {_idx,state,_long,_length} = this
       length = length<long_min ? long_min : length<long_max ? length : long_max
       if (_length == length) return _length
-      __state.set(length, _idx, '_length')
+      state.set(length, _idx, '_length')
       if (_long) this.set_long(_long)
       return length
     }
@@ -720,8 +706,8 @@ module.exports = (project_name, Lib) => {
     set_long(
       long, // Point
     ) {
-      const {_idx,__state,_root,_length,_key} = this
-      const _long = __state.set(long.unit.strip(_length), _idx, '_long')
+      const {_idx,state,_root,_length,_key} = this
+      const _long = state.set(long.unit.strip(_length), _idx, '_long')
       if (_key) _key.set_root(_root.sum(_long))
       return _long
     }
@@ -729,8 +715,8 @@ module.exports = (project_name, Lib) => {
     set_root(
       root, // Point
     ) {
-      const {_idx,__state,_long,_key} = this
-      const _root = __state.set(root, _idx, '_root')
+      const {_idx,state,_long,_key} = this
+      const _root = state.set(root, _idx, '_root')
       if (_key) _key.set_root(_root.sum(_long))
       return _root
     }
@@ -739,17 +725,17 @@ module.exports = (project_name, Lib) => {
     set_key(
       key, // Key,Null
     ) {
-      const {_idx,__state,_key} = this
+      const {_idx,state,_key} = this
       if (_key == key) return _key
       if (_key && _key.lock == this) {
         this._key = null // UNRECORDED MODIFICATION: this is ok...
         _key.set_lock(null)
       }
       if (key) {
-        __state.get(key.idx, _idx, '_key') // ...because of this
+        state.get(key.idx, _idx, '_key') // ...because of this
         key.set_lock(this)
       }
-      else __state.set(null, _idx, '_key') // ...and this
+      else state.set(null, _idx, '_key') // ...and this
       this.set_is_open()
       return key
     }
@@ -771,15 +757,15 @@ module.exports = (project_name, Lib) => {
       const {level,[name]:lock} = parent, {long_min} = this
       if (lock) lock.remove()
       const _lock = super.init(level), {_idx} = _lock
-      __state.get(parent.idx, _lock, '_parent')
-      __state.set(long_min, _idx, '_length')
+      state.get(parent.idx, _lock, '_parent')
+      state.set(long_min, _idx, '_length')
       parent.set_lock(_lock, name)
-      return __state.get(_idx, '_locks', _idx)
+      return state.get(_idx, '_locks', _idx)
     }
 
     remove() {
       if (!super.remove()) return false
-      const {_idx, _name, __state, _key, _parent} = this
+      const {_idx, _name, state, _key, _parent} = this
 
       if (_key && _key.lock == this) {
         this._key = null // UNRECORDED MODIFICATION: this is ok...
@@ -789,7 +775,7 @@ module.exports = (project_name, Lib) => {
         this._parent = null // UNRECORDED MODIFICATION: this is ok...
         _parent.set_lock(null, _name)
       }
-      __state.set(null, '_locks', _idx)
+      state.set(null, '_locks', _idx)
       return true
     }
   }
@@ -805,14 +791,14 @@ module.exports = (project_name, Lib) => {
       name, // String
     ) {
       const _laser = super.init(parent, name)
-      const {_idx,__state} = _laser
-      return __state.get(_idx, '_lasers', _idx)
+      const {_idx,state} = _laser
+      return state.get(_idx, '_lasers', _idx)
     }
 
     remove() {
       if (!super.remove()) return false
-      const {_idx,__state} = this
-      __state.set(null, '_lasers', _idx)
+      const {_idx,state} = this
+      state.set(null, '_lasers', _idx)
       return true
     }
   }
@@ -837,7 +823,7 @@ module.exports = (project_name, Lib) => {
     set_long(
       long, // Point
     ) {
-      const {_idx, __state, _root} = this, {time} = __state
+      const {_idx, state, _root} = this, {time} = state
       const {
         short_min,short_max,short_round,
         long_min,long_max,long_round,
@@ -848,9 +834,9 @@ module.exports = (project_name, Lib) => {
       const _short = long.short.cramp(short_min,short_max,short_round)
       let _spot = _root.sum(_long)
       if (short_sign) _spot.sum(_short)
-      __state.set(_long, _idx, '_long')
-      __state.set(_short, _idx, '_short')
-      __state.set(_spot, _idx, '_spot')
+      state.set(_long, _idx, '_long')
+      state.set(_short, _idx, '_short')
+      state.set(_spot, _idx, '_spot')
       return long
     }
 
@@ -858,14 +844,14 @@ module.exports = (project_name, Lib) => {
     set_root(
       root, // Point
     ) {
-      const {_idx, __state, _long, _short} = this, {time} = __state
+      const {_idx, state, _long, _short} = this, {time} = state
       const {short_sign,root_round,long_min,short_min} = this.constructor
       const _root = root.at(time).round(root_round)
-      __state.set(_root, _idx, '_root')
+      state.set(_root, _idx, '_root')
       if (_long) {
         let _spot = _root.sum(_long)
         if (short_sign) _spot = _spot.sum(_short)
-        __state.set(_spot, _idx, '_spot')
+        state.set(_spot, _idx, '_spot')
       }
       else this.set_long(Point.simple(long_min,short_min,1))
       return _root
@@ -876,16 +862,16 @@ module.exports = (project_name, Lib) => {
       root, // Point
     ) {
       const _wall = super.init(level)
-      const {_idx, __state} = _wall
+      const {_idx, state} = _wall
       _wall.set_root(root)
-      __state.get(_idx, '_walls', _idx)
+      state.get(_idx, '_walls', _idx)
       return _wall
     }
 
     remove() {
       if (!this.remove()) return false
-      const {_idx, __state} = this
-      __state.set(null, '_walls', _idx)
+      const {_idx, state} = this
+      state.set(null, '_walls', _idx)
       return true
     }
   }
@@ -904,7 +890,7 @@ module.exports = (project_name, Lib) => {
     reroot_lock(
       name, // String
     ) {
-      const {__state, [name]:_lock,_root,_spot,_long,_short} = this
+      const {state, [name]:_lock,_root,_spot,_long,_short} = this
       if (!_lock) return
       const {length} = _lock
       let root,long
@@ -928,7 +914,7 @@ module.exports = (project_name, Lib) => {
           break
         default: return
       }
-      __state.set(long, _lock.idx, '_long')
+      state.set(long, _lock.idx, '_long')
       return _lock.set_root(root)
     }
 
@@ -957,17 +943,17 @@ module.exports = (project_name, Lib) => {
       lock, // Lock,Null
       name, // String
     ) {
-      const {_idx,__state,[name]:_lock} = this
+      const {_idx,state,[name]:_lock} = this
       if (_lock == lock) return _lock
       if (_lock && _lock.parent == this) {
         this[name] = null // UNRECORDED MODIFICATION: this is ok
         _lock.remove()
       }
       if (lock) {
-        __state.get(lock.idx, _idx, name) // ...because of this
+        state.get(lock.idx, _idx, name) // ...because of this
         this.reroot_lock(name)
       }
-      else __state.set(null, _idx, name) // ...or this
+      else state.set(null, _idx, name) // ...or this
       this.set_is_open(!lock)
       return lock
     }
@@ -977,16 +963,16 @@ module.exports = (project_name, Lib) => {
       root, // Point
     ) {
       const _door = super.init(level,root)
-      const {_idx, __state} = _door
-      __state.get(_idx, '_doors', _idx)
+      const {_idx, state} = _door
+      state.get(_idx, '_doors', _idx)
       return _door
     }
 
     remove() {
       if (!super.remove()) return false
-      const {_idx, __state, constructor:{lock_names}} = this
+      const {_idx, state, constructor:{lock_names}} = this
       for (const i in lock_names) this.set(null, lock_names[i])
-      __state.set(null, '_doors', _idx)
+      state.set(null, '_doors', _idx)
       return true
     }
   }
@@ -1013,10 +999,10 @@ module.exports = (project_name, Lib) => {
     reroot_lock(
       name, // String
     ) {
-      const {__state, [name]:_lock,_root,_spot,_long,_short} = this
+      const {state, [name]:_lock,_root,_spot,_long,_short} = this
       if (!_lock) return
       const {length} = _lock
-      __state.set(_short.strip(-length), _lock.idx, '_long')
+      state.set(_short.strip(-length), _lock.idx, '_long')
       switch (name) {
         case '_lock_root':
           return _lock.set_root(_root.sum(_long.div(4)))
@@ -1029,9 +1015,9 @@ module.exports = (project_name, Lib) => {
     }
 
     get is_open() {
-      const {__state,_is_open} = this
+      const {state,_is_open} = this
       if (!_is_open) return false
-      const {portals} = __state.child
+      const {portals} = state.child
       let count = 0
       for (const idx in portals) if (portals[idx]._is_open) ++count
       return count == 2
@@ -1042,15 +1028,15 @@ module.exports = (project_name, Lib) => {
       root, // Point
     ) {
       const _portal = super.init(level,root)
-      const {_idx, __state} = _portal
-      __state.get(_idx, '_portals', _idx)
+      const {_idx, state} = _portal
+      state.get(_idx, '_portals', _idx)
       return _portal
     }
 
     remove() {
       if (!super.remove()) return false
-      const {_idx, __state} = this
-      __state.set(null, '_portals', _idx)
+      const {_idx, state} = this
+      state.set(null, '_portals', _idx)
       return true
     }
   }
@@ -1066,17 +1052,17 @@ module.exports = (project_name, Lib) => {
     set_lock(
       lock, // Lock,Null
     ) {
-      const {_idx,__state,_lock} = this
+      const {_idx,state,_lock} = this
       if (_lock == lock) return _lock
       if (_lock && _lock.key == this) {
         this._lock = null // UNRECORDED MODIFICATION: this is ok...
         _lock.set_key(null)
       }
       if (lock) {
-        __state.get(lock.idx, _idx, '_key') // ...because of this
+        state.get(lock.idx, _idx, '_key') // ...because of this
         lock.set_lock(this)
       }
-      else __state.set(null, _idx, '_key') // ...and this
+      else state.set(null, _idx, '_key') // ...and this
       return lock
     }
 
@@ -1084,8 +1070,8 @@ module.exports = (project_name, Lib) => {
     set_root(
       root, // Point
     ) {
-      const {_idx,__state,_root} = this
-      return __state.set(root, _idx, '_root')
+      const {_idx,state,_root} = this
+      return state.set(root, _idx, '_root')
     }
 
     static init(
@@ -1094,17 +1080,17 @@ module.exports = (project_name, Lib) => {
       root, // Null,Point
     ) {
       const _key = super.init(level)
-      const {_idx, __state} = _key
+      const {_idx, state} = _key
       if (lock) _key.set_lock(lock)
       else _key.set_root(root)
-      __state.get(_idx, '_keys', _idx)
+      state.get(_idx, '_keys', _idx)
       return _key
     }
 
     remove() {
       if (!super.remove()) return false
-      const {_idx, __state} = this
-      __state.set(null, '_keys', _idx)
+      const {_idx, state} = this
+      state.set(null, '_keys', _idx)
       return true
     }
   }
@@ -1115,9 +1101,9 @@ module.exports = (project_name, Lib) => {
     static leg_radius = 2
 
     reroot_lock() {
-      const {_idx,__state,_root,_long,_nose} = this
+      const {_idx,state,_root,_long,_nose} = this
       if (_nose) {
-        __state.set(_long.strip(_nose.length), _nose.idx, '_long')
+        state.set(_long.strip(_nose.length), _nose.idx, '_long')
         _nose.set_root(_root.sum(_long))
       }
     }
@@ -1126,15 +1112,15 @@ module.exports = (project_name, Lib) => {
     set_long(
       long, // Point
     ) {
-      const {_idx,__state,constructor:{radius}} = this
-      const _long = __state.set(long.unit.strip(radius), _idx, '_long')
+      const {_idx,state,constructor:{radius}} = this
+      const _long = state.set(long.unit.strip(radius), _idx, '_long')
       this.reroot_lock()
       return _long
     }
     set_root(
       root, // Point
     ) {
-      const {_idx,__state,_long,_nose} = this
+      const {_idx,state,_long,_nose} = this
       const _root = super.set_root(root)
       if (_nose) _nose.set_root(_root.sum(_long))
       return _root
@@ -1144,16 +1130,16 @@ module.exports = (project_name, Lib) => {
     set_lock(
       nose, // Lock,Null
     ) {
-      const {_idx,__state,_nose,_root,_long} = this
+      const {_idx,state,_nose,_root,_long} = this
       if (_nose == nose) return _nose
       if (_nose) {
         this._nose = null // UNRECORDED MODIFICATION: this is ok...
         _nose.remove()
       }
       if (nose) {
-        __state.get(nose.idx, _idx, '_nose') // ...because of this
+        state.get(nose.idx, _idx, '_nose') // ...because of this
       }
-      else __state.set(null, _idx, '_nose') // ...or this
+      else state.set(null, _idx, '_nose') // ...or this
       this.reroot_lock()
     }
 
@@ -1172,10 +1158,10 @@ module.exports = (project_name, Lib) => {
       root, // Null,Point
     ) {
       const _jack = super.init(level,lock,root)
-      const {_idx, __state} = _jack, {radius} = this
-      __state.set(Point.simple(1,0,radius), _idx, '_long')
+      const {_idx, state} = _jack, {radius} = this
+      state.set(Point.simple(1,0,radius), _idx, '_long')
       Lock.init(_jack, '_nose')
-      __state.get(_idx, '_jacks', _idx)
+      state.get(_idx, '_jacks', _idx)
       return _jack
     }
   }

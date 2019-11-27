@@ -61,10 +61,10 @@ function MazeGame() {
 	  log(client.full_name, 'connected to server')
 
 		const time = Lib.time
-		const game = Game.init(time)
-		Editor.init(game, id, name)
-		client.game = game
-		log(game)
+		const game_state = Game.init(time).state
+		Editor.init(game_state, id, name)
+		client.game_state = game_state
+		log(game_state.child)
 	  tick()
 	})
 
@@ -108,9 +108,9 @@ function MazeGame() {
 		const code = e.which
 		var c = String.fromCharCode(code | 0x20)
 		const new_state = key_bindings[c]
-		if (!client.game) return
+		if (!client.game_state) return
 		const {time} = Lib
-		const game = client.game.at(time)
+		const game = client.game_state.at(time).child
 
 		if (new_state) {
 			// TODO set state
@@ -130,7 +130,7 @@ function MazeGame() {
 			// TODO KILL
 		}
 		else if (c == ' ') {
-			log(game.__state.time)
+			log(game.state)
 			// TODO DISPLAY
 			// log(client.game)
 			// const txt = client.game.to_string
