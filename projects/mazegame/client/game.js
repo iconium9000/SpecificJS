@@ -11,7 +11,7 @@ module.exports = (project_name, Lib) => {
     Object: Object,
   }
 
-  class Type {
+  const Type = MazeGame.Type = class Type {
     static key_bind = null
 
     get time() { return this._time } // Number
@@ -96,9 +96,8 @@ module.exports = (project_name, Lib) => {
       return _parent.parent
     }
   }
-  MazeGame.Type = Type
 
-  class Float extends Type {
+  const Float = MazeGame.Float = class Float extends Type {
     get f() { return this._f }
     get sf() { return this._sf}
     get tf() { return this._tf}
@@ -187,9 +186,8 @@ module.exports = (project_name, Lib) => {
       return Float.init( _f - _time*t, t, _time )
     }
   }
-  MazeGame.Float = Float
 
-  class Point extends Type {
+  const Point = MazeGame.Point = class Point extends Type {
 
     get x() { return this._x }
     get y() { return this._y }
@@ -401,9 +399,8 @@ module.exports = (project_name, Lib) => {
     }
 
   }
-  MazeGame.Point = Point
 
-  class State extends Type {
+  const State = MazeGame.State = class State extends Type {
 
     get serializable() { return true }
     get serialize() {
@@ -534,9 +531,8 @@ module.exports = (project_name, Lib) => {
       )
     }
   }
-  MazeGame.State = State
 
-  class Game extends Type {
+  const Game = MazeGame.Game = class Game extends Type {
 
     get tally() {
       const {state, _tally} = this
@@ -596,9 +592,8 @@ module.exports = (project_name, Lib) => {
       }
     }
   }
-  MazeGame.Game = Game
 
-  class Editor extends Type {
+  const Editor = MazeGame.Editor = class Editor extends Type {
 
     get target() { return this._target }
     set_target(
@@ -683,9 +678,8 @@ module.exports = (project_name, Lib) => {
     }
 
   }
-  MazeGame.Editor = Editor
 
-  class LevelNode extends Type {
+  const LevelNode = MazeGame.LevelNode = class LevelNode extends Type {
 
     get level_state() { return this._level_state }
     set_level_state(
@@ -769,9 +763,8 @@ module.exports = (project_name, Lib) => {
     }
 
   }
-  MazeGame.LevelNode = LevelNode
 
-  class Level extends Type {
+  const Level = MazeGame.Level = class Level extends Type {
 
     get tally() {
       const {state, _tally} = this
@@ -824,9 +817,8 @@ module.exports = (project_name, Lib) => {
 
     }
   }
-  MazeGame.Level = Level
 
-  class Target extends Type {
+  const Target = MazeGame.Target = class Target extends Type {
     static fill_color = 'black'
     static stroke_color = 'white'
     static thin_stroke_color = '#505050'
@@ -892,9 +884,8 @@ module.exports = (project_name, Lib) => {
       return true
     }
   }
-  MazeGame.Target = Target
 
-  class Lock extends Target {
+  const Lock = MazeGame.Lock = class Lock extends Target {
     static key_bind = 'l'
     static long_min = 3
     static long_max = 3
@@ -1009,9 +1000,8 @@ module.exports = (project_name, Lib) => {
       return true
     }
   }
-  MazeGame.Lock = Lock
 
-  class Laser extends Lock {
+  const Laser = MazeGame.Laser = class Laser extends Lock {
     static key_bind = 's'
     static long_min = 9
     static long_max = Infinity
@@ -1039,9 +1029,8 @@ module.exports = (project_name, Lib) => {
       return true
     }
   }
-  MazeGame.Laser = Laser
 
-  class Wall extends Target {
+  const Wall = MazeGame.Wall = class Wall extends Target {
     static key_bind = 'w'
     static root_round = 2
     static long_round = 2
@@ -1124,9 +1113,8 @@ module.exports = (project_name, Lib) => {
       return true
     }
   }
-  MazeGame.Wall = Wall
 
-  class Door extends Wall {
+  const Door = MazeGame.Door = class Door extends Wall {
     static key_bind = 'd'
     static root_round = 4
     static long_min = 16
@@ -1239,9 +1227,8 @@ module.exports = (project_name, Lib) => {
       return true
     }
   }
-  MazeGame.Door = Door
 
-  class Portal extends Door {
+  const Portal = MazeGame.Portal = class Portal extends Door {
     static key_bind = 'p'
     static short_min = 3
     static short_max = this.short_min
@@ -1310,9 +1297,8 @@ module.exports = (project_name, Lib) => {
       return true
     }
   }
-  MazeGame.Portal = Portal
 
-  class Key extends Target {
+  const Key = MazeGame.Key = class Key extends Target {
     static key_bind = 'k'
     static radius = 1.5
     static center_radius = Lock.radius
@@ -1376,9 +1362,8 @@ module.exports = (project_name, Lib) => {
       return true
     }
   }
-  MazeGame.Key = Key
 
-  class Jack extends Key {
+  const Jack = MazeGame.Jack = class Jack extends Key {
     static key_bind = 'j'
     static leg_radius = 2
 
@@ -1468,7 +1453,6 @@ module.exports = (project_name, Lib) => {
       return true
     }
   }
-  MazeGame.Jack = Jack
 
   return MazeGame
 }
