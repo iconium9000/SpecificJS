@@ -10,10 +10,8 @@ function MazeGame() {
 
 	const key_bindings = {}
 	for (const type_name in MazeGame) {
-		const Type = MazeGame[type_name]
-		// TODO remove this
-		eval(`window.${Type.name} = MazeGame.${Type.name}`)
-		key_bindings[Type.key_bind] = Type
+		const type = MazeGame[type_name]
+		if (type != null) key_bindings[type.key_bind] = type
 	}
 
 	const effect_stack = []
@@ -61,8 +59,8 @@ function MazeGame() {
 	  log(client.full_name, 'connected to server')
 
 		const time = Lib.time
-		const game_state = Game.init(time).state
-		Editor.init(game_state, id, name)
+		const game_state = MazeGame.Game.init(time).state
+		MazeGame.Editor.init(game_state, id, name)
 		client.game_state = game_state
 		log(game_state.child)
 	  tick()
