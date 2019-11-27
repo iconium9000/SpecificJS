@@ -14,6 +14,61 @@ module.exports = (project_name, Lib) => {
   class Type {
     static key_bind = null
 
+    get time() { return this._time } // Number
+    get name() { return this._name } // String
+    get idxable() { return false }
+    get idx() { return this._idx } // String,Number
+
+    get serializable() { return false }
+    static serialize(
+      object, // Object,Null
+    ) {
+      return object != null && object.serializable ? object.serialize : object
+    }
+
+    static get readable() { return false }
+    static read(
+      object, // Object,Null
+      time, // Number
+    ) {
+      const con__ = object && MazeGame[object._constructor]
+      return con__ && con__.readable ? con__.read(object, time) : object
+    }
+
+    get atable() { return false }
+    static at(
+      object, // Object,Null
+      time, // Number
+    ) {
+      return object != null && object.atable ? object.at(time) : object
+    }
+
+    static get syncable() { return false }
+    static sync(
+      constructor, // Function
+      sync, // {state:State, child:Object,Null}
+    ) {
+      return constructor.syncable ? new constructor(sync) : new constructor
+    }
+
+    get expandable() { return false }
+    static expand(
+      object, // Object,Null
+      state, // State
+      ...path // String
+    ) {
+      if (object == null || Type.get(state.child, ...path) != null) return
+      else if (object.idxable) {
+        if (state.child[object.idx] == null) {
+          if (object.expandable) object.expand(state, object.idx)
+          else state.set(object, object.idx)
+        }
+        if (path.length > 1) state.get(object.idx, ...path)
+      }
+      else if (object.expandable) object.expand(state, ...path)
+      else state.set(object, ...path)
+    }
+
     static get(
       parent, // Object
       ...path // String
@@ -28,29 +83,17 @@ module.exports = (project_name, Lib) => {
     static set(
       parent, // Object,Null
       value, // Object,Null
-      state, // State
       ...path // String
     ) {
       let label = 'parent'
       const _parent = parent = {[label]: parent}
       for (const i in path) {
-        if (parent[label] == null) {
-          parent[label] = state.assign(Object)
-        }
+        if (parent[label] == null) parent[label] = {}
         parent = parent[label]
         label = path[i]
       }
       Lib.set(parent, value, label)
       return _parent.parent
-    }
-
-    get time() { return this._time } // Number
-    get name() { return this._name } // String
-    get idx() { return this._idx } // String,Number
-
-    get tally() {
-      const {state, _tally} = this
-      return state.set((_tally || 0) + 1, '_tally')
     }
   }
   MazeGame.Type = Type
@@ -73,14 +116,42 @@ module.exports = (project_name, Lib) => {
       sf,tf,time, // Number
     ) {
       const _float = new this
-      _float._sf = sf
-      _float._tf = tf; _float._time = time
+      _float._sf = sf; _float._tf = tf; _float._time = time
       _float._f = sf + tf*time
       return _float
     }
     get flatten() {
       const {_f} = this
       return Float.simple(_f)
+    }
+    get serializable() { return true }
+    get serialize() {
+      const {_sf, _tf, constructor:{name}} = this
+      const _serialize = {_constructor:name}
+      if (_sf) _serialize.sf = _sf
+      if (_tf) _serialize.tf = _tf
+      return _serialize
+    }
+    static readable() { return true}
+    static read(
+      {sf,tf}, // Object
+      time, // Number
+    ) {
+      return this.init(sf, tf, time, )
+    }
+    get atable() { return true }
+    at(
+      time, // Number
+    ) {
+      const {_sf,_tf} = this
+      return Float.init( _sf, _tf, time)
+    }
+    get expandable() { return true }
+    expand(
+      state, // State
+      ...path // String
+    ) {
+      return state.set(this, ...path)
     }
 
     sum(
@@ -106,12 +177,6 @@ module.exports = (project_name, Lib) => {
     ) {
       const {_sf,_tf,_time} = this
       return Float.init( _sf/div, _tf/div, _time)
-    }
-    at(
-      time, // Number
-    ) {
-      const {_sf,_tf} = this
-      return Float.init( _sf, _tf, time)
     }
     lerp(
       {f,time}, // Float
@@ -165,6 +230,38 @@ module.exports = (project_name, Lib) => {
       _point._x = (sx + tx*time)*scale; _point._y = (sy + ty*time)*scale
       return _point
     }
+
+    get serializable() { return true }
+    get serialize() {
+      const {_sx,_sy,_scale,_tx,_ty,constructor:{name}} = this
+      const _serialize = {_constructor:name}
+      if (_sx) _serialize.sx = _sx; if (_sy) _serialize.sy = _sy
+      if (_tx) _serialize.tx = _tx; if (_ty) _serialize.ty = _ty
+      if (_scale) _serialize.scale = _scale
+      return _serialize
+    }
+    static readable() { return true }
+    static read(
+      {sx,sy,scale,tx,ty}, // Object
+      time, // Time
+    ) {
+      return this.init( sx||0, sy||0, scale||0, tx||0, ty||0, time, )
+    }
+    get atable() { return true }
+    at(
+      time, // Number
+    ) {
+      const {_sx,_sy,_scale,_tx,_ty,} = this
+      return Point.init(_sx,_sy,_scale,_tx,_ty,time)
+    }
+    get expandable() { return true }
+    expand(
+      state, // State
+      ...path // String
+    ) {
+      return state.set(this, ...path)
+    }
+
     get length() {
       const {_x,_y} = this
       return Math.sqrt(_x*_x + _y*_y)
@@ -249,13 +346,6 @@ module.exports = (project_name, Lib) => {
       )
     }
 
-    at(
-      time, // Number
-    ) {
-      const {_sx,_sy,_scale,_tx,_ty,} = this
-      return Point.init(_sx,_sy,_scale,_tx,_ty,time)
-    }
-
     mul(
       mul, // Number
     ) {
@@ -315,16 +405,41 @@ module.exports = (project_name, Lib) => {
 
   class State extends Type {
 
-    get parent() { return this._parent } // State,Null
-    assign(
-      constructor, // Function
+    get serializable() { return true }
+    get serialize() {
+      const {_time,_array,_parent,constructor:{name}} = this
+      if (_array.length) {
+        const _serialize = {time:_time,_constructor:name}
+        if (_parent) _serialize.parent = _parent.serialize
+        _serialize.array = []
+        for (const i in _array) {
+          const [tok, value, ...path] = _array[i]
+          _serialize.array.push([ tok, Type.serialize(value), ...path ])
+        }
+        return _serialize
+      }
+      else if (_parent) return _parent.serialize
+      else return null
+    }
+    static readable() { return true }
+    static read(
+      {time,array,parent}, // Object
     ) {
-      const _object = new constructor
-      _object.__sync = this.__sync
-      return Object.defineProperty(
-        _object, 'state',
-        {get: function() { return this.__sync.state }}
-      )
+      const _state = this.init(time, parent ? this.read(parent) : null)
+      for (const i in array) {
+        const [tok, value, ...path] = _array[i]
+        _state[tok](Type.read(value), ...path)
+      }
+      return _state
+    }
+
+    get parent() { return this._parent } // State,Null
+
+    get flatten() {
+      const {time,child,constructor} = this
+      const _state = constructor.init(time)
+      Type.expand(child, _state)
+      return _state
     }
 
     static init(
@@ -346,7 +461,7 @@ module.exports = (project_name, Lib) => {
       value, // Object,Null
       ...path // String
     ) {
-      Type.set(this.__sync, real_value, this, 'child', ...path)
+      Type.set(this.__sync, real_value, 'child', ...path)
       this._array.push([tok, value, ...path])
       return real_value
     }
@@ -355,6 +470,7 @@ module.exports = (project_name, Lib) => {
       value, // Object,Null
       ...path // String
     ) {
+      value = Type.at(value, this.time)
       return this._set('set', value, value, ...path)
     }
 
@@ -375,7 +491,7 @@ module.exports = (project_name, Lib) => {
       ...path
     ) {
       return this._set(
-        'new', this.assign(constructor),
+        'new', Type.sync(constructor, this.__sync),
         constructor.name, ...path
       )
     }
@@ -398,10 +514,10 @@ module.exports = (project_name, Lib) => {
         const {child} = sync
         Type.set(
           sync,
-          tok == 'new' ? this.assign(MazeGame[value]) :
+          tok == 'new' ? Type.sync(MazeGame[value], this.__sync) :
           tok == 'get' ? child == null ? null : child[value] :
           tok == 'set' ? value : null,
-          this, 'child', ...path
+          'child', ...path
         )
       }
       return true
@@ -422,6 +538,10 @@ module.exports = (project_name, Lib) => {
 
   class Game extends Type {
 
+    get tally() {
+      const {state, _tally} = this
+      return state.set(_tally+1, '_tally')
+    }
     get editors() { return this._editors }
 
     get level_node() { return this._level_node }
@@ -433,19 +553,35 @@ module.exports = (project_name, Lib) => {
       else return state.get(idx, '_level_node')
     }
 
+    static get syncable() { return true }
+    constructor(sync) { super(); this.__sync = sync }
+    get state() { return this.__sync.state }
     static init(
       time, // Number
     ) {
       const _state = State.init(time)
       const _game = _state.new(this)
+      _state.set(0, '_tally')
       Level.init(_game)
+      return _game
+    }
+
+    get expandable() { return true }
+    expand(
+      state, // State
+    ) {
+      const {_tally,_level_node,_editors,constructor} = this
+      const _game = state.new(constructor)
+      state.set(_tally, '_tally')
+      for (const idx in _editors) Type.expand(_editors[idx], state, idx)
+      Type.expand(_level_node, state, '_level_node')
       return _game
     }
 
     at(
       time, // Number
     ) {
-      return this.state.at(time).build
+      return this.state.at(time).child
     }
 
     draw(
@@ -504,6 +640,10 @@ module.exports = (project_name, Lib) => {
       else state.set(null, _idx, '_level_node')
     }
 
+    get idxable() { return true }
+    static get syncable() { return true }
+    constructor(sync) { super(); this.__sync = sync }
+    get state() { return this.__sync.state }
     static init(
       state, // State @ child:Game,Level
       idx,name, // String
@@ -514,8 +654,32 @@ module.exports = (project_name, Lib) => {
       const _editor = state.new(this, idx)
       state.set(idx, idx, '_idx')
       state.set(name, idx, '_name')
+      state.get(idx, '_editors', idx)
       _editor.set_level_node(level_node)
       return _editor
+    }
+
+    get expandable() { return true }
+    expand(
+      state, // State
+    ) {
+      const {_idx,_name,_level_node,_target,constructor} = this
+      const _editor = state.new(constructor, _idx)
+      state.set(_idx, _idx, '_idx')
+      state.set(_name, _idx, '_name')
+      Type.expand(_level_node, state, _idx, '_level_node')
+      Type.expand(_target, state, _idx, '_target')
+      Type.expand(_editor, state, '_editors', _idx)
+      return _editor
+    }
+
+    remove() {
+      const {_idx,state} = this
+      if (!state.child[_idx]) return false
+      this.set_level_node(null)
+      this.set_target(null)
+      state.set(null,_idx)
+      return true
     }
 
   }
@@ -554,12 +718,16 @@ module.exports = (project_name, Lib) => {
       else state.set(null, _idx, '_next')
     }
 
+    get idxable() { return true }
+    static get syncable() { return true }
+    constructor(sync) { super(); this.__sync = sync }
+    get state() { return this.__sync.state }
     static init(
       game, // Game
       level, // Level
     ) {
       const {state,level_node} = game
-      const _idx = game.tally
+      const _idx = this.name + game.tally
       const _level_node = state.new(this, _idx)
       state.set(_idx, _idx, '_idx')
       _level_node.set_level_state(level.extend.state)
@@ -568,6 +736,19 @@ module.exports = (project_name, Lib) => {
       _level_node.set_prev(level_node)
       game.set_level_node(_level_node)
 
+      return _level_node
+    }
+
+    get expandable() { return true }
+    expand(
+      state, // State
+    ) {
+      const {_idx,_prev,_next,_level_state,constructor} = this
+      const _level_node = state.new(constructor, _idx)
+      state.set(_idx, _idx, '_idx')
+      state.set(_level_state, _idx, '_level_state')
+      Type.expand(_prev, state, _idx, '_prev')
+      Type.expand(_next, state, _idx, '_next')
       return _level_node
     }
 
@@ -592,6 +773,10 @@ module.exports = (project_name, Lib) => {
 
   class Level extends Type {
 
+    get tally() {
+      const {state, _tally} = this
+      return state.set(_tally+1, '_tally')
+    }
     get locks() { return this._locks }
     get lasers() { return this._lasers }
     get walls() { return this._walls }
@@ -600,13 +785,31 @@ module.exports = (project_name, Lib) => {
     get keys() { return this._keys }
     get jacks() { return this._jacks }
 
+    static get syncable() { return true }
+    constructor(sync) { super(); this.__sync = sync }
+    get state() { return this.__sync.state }
     static init(
       game, // Game
     ) {
       const {state} = game, {time} = state
       const _state = State.init(time)
       const _level = _state.new(this)
+      _state.set(0, '_tally')
       LevelNode.init(game, _level)
+      return _level
+    }
+
+    get expandable() { return true }
+    expand(
+      state, // State
+    ) {
+      const {_tally,_editors,_locks,_walls,_keys,constructor} = this
+      const _level = state.new(constructor)
+      state.set(_tally, '_tally')
+      for (const idx in _editors) Type.expand(_editors[idx], state, idx)
+      for (const idx in _locks) Type.expand(_locks[idx], state, idx)
+      for (const idx in _walls) Type.expand(_walls[idx], state, idx)
+      for (const idx in _keys) Type.expand(_keys[idx], state, idx)
       return _level
     }
 
@@ -659,19 +862,32 @@ module.exports = (project_name, Lib) => {
       else return state.set(null, _idx, '_editor')
     }
 
+    get idxable() { return true }
+    static get syncable() { return true }
+    constructor(sync) { super(); this.__sync = sync }
+    get state() { return this.__sync.state }
     static init(
       level, // Level
     ) {
       const {state} = level
-      const _idx = level.tally
+      const _idx = this.name + level.tally
       const _target = state.new(this, _idx)
       _target.set(_idx,_idx,'_idx')
       return _target
     }
+    get expandable() { return true }
+    expand(
+      state, // State
+    ) {
+      const {_idx,constructor} = this
+      const _target = state.new(constructor, _idx)
+      state.set(_idx,_idx,'_idx')
+      return _target
+    }
 
     remove() {
-      const {_idx,state} = level
-      if (!level[_idx]) return false
+      const {_idx,state} = this
+      if (!state.child[_idx]) return false
       state.set(null,_idx)
       return true
     }
@@ -759,8 +975,22 @@ module.exports = (project_name, Lib) => {
       const _lock = super.init(level), {_idx} = _lock
       state.get(parent.idx, _lock, '_parent')
       state.set(long_min, _idx, '_length')
+      state.set(false, '_idx', '_is_open')
       parent.set_lock(_lock, name)
       return state.get(_idx, '_locks', _idx)
+    }
+    expand(
+      state, // State
+    ) {
+      const {_idx,_length,_root,_long,_is_open,_parent,_key,} = this
+      const _lock = super.expand(state, _idx)
+      state.set(_length,_idx,'_length')
+      state.set(_root,_idx,'_root')
+      state.set(_long,_idx,'_long')
+      Type.expand(_parent, state, _idx, '_parent')
+      Type.expand(_key, state, _idx, '_key')
+      Type.expand(_lock, state, '_locks', _idx)
+      return _lock
     }
 
     remove() {
@@ -793,6 +1023,13 @@ module.exports = (project_name, Lib) => {
       const _laser = super.init(parent, name)
       const {_idx,state} = _laser
       return state.get(_idx, '_lasers', _idx)
+    }
+    expand(
+      state, // State
+    ) {
+      const {_idx} = this, _laser = super.expand(state, _idx)
+      Type.expand(_laser, state, '_lasers', _idx)
+      return _laser
     }
 
     remove() {
@@ -865,6 +1102,18 @@ module.exports = (project_name, Lib) => {
       const {_idx, state} = _wall
       _wall.set_root(root)
       state.get(_idx, '_walls', _idx)
+      return _wall
+    }
+    expand(
+      state, // State
+    ) {
+      const {_idx,_long,_short,_root,_spot} = this
+      _wall = super.expand(state, _idx)
+      state.set(_long, _idx, '_long')
+      state.set(_short, _idx, '_short')
+      state.set(_root, _idx, '_root')
+      state.set(_spot, _idx, '_spot')
+      Type.expand(_wall, state, '_walls', _idx)
       return _wall
     }
 
@@ -964,7 +1213,21 @@ module.exports = (project_name, Lib) => {
     ) {
       const _door = super.init(level,root)
       const {_idx, state} = _door
+      _door.set_is_open(true)
       state.get(_idx, '_doors', _idx)
+      return _door
+    }
+    expand(
+      state, // State
+    ) {
+      const {_idx,_is_open,constructor:{lock_names}} = this
+      _door = super.expand(state, _idx)
+      state.set(_is_open,_idx,'_is_open')
+      for (const i in lock_names) {
+        const name = lock_names[i]
+        Type.expand(this[name], state, _idx, name)
+      }
+      Type.expand(_door, state, '_doors', _idx)
       return _door
     }
 
@@ -1032,6 +1295,13 @@ module.exports = (project_name, Lib) => {
       state.get(_idx, '_portals', _idx)
       return _portal
     }
+    expand(
+      state, // State
+    ) {
+      const {_idx} = this, _portal = super.expand(state, _idx)
+      Type.expand(_portal, state, '_portals', _idx)
+      return _portal
+    }
 
     remove() {
       if (!super.remove()) return false
@@ -1081,9 +1351,21 @@ module.exports = (project_name, Lib) => {
     ) {
       const _key = super.init(level)
       const {_idx, state} = _key
+      _key.set_is_open(true)
       if (lock) _key.set_lock(lock)
       else _key.set_root(root)
       state.get(_idx, '_keys', _idx)
+      return _key
+    }
+    expand(
+      state, // State
+    ) {
+      const {_idx,_is_open,_root,_lock,} = this
+      _key = super.expand(state, _idx)
+      state.set(_is_open,_idx,'_is_open')
+      state.set(_root,_idx,'_root')
+      Type.expand(_lock, state, _idx, '_lock')
+      Type.expand(_key, state, '_keys', _idx)
       return _key
     }
 
@@ -1163,6 +1445,27 @@ module.exports = (project_name, Lib) => {
       Lock.init(_jack, '_nose')
       state.get(_idx, '_jacks', _idx)
       return _jack
+    }
+    expand(
+      state, // State
+    ) {
+      const {_idx,_long,_nose} = this
+      _jack = super.expand(state, _idx)
+      state.set(_long,_idx,'_long')
+      Type.expand(_nose, state, _idx, '_nose')
+      Type.expand(_jack, state, '_jacks', _idx)
+      return _jack
+    }
+
+    remove() {
+      if (!super.remove()) return false
+      const {_idx, state, _nose} = this
+      if (_nose) {
+        this._nose = null // UNRECORDED MODIFICATION: this is ok...
+        _nose.remove()
+      }
+      state.set(null, '_jacks', _idx)
+      return true
     }
   }
   MazeGame.Jack = Jack
