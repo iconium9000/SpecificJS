@@ -2,6 +2,12 @@ module.exports = (project_name, Lib) => class MazeGame {
   static get MazeGame() { return this }
 
   static Float = class extends MazeGame {
+
+    get _time() {
+      const {__sync,__time} = this
+      return __sync ? __sync.temp_state.time : __time
+    }
+    get _f() { return this._tf * this._time + this._sf }
     get f() { return this._f }
     get sf() { return this._sf}
     get tf() { return this._tf}
@@ -11,17 +17,21 @@ module.exports = (project_name, Lib) => class MazeGame {
       f, // Number
     ) {
       const _float = new this
-      _float._f = _float._sf = sf
-      _float._tf = 0; _float._time = 0
+      _float._sf = sf; _float._tf = 0; _float.__time = 0
       return _float
     }
     static init(
       sf,tf,time, // Number
     ) {
       const _float = new this
-      _float._sf = sf; _float._tf = tf; _float._time = time
-      _float._f = sf + tf*time
+      _float._sf = sf; _float._tf = tf; _float.__time = time
       return _float
+    }
+    at(
+      time, // Number
+    ) {
+      const {_sf,_tf,constructor} = this
+      return constructor.init( _sf, _tf, time)
     }
     get flatten() {
       const {_f} = this
@@ -38,17 +48,10 @@ module.exports = (project_name, Lib) => class MazeGame {
     static readable() { return true}
     static read(
       {sf,tf}, // Object
-      time, // Number
     ) {
-      return this.init(sf, tf, time, )
+      return this.init(sf||0,tf||0,0)
     }
-    get atable() { return true }
-    at(
-      time, // Number
-    ) {
-      const {_sf,_tf} = this
-      return MazeGame.Float.init( _sf, _tf, time)
-    }
+    get syncable() { return true }
     get expandable() { return true }
     expand(
       state, // MazeGame.State
@@ -93,6 +96,13 @@ module.exports = (project_name, Lib) => class MazeGame {
 
   static Point = class extends MazeGame {
 
+    get _time() {
+      const {__sync,__time} = this
+      return __sync ? __sync.temp_state.time : __time
+    }
+    get _x() { return (this._sx + this._tx*this._time)*this._scale }
+    get _y() { return (this._sy + this._ty*this._time)*this._scale }
+
     get x() { return this._x }
     get y() { return this._y }
     get sx() { return this._sx }
@@ -100,15 +110,13 @@ module.exports = (project_name, Lib) => class MazeGame {
     get scale() { return this._scale }
     get tx() { return this._tx }
     get ty() { return this._ty }
-    get time() { return this._time }
     get abs_x () { return Math.abs(this._x) }
     get abs_y () { return Math.abs(this._y) }
 
     static get zero() {
       const _point = new this
       _point._sx = _point._sy = _point._scale = 0
-      _point._tx = _point._ty = _point._time = 0
-      _point._x = _point._y = 0
+      _point._tx = _point._ty = _point.__time = 0
       return _point
     }
 
@@ -117,8 +125,7 @@ module.exports = (project_name, Lib) => class MazeGame {
     ) {
       const _point = new this
       _point._sx = sx; _point._sy = sy; _point._scale = scale
-      _point._tx = _point._ty = _point._time = 0
-      _point._x = sx*scale; _point._y = sy*scale
+      _point._tx = _point._ty = _point.__time = 0
       return _point
     }
 
@@ -128,9 +135,15 @@ module.exports = (project_name, Lib) => class MazeGame {
     ) {
       const _point = new this
       _point._sx = sx; _point._sy = sy; _point._scale = scale
-      _point._tx = tx; _point._ty = ty; _point._time = time
-      _point._x = (sx + tx*time)*scale; _point._y = (sy + ty*time)*scale
+      _point._tx = tx; _point._ty = ty; _point.__time = time
       return _point
+    }
+
+    at(
+      time, // Number
+    ) {
+      const {_sx,_sy,_scale,_tx,_ty,constructor} = this
+      return constructor.init(_sx,_sy,_scale,_tx,_ty,time)
     }
 
     get serializable() { return true }
@@ -145,17 +158,10 @@ module.exports = (project_name, Lib) => class MazeGame {
     static readable() { return true }
     static read(
       {sx,sy,scale,tx,ty}, // Object
-      time, // Time
     ) {
-      return this.init( sx||0, sy||0, scale||0, tx||0, ty||0, time, )
+      return this.init(sx,sy,scale,tx,ty,0)
     }
-    get atable() { return true }
-    at(
-      time, // Number
-    ) {
-      const {_sx,_sy,_scale,_tx,_ty,} = this
-      return MazeGame.Point.init(_sx,_sy,_scale,_tx,_ty,time)
-    }
+    get syncable() { return true }
     get expandable() { return true }
     expand(
       state, // MazeGame.State
@@ -170,7 +176,11 @@ module.exports = (project_name, Lib) => class MazeGame {
     }
     get unit() {
       const {_x,_y,length} = this
-      return length > 0 ? MazeGame.Point.simple(_x/length,_y/length,length) : MazeGame.Point.zero
+      return (
+        length > 0 ?
+        MazeGame.Point.simple(_x/length,_y/length,length) :
+        MazeGame.Point.zero
+      )
     }
     get invert() {
       const {_x,_y} = this
@@ -226,7 +236,9 @@ module.exports = (project_name, Lib) => class MazeGame {
       {sx,sy,scale,tx,ty,}, // MazeGame.Point
     ) {
       const {_sx,_sy,_scale,_tx,_ty,_time,} = this, s = _scale*scale
-      return MazeGame.Float.init( (_sx*sx + _sy*sy)*s, (_tx*tx + _ty*ty)*s, _time, )
+      return MazeGame.Float.init(
+        (_sx*sx + _sy*sy)*s, (_tx*tx + _ty*ty)*s, _time,
+      )
     }
 
     sum(
@@ -305,6 +317,45 @@ module.exports = (project_name, Lib) => class MazeGame {
   }
 
   static State = class extends MazeGame {
+    // __sync: MazeGame.State.Sync
+    // _array: [{'get','new','set'}, {Object,Null}, ...String][]
+    // _length: Number
+    // _parent: MazeGame.State,Null
+
+    static Sync = class {
+      // state: MazeGame.State,Null
+      // length: Number,Null
+      // child: Object,Null
+      // temp_state: MazeGame.State
+
+      // get state() { return this._state }
+      // set state(
+      //   state, // MazeGame.State
+      // ) {
+      //   this._state = state
+      // }
+      //
+      // get length() { return this._length }
+      // set length(
+      //   length, // Number
+      // ) {
+      //   this._length = length
+      // }
+      //
+      // get child() { return this._child }
+      // set child(
+      //   child, // Object,Null
+      // ) {
+      //   this._child = child
+      // }
+      //
+      // get temp_state() { return this._temp_state }
+      // set temp_state(
+      //   temp_state, // MazeGame.State
+      // ) {
+      //   this._temp_state = temp_state
+      // }
+    }
 
     get serializable() { return true }
     get serialize() {
@@ -334,15 +385,6 @@ module.exports = (project_name, Lib) => class MazeGame {
       return _state
     }
 
-    get parent() { return this._parent } // MazeGame.State,Null
-
-    get flatten() {
-      const {time,child,constructor} = this
-      const _state = constructor.init(time)
-      MazeGame.expand(child, _state)
-      return _state
-    }
-
     static init(
       time, // Number
       parent, // MazeGame.State,Null
@@ -350,78 +392,54 @@ module.exports = (project_name, Lib) => class MazeGame {
       const _state = new this
       _state._time = time
       _state._array = []
-      if (parent) parent.build()
-      _state.__sync = parent ? parent.__sync : {}
-      _state.__sync.state = _state
+      if (parent) {
+        _state._parent = parent
+        _state._length = parent._array.length
+      }
+      _state._build(0)
       return _state
     }
 
-    _set(
-      tok, // String
-      real_value, // Object,Null
-      value, // Object,Null
-      ...path // String
-    ) {
-      MazeGame.set(this.__sync, real_value, 'child', ...path)
-      this._array.push([tok, value, ...path])
-      return real_value
+    // DANGER: assumes that this is in sync
+    get _child() {
+      return this.__sync.child
     }
-
-    set(
-      value, // Object,Null
-      ...path // String
-    ) {
-      value = MazeGame.at(value, this.time)
-      return this._set('set', value, value, ...path)
-    }
-
-    get(
-      label, // String
-      ...path // String
-    ) {
-      const {child} = this.__sync
-      return this._set(
-        'get',
-        child == null ? null : child[label],
-        label, ...path,
-      )
-    }
-
-    new(
-      constructor, // Function (MazeGame[constructor.name] == constructor)
-      ...path
-    ) {
-      return this._set(
-        'new', MazeGame.sync(constructor, this.__sync),
-        constructor.name, ...path
-      )
-    }
-
     get child() {
-      this.build()
+      this._build(this._array.length)
       return this.__sync.child
     }
 
-    build() {
-      if (this.__sync && this.__sync.state == this) return false
+    static build_count = 0
+    _build(
+      length, // Number
+    ) {
+      const {_parent,_array,_length} = this
+      ++MazeGame.State.build_count
 
-      const {_parent,_array} = this
-      if (_parent) _parent.build()
-      const sync = this.__sync = _parent ? _parent.__sync : {}
-      sync.state = this
-
-      for (const i in _array) {
-        const [tok, value, ...path] = _array[i]
-        const {child} = sync
-        MazeGame.set(
-          sync,
-          tok == 'new' ? MazeGame.sync(MazeGame[value], this.__sync) :
-          tok == 'get' ? child == null ? null : child[value] :
-          tok == 'set' ? value : null,
-          'child', ...path
-        )
+      let idx = 0, sync = this.__sync
+      if (!sync || sync.state != this || sync.length > length) {
+        sync = _parent ? _parent._build(_length) : new MazeGame.State.Sync
       }
-      return true
+      else idx = sync.length == length ? length : sync.length
+      this.__sync = sync
+      sync.temp_state = this
+
+      if (idx < length) {
+        sync.state = this
+        sync.length = length
+        do {
+          const {child} = sync, [tok, value, ...path] = _array[idx]
+          MazeGame.set(
+            sync,
+            tok == 'new' ? MazeGame.sync(new MazeGame[value], sync) :
+            tok == 'get' ? child == null ? null : child[value] :
+            tok == 'set' ? value : null,
+            'child', ...path
+          )
+        }
+        while (++idx < length)
+      }
+      return sync
     }
 
     at(
@@ -433,6 +451,57 @@ module.exports = (project_name, Lib) => class MazeGame {
         _parent ? _parent.at(time) : MazeGame.State.init(time) :
         MazeGame.State.init(time, this)
       )
+    }
+
+    get parent() { return this._parent } // MazeGame.State,Null
+
+    get flatten() {
+      const {time,child,constructor} = this
+      const _state = constructor.init(time)
+      MazeGame.expand(child, _state)
+      return _state
+    }
+
+    // DANGER: assumes that this is in sync
+    _set(
+      tok, // String
+      real_value, // Object,Null
+      value, // Object,Null
+      ...path // String
+    ) {
+      const {__sync,_array} = this; __sync.state = this
+      const _real_value = MazeGame.sync(real_value,__sync)
+      MazeGame.set(__sync, _real_value, 'child', ...path)
+      __sync.length = _array.push([tok, value, ...path])
+      return _real_value
+    }
+
+    // DANGER: assumes that this is in sync
+    set(
+      value, // Object,Null
+      ...path // String
+    ) {
+      return this._set('set', value, value, ...path)
+    }
+
+    // DANGER: assumes that this is in sync
+    get(
+      label, // String
+      ...path // String
+    ) {
+      const {child} = this.__sync
+      return this._set(
+        'get', child == null ? null : child[label], label, ...path,
+      )
+    }
+
+    // DANGER: assumes that this is in sync
+    // DANGER: assumes that MazeGame[constructor.name] == constructor
+    new(
+      constructor, // Function
+      ...path
+    ) {
+      return this._set( 'new', new constructor, constructor.name, ...path )
     }
   }
 
@@ -453,9 +522,8 @@ module.exports = (project_name, Lib) => class MazeGame {
       else return state.get(idx, '_level_node')
     }
 
-    static get syncable() { return true }
-    constructor(sync) { super(); this.__sync = sync }
-    get state() { return this.__sync.state }
+    get syncable() { return true }
+    get state() { return this.__sync.temp_state }
     static init(
       time, // Number
     ) {
@@ -481,23 +549,26 @@ module.exports = (project_name, Lib) => class MazeGame {
     at(
       time, // Number
     ) {
-      return this.state.at(time).child
-    }
-
-    draw(
-      ctx, // CanvasRenderingContext2D
-      editor_idx, // String
-      center,mouse, // MazeGame.Point @ time
-    ) {
-      const _state = MazeGame.get(this, editor_idx, 'level_node', 'state')
-      if (_state) {
-        const _level = _state.at(this.state.time).child
-        if (_level) _level.draw(ctx, center, mouse)
-      }
+      return this.state.at(time)._child
     }
   }
 
   static Editor = class extends MazeGame {
+
+    get mode() { return MazeGame[this._mode] || MazeGame.Wall }
+    set_mode(
+      mode, // String
+    ) {
+      const {_idx,state,_mode,_level_node} = this
+      if (_level_node) {
+        const _level = _level_node.level_state.at(state.time)._child
+        _level[_idx].set_mode(mode)
+        _level_node.set_level_state(_level.extend.state)
+        return mode
+      }
+      else if (_mode == mode) return _mode
+      else return state.set(mode, _idx, '_mode')
+    }
 
     get target() { return this._target }
     set_target(
@@ -523,7 +594,7 @@ module.exports = (project_name, Lib) => class MazeGame {
       const {_idx,_name,state,_level_node,constructor} = this, {time} = state
       if (_level_node == level_node) return _level_node
       if (_level_node) {
-        const _level = _level_node.level_state.at(time).child
+        const _level = _level_node.level_state.at(time)._child
         const _editor = _level[_idx]
         if (_editor) {
           _editor.remove()
@@ -532,7 +603,7 @@ module.exports = (project_name, Lib) => class MazeGame {
       }
       if (level_node) {
         state.get(level_node.idx, _idx, '_level_node')
-        const _level = level_node.level_state.at(time).child
+        const _level = level_node.level_state.at(time)._child
         constructor.init(_level.state, _idx, _name)
         level_node.set_level_state(_level.extend.state)
       }
@@ -540,9 +611,8 @@ module.exports = (project_name, Lib) => class MazeGame {
     }
 
     get idxable() { return true }
-    static get syncable() { return true }
-    constructor(sync) { super(); this.__sync = sync }
-    get state() { return this.__sync.state }
+    get syncable() { return true }
+    get state() { return this.__sync.temp_state }
     static init(
       state, // MazeGame.State @ child:MazeGame.Game,MazeGame.Level
       idx,name, // String
@@ -581,6 +651,46 @@ module.exports = (project_name, Lib) => class MazeGame {
       return true
     }
 
+    draw(
+      ctx, // CanvasRenderingContext2D
+      center,root,mouse, // MazeGame.Point (in drawspace)
+    ) {
+      const {_idx,state,level_node} = this
+      // in Game
+      if (level_node) {
+        const _level = level_node.level_state.at(this.state.time)._child
+        const _editor = _level[_idx]
+        _editor.draw(ctx,center,root,mouse)
+      }
+      // in Level
+      else {
+        const _scale = center.short.scale
+        const _offset = center.sub(root)
+        const {scale,stroke_color} = MazeGame.Target
+        this.act_at(mouse.sub(_offset).div(_scale/scale))
+        state._child.draw(ctx,_offset,_scale/scale)
+      }
+    }
+
+    act_at(
+      spot, // MazeGame.Point (in gamespace)
+    ) {
+      const {_idx,mode,state,level_node} = this
+      // in Game
+      if (level_node) {
+        const _level = level_node.level_state.at(state.time)._child
+        const _editor = _level[_idx]
+        if (_editor.act_at(spot)) {
+          level_node.set_level_state(_level.extend.state)
+          return true
+        }
+        else return false
+      }
+      // in Level
+      else {
+        return mode.act_at(this, spot)
+      }
+    }
   }
 
   static LevelNode = class extends MazeGame {
@@ -617,9 +727,8 @@ module.exports = (project_name, Lib) => class MazeGame {
     }
 
     get idxable() { return true }
-    static get syncable() { return true }
-    constructor(sync) { super(); this.__sync = sync }
-    get state() { return this.__sync.state }
+    get syncable() { return true }
+    get state() { return this.__sync.temp_state }
     static init(
       game, // MazeGame.Game
       level, // MazeGame.Level
@@ -682,9 +791,8 @@ module.exports = (project_name, Lib) => class MazeGame {
     get keys() { return this._keys }
     get jacks() { return this._jacks }
 
-    static get syncable() { return true }
-    constructor(sync) { super(); this.__sync = sync }
-    get state() { return this.__sync.state }
+    get syncable() { return true }
+    get state() { return this.__sync.temp_state }
     static init(
       game, // MazeGame.Game
     ) {
@@ -716,9 +824,15 @@ module.exports = (project_name, Lib) => class MazeGame {
 
     draw(
       ctx, // CanvasRenderingContext2D
-      center,mouse, // MazeGame.Point @ time
+      offset, // MazeGame.Point (in drawspace)
+      scale, // Number
     ) {
-
+      ctx.lineJoin = 'round'
+      ctx.lineCap = 'round'
+      const {_locks,_walls,_keys} = this
+      for (const idx in _locks) _locks[idx].draw(ctx,offset,scale)
+      for (const idx in _keys) _keys[idx].draw(ctx,offset,scale)
+      for (const idx in _walls) _walls[idx].draw(ctx,offset,scale)
     }
   }
 
@@ -727,7 +841,7 @@ module.exports = (project_name, Lib) => class MazeGame {
     static get stroke_color() { return 'white' }
     static get thin_stroke_color() { return '#505050' }
     static get line_width() { return 0.5 }
-    static get scale() { return 60 }
+    static get scale() { return 20 }
     static get thin_line_width() { return this.line_width / 3 }
     static get speed() { return 2e-2 } // dist / time = speed
 
@@ -759,16 +873,15 @@ module.exports = (project_name, Lib) => class MazeGame {
     }
 
     get idxable() { return true }
-    static get syncable() { return true }
-    constructor(sync) { super(); this.__sync = sync }
-    get state() { return this.__sync.state }
+    get syncable() { return true }
+    get state() { return this.__sync.temp_state }
     static init(
       level, // MazeGame.Level
     ) {
       const {state} = level
       const _idx = this.name + level.tally
       const _target = state.new(this, _idx)
-      _target.set(_idx,_idx,'_idx')
+      state.set(_idx,_idx,'_idx')
       return _target
     }
     get expandable() { return true }
@@ -987,6 +1100,25 @@ module.exports = (project_name, Lib) => class MazeGame {
       return _root
     }
 
+    static act_at(
+      editor, // Editor
+      spot, // MazeGame.Point (in gamespace)
+    ) {
+      const level = editor.state._child
+
+      if (editor.target) {
+        const wall = editor.target
+        wall.set_long(spot.sub(wall.root))
+        editor.set_target(null)
+        return true
+      }
+      else {
+        const _wall = this.init(level, spot)
+        editor.set_target(_wall)
+        return true
+      }
+    }
+
     static init(
       level, // MazeGame.Level
       root, // MazeGame.Point
@@ -1001,7 +1133,7 @@ module.exports = (project_name, Lib) => class MazeGame {
       state, // MazeGame.State
     ) {
       const {_idx,_long,_short,_root,_spot} = this
-      _wall = super.expand(state, _idx)
+      const _wall = super.expand(state, _idx)
       state.set(_long, _idx, '_long')
       state.set(_short, _idx, '_short')
       state.set(_root, _idx, '_root')
@@ -1015,6 +1147,26 @@ module.exports = (project_name, Lib) => class MazeGame {
       const {_idx, state} = this
       state.set(null, '_walls', _idx)
       return true
+    }
+
+    draw(
+      ctx, // CanvasRenderingContext2D
+      offset, // MazeGame.Point (in drawspace)
+      scale, // Number
+    ) {
+      const {line_width,stroke_color,} = this.constructor
+      const {root,spot} = this
+      const _root = root.mul(scale).sum(offset)
+      const _spot = spot.mul(scale).sum(offset)
+
+      ctx.lineWidth = line_width * scale
+      ctx.strokeStyle = stroke_color
+
+      ctx.beginPath()
+      ctx.moveTo(_root.x, _root.y)
+      ctx.lineTo(_spot.x, _spot.y)
+      ctx.closePath()
+      ctx.stroke()
     }
   }
 
@@ -1377,26 +1529,23 @@ module.exports = (project_name, Lib) => class MazeGame {
   static get readable() { return false }
   static read(
     object, // Object,Null
-    time, // Number
   ) {
     const con__ = object && MazeGame[object._constructor]
-    return con__ && con__.readable ? con__.read(object, time) : object
+    return con__ && con__.readable ? con__.read(object) : object
   }
 
-  get atable() { return false }
-  static at(
-    object, // Object,Null
-    time, // Number
+  get syncable() { return false }
+  sync(
+    sync, // MazeGame.State.Sync
   ) {
-    return object != null && object.atable ? object.at(time) : object
+    this.__sync = sync
+    return this
   }
-
-  static get syncable() { return false }
   static sync(
-    constructor, // Function
-    sync, // {state:MazeGame.State, child:Object,Null}
+    object, // Object,Null
+    sync, // MazeGame.State.Sync
   ) {
-    return constructor.syncable ? new constructor(sync) : new constructor
+    return object != null && object.syncable ? object.sync(sync) : object
   }
 
   get expandable() { return false }

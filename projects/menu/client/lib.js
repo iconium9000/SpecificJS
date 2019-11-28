@@ -30,8 +30,9 @@ Lib.arrays_equal = (
   return true
 }
 
-const pi = Math.PI
-const pi2 = pi * 2
+Lib.pi = Math.PI
+Lib.pi2 = Lib.pi * 2
+const {pi,pi2} = Lib
 
 Lib.set = (object, value, label) => {
   if (value == undefined) delete object[label]
