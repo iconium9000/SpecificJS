@@ -92,9 +92,13 @@ function MazeGame() {
 		if (!game_state) return
 
 		const {time} = Lib, game = game_state.at(time)._child
+		const _editor = game[id]
+		if (!_editor) return
 
 		if (new_mode) {
-			// TODO set state
+			if (_editor.set_mode(new_mode.name)) {
+				client.game_state = game.state
+			}
 		}
 		// left: 37
 		// up: 38
@@ -108,20 +112,20 @@ function MazeGame() {
 			// TODO DELETE
 		}
 		else if (c == 'z') {
-			// TODO KILL
+			const {_level_state} = _editor.level_node
+			if (_level_state._parent) {
+				_editor.level_node.set_level_state(_level_state._parent)
+				client.game_state = game.state
+			}
 		}
 		else if (c == ' ') {
 			// MazeGame.State.build_count = 0
-			const _state = game[id].level_node.level_state.at(time)
-			log(_state)
-			// TODO DISPLAY
-			// log(client.game)
-			// const txt = client.game.to_string
-			// log(txt)
-			// log(Table.to_table(txt))
+			const _level = _editor.level_node.level
+			log(_level)
 		}
-	}
 
+		log(MazeGame.read(client.game_state.serialize))
+	}
 
 	function tick() {
 

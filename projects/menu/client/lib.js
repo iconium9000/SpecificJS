@@ -1,19 +1,18 @@
 /*
-static idx(
-  events, // Type[]
-  time,
-) {
-  let l = 0, r = events.length - 1
-  while (l <= r) {
-    let m = Math.floor((l + r) / 2)
-    const dif = time - events[m].time
-    if (dif > 0) l = m + 1
-    else if (dif < 0) r = m - 1
-    else return m
+  static idx(
+    events, // Type[]
+    time,
+  ) {
+    let l = 0, r = events.length - 1
+    while (l <= r) {
+      let m = Math.floor((l + r) / 2)
+      const dif = time - events[m].time
+      if (dif > 0) l = m + 1
+      else if (dif < 0) r = m - 1
+      else return m
+    }
+    return r
   }
-  return r
-}
-
 */
 
 const Lib = module.exports = {
@@ -37,6 +36,7 @@ const {pi,pi2} = Lib
 Lib.set = (object, value, label) => {
   if (value == undefined) delete object[label]
   else object[label] = value
+  return value
 }
 Lib.get_first = object => {
   for (const i in object) return object[i]
