@@ -13,6 +13,13 @@ module.exports = (project_name, Lib) => class MazeGame {
     get tf() { return this._tf}
     get abs() { return Math.abs(this._f) }
 
+    equals(
+      {sf,tf}, // MazeGame.Float
+    ) {
+      const {_sf,_tf} = this
+      return sf == _sf && tf == _tf
+    }
+
     static get zero() {
       const _float = new this
       _float._sf = _float._tf = _float.__time = 0
@@ -23,7 +30,7 @@ module.exports = (project_name, Lib) => class MazeGame {
       f, // Number
     ) {
       const _float = new this
-      _float._sf = sf; _float._tf = _float.__time = 0
+      _float._sf = f; _float._tf = _float.__time = 0
       return _float
     }
     static init(
@@ -59,6 +66,14 @@ module.exports = (project_name, Lib) => class MazeGame {
       return this.init(sf||0,tf||0,state?state.time:0)
     }
     get syncable() { return true }
+    sync(
+      sync, // MazeGame.State.Sync
+    ) {
+      const {_sf,_tf,constructor} = this
+      const _float = new constructor
+      _float._sf = _sf; _float._tf = _tf; _float.__sync = sync
+      return _float
+    }
     get expandable() { return true }
     expand(
       state, // MazeGame.State
@@ -131,6 +146,13 @@ module.exports = (project_name, Lib) => class MazeGame {
       ctx.lineTo(this._x, this._y)
     }
 
+    equals(
+      {sx,sy,scale,tx,ty}, // MazeGame.Float
+    ) {
+      const {_sx,_sy,_scale,_tx,_ty} = this
+      return sx==_sx && sy==_sy && scale==_scale && tx==_tx && ty==_ty
+    }
+
     static get zero() {
       const _point = new this
       _point._sx = _point._sy = _point._scale = 0
@@ -181,6 +203,15 @@ module.exports = (project_name, Lib) => class MazeGame {
       return this.init(sx||0,sy||0,scale||0,tx||0,ty||0,state?state.time:0)
     }
     get syncable() { return true }
+    sync(
+      sync, // MazeGame.State.Sync
+    ) {
+      const {_sx,_sy,_scale,_tx,_ty,constructor} = this
+      const _point = new constructor
+      _point._sx = _sx; _point._sy = _sy; _point._scale = _scale
+      _point._tx = _tx; _point._ty = _ty; _point.__sync = sync
+      return _point
+    }
     get expandable() { return true }
     expand(
       state, // MazeGame.State
@@ -278,7 +309,13 @@ module.exports = (project_name, Lib) => class MazeGame {
         _tx*_scale-tx*scale, _ty*_scale-ty*scale, _time,
       )
     }
-
+    // NOTE: assumes that this is flattened
+    mul_float(
+      {sf,tf,time}, // Float
+    ) {
+      const {_sx,_sy,_scale,constructor} = this
+      return constructor.init(sf*_sx, sf*_sy, _scale, tf*_sx, tf*_sy, time)
+    }
     mul(
       mul, // Number
     ) {
@@ -399,13 +436,11 @@ module.exports = (project_name, Lib) => class MazeGame {
         __sync.length = array.length
         do {
           const {child} = __sync, [tok, value, ...path] = array[idx]
-          const _value = MazeGame.set(
-            __sync,
+          const _value = MazeGame.set(__sync, MazeGame.sync(
             tok == 'new' ? new MazeGame[value] :
             tok == 'get' ? child == null ? null : child[value] :
-            tok == 'set' ? MazeGame.read(value, _state) : null,
-            'child', ...path
-          )
+            tok == 'set' ? MazeGame.read(value, _state) : null, __sync
+          ),'child', ...path)
           _array.push([ tok, tok == 'set' ? _value : value, ...path ])
         }
         while (++idx < array.length)
@@ -467,13 +502,11 @@ module.exports = (project_name, Lib) => class MazeGame {
         sync.length = length
         do {
           const {child} = sync, [tok, value, ...path] = _array[idx]
-          MazeGame.set(
-            sync,
-            tok == 'new' ? MazeGame.sync(new MazeGame[value], sync) :
+          MazeGame.set(sync, MazeGame.sync(
+            tok == 'new' ? new MazeGame[value] :
             tok == 'get' ? child == null ? null : child[value] :
-            tok == 'set' ? value : null,
-            'child', ...path
-          )
+            tok == 'set' ? value : null, sync
+          ), 'child', ...path)
         }
         while (++idx < length)
       }
@@ -595,8 +628,8 @@ module.exports = (project_name, Lib) => class MazeGame {
     ) {
       if (state._id != null) return state._id
       state._id = state.constructor.name + this.tally
-      this.state.set(state, state._id)
       if (state._parent) this._id_state(state._parent)
+      this.state.set(state, state._id)
       return state._id
     }
   }
@@ -615,7 +648,10 @@ module.exports = (project_name, Lib) => class MazeGame {
         return mode
       }
       else if (_mode == mode) return _mode
-      else return state.set(mode, _id, '_mode')
+      else {
+        this.set_target(null)
+        return state.set(mode, _id, '_mode')
+      }
     }
 
     get target() { return this._target }
@@ -870,7 +906,23 @@ module.exports = (project_name, Lib) => class MazeGame {
     }
 
     get extend() {
-      return this // TODO extend
+      const {state,_doors,_walls,_jacks} = this
+      let min_time = Infinity
+
+      for (const id in _doors) {
+        const {extend,lines} = _doors[id]
+        if (extend < min_time) min_time = extend
+      }
+
+      this.__lines = []
+      for (const id in _walls) this.__lines.push(..._walls[id].lines)
+
+      for (const id in _jacks) {
+        const {extend} = _jacks[id]
+        if (extend < min_time) min_time = extend
+      }
+
+      return min_time < Infinity ? state.at(min_time)._child.extend : this
     }
 
     draw(
@@ -883,18 +935,40 @@ module.exports = (project_name, Lib) => class MazeGame {
       const {_locks,_walls,_keys} = this
       for (const id in _locks) _locks[id].draw(ctx,offset,scale)
       for (const id in _keys) _keys[id].draw(ctx,offset,scale)
-      for (const id in _walls) _walls[id].draw(ctx,offset,scale)
+
+      const {thin_line_width,thin_stroke_color} = MazeGame.Target
+      for (const id in _walls) {
+        _walls[id].draw(ctx,offset,scale)
+
+        ctx.lineWidth = thin_line_width * scale
+        ctx.strokeStyle = thin_stroke_color
+        const {lines} = _walls[id]
+        for (const i in lines) {
+          const [...sub] = lines[i]
+          ctx.beginPath()
+          for (const j in sub) sub[j].mul(scale).sum(offset).lineTo = ctx
+          ctx.closePath()
+          ctx.stroke()
+        }
+      }
     }
   }
 
   static Target = class extends MazeGame {
+    static get key_bind() { return 'g' }
     static get fill_color() { return 'black' }
     static get stroke_color() { return 'white' }
     static get thin_stroke_color() { return '#505050' }
     static get line_width() { return 0.5 }
-    static get scale() { return 20 }
+    static get scale() { return 40 }
     static get thin_line_width() { return this.line_width / 3 }
     static get speed() { return 2e-2 } // dist / time = speed
+
+    is_parent(
+      target, // Target
+    ) {
+      return target == this
+    }
 
     get is_open() { return this._is_open }
     set_is_open(
@@ -923,14 +997,40 @@ module.exports = (project_name, Lib) => class MazeGame {
       else return state.set(null, _id, '_editor')
     }
 
+    static act_at(
+      editor, // MazeGame.Editor
+      spot, // MazeGame.Point
+    ) {
+      const level = editor.state._child
+      const closest_lock = MazeGame.Lock.get_closest(level.locks, spot)
+      const closest_key = (closest_lock && closest_lock.key) || (
+        MazeGame.Key.get_closest(level.keys, spot)
+      )
+
+      if (closest_key && closest_key.is_jack) {
+        editor.set_target(closest_key)
+        return true
+      }
+
+      const jack = editor.target
+      if (!jack) return false
+
+      jack.set_spot(
+        closest_key ? closest_key.root :
+        closest_lock ? closest_lock.spot : spot
+      )
+      return true
+    }
+
     get idable() { return true }
     get syncable() { return true }
     get state() { return this.__sync.temp_state }
     static init(
       level, // MazeGame.Level
+      name, // String,Null
     ) {
       const {state} = level
-      const _id = this.name + level.tally
+      const _id = (name || this.name) + level.tally
       const _target = state.new(this, _id)
       state.set(_id,_id,'_id')
       return _target
@@ -977,13 +1077,24 @@ module.exports = (project_name, Lib) => class MazeGame {
       return return_lock
     }
 
+    is_parent(
+      target, // Target
+    ) {
+      const {_parent} = this
+      return target == this || (_parent && _parent.is_parent(target))
+    }
+
     get length() { return this._length }
-    set length(
+    set_length(
       length, // Number
     ) {
       const {long_min,long_max,long_round} = this.constructor
       const {_id,state,_long,_length} = this
-      length = length<long_min ? long_min : length<long_max ? length : long_max
+      length = (
+        length<long_min ? long_min :
+        length<long_max ? Math.round(length/long_round)*long_round :
+        long_max
+      )
       if (_length == length) return _length
       state.set(length, _id, '_length')
       if (_long) this.set_long(_long)
@@ -998,7 +1109,7 @@ module.exports = (project_name, Lib) => class MazeGame {
       long, // MazeGame.Point
     ) {
       const {_id,state,_root,_length,_key} = this
-      const _long = state.set(long.unit.strip(_length), _id, '_long')
+      const _long = state.set(long.unit.strip(_length).unit, _id, '_long')
       if (_key) _key.set_root(_root.sum(_long))
       return _long
     }
@@ -1006,10 +1117,11 @@ module.exports = (project_name, Lib) => class MazeGame {
     set_root(
       root, // MazeGame.Point
     ) {
-      const {_id,state,_long,_key} = this
-      const _root = state.set(root, _id, '_root')
-      if (_key) _key.set_root(_root.sum(_long))
-      return _root
+      const {_id,state,_root,_long,_key} = this
+      if (_root && root.equals(_root)) return _root
+      root = state.set(root, _id, '_root')
+      if (_key) _key.set_root(root.sum(_long))
+      return root
     }
 
     get key() { return this._key }
@@ -1041,14 +1153,52 @@ module.exports = (project_name, Lib) => class MazeGame {
       return is_open
     }
 
+    static act_at(
+      editor, // MazeGame.Editor
+      spot, // MazeGame.Point (in gamespace)
+    ) {
+      const level = editor.state._child
+
+      if (editor.target) {
+        const lock = editor.target, {_root,_long} = lock
+        editor.set_target(null)
+        lock.set_length(spot.sub(_root).dot(_long.strip(1)).f)
+        return true
+      }
+
+      const closest_lock = this.get_closest(level.locks, spot)
+      if (closest_lock) {
+        editor.set_target(closest_lock)
+        return true
+      }
+
+      const closest_door = MazeGame.Door.get_closest(level.doors, spot)
+      if (closest_door) {
+        const {lock_names} = closest_door.constructor
+        const lock_name = lock_names[
+          Math.floor(closest_door.__long_dot * lock_names.length)
+        ]
+        if (!lock_name) return false
+        else if (closest_door[lock_name]) {
+          editor.set_target(closest_door[lock_name])
+          return true
+        }
+
+        const _lock = this.init(closest_door, lock_name)
+        if (this.long_max > this.long_min) editor.set_target(_lock)
+        return true
+      }
+
+    }
+
     static init(
       parent, // MazeGame.Door,MazeGame.Jack
       name, // String
     ) {
-      const {level,[name]:lock} = parent, {long_min} = this
+      const {id,level,[name]:lock} = parent, {long_min} = this
       if (lock) lock.remove()
-      const _lock = super.init(level), {_id,state} = _lock
-      state.get(parent.id, _id, '_parent')
+      const _lock = super.init(level,id + name), {_id,state} = _lock
+      state.get(id, _id, '_parent')
       state.set(long_min, _id, '_length')
       state.set(false, _id, '_is_open')
       parent.set_lock(_lock, name)
@@ -1105,7 +1255,7 @@ module.exports = (project_name, Lib) => class MazeGame {
       ctx.lineWidth = line_width * scale
 
       ctx.beginPath()
-      _root.moveTo = ctx
+      _root.lineTo = ctx
       _spot.lineTo = ctx
       ctx.closePath()
       ctx.stroke()
@@ -1145,6 +1295,55 @@ module.exports = (project_name, Lib) => class MazeGame {
       state.set(null, '_lasers', _id)
       return true
     }
+
+    draw(
+      ctx, // CanvasRenderingContext2D
+      offset, // MazeGame.Point (in drawspace)
+      scale, // Number
+    ) {
+      const {
+        stroke_color,fill_color,line_width,
+        thin_line_width,thin_stroke_color,
+        radius,
+      } = this.constructor
+      const {root,spot,long} = this, {pi2} = Lib
+      const _root = root.mul(scale).sum(offset)
+      const _spot = spot.mul(scale).sum(offset)
+      const _radius = radius * scale
+      const _long = long.strip(MazeGame.Lock.long_min * scale)
+      const _root_long = _root.sum(_long)
+      const _spot_long = _spot.sub(_long)
+
+      ctx.lineJoin = 'round'
+      ctx.lineCap = 'round'
+      ctx.lineWidth = thin_line_width * scale
+      ctx.strokeStyle = thin_stroke_color
+
+      ctx.beginPath()
+      _root_long.lineTo = ctx
+      _spot_long.lineTo = ctx
+      ctx.stroke()
+
+      ctx.strokeStyle = stroke_color
+      ctx.lineWidth = line_width * scale
+
+      ctx.beginPath()
+      _root.lineTo = ctx
+      _root_long.lineTo = ctx
+      ctx.stroke()
+
+      ctx.beginPath()
+      _spot_long.lineTo = ctx
+      _spot.lineTo = ctx
+      ctx.stroke()
+
+      ctx.fillStyle = fill_color
+      ctx.beginPath()
+      ctx.arc(_spot.x, _spot.y, _radius, 0, pi2)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+    }
   }
 
   static Wall = class extends MazeGame.Target {
@@ -1158,6 +1357,32 @@ module.exports = (project_name, Lib) => class MazeGame {
     static get default_length() { return 0 }
     static get short_sign() { return false }
     static get is_portal() { return false }
+
+    static get_closest(
+      walls, // MazeGame.Wall{}
+      spot, // MazeGame.Point
+    ) {
+      let min_dist = Infinity, return_wall = null
+      for (const label in walls) {
+        const wall = walls[label], {short_sign} = wall.constructor
+        const {root,long,short} = wall, _sub = spot.sub(root)
+
+        wall.__long_dot = long.strip(1).dot(_sub).f / long.scale
+        let _short_dot = short.strip(1).dot(_sub).f
+        if (!short_sign && _short_dot < 0) _short_dot = -_short_dot
+
+        if (
+          0 < wall.__long_dot && wall.__long_dot < 1 &&
+          0 < _short_dot && _short_dot < short.scale && _short_dot < min_dist
+        ) {
+          return_wall = wall
+          min_dist = _short_dot
+        }
+      }
+      return return_wall
+    }
+
+    reroot_locks() {}
 
     get long() { return this._long }
     get short() { return this._short }
@@ -1187,29 +1412,47 @@ module.exports = (project_name, Lib) => class MazeGame {
     set_root(
       root, // MazeGame.Point
     ) {
-      const {_id, state, _long, _short} = this, {time} = state
+      const {_id, state, _root, _long, _short} = this, {time} = state
       const {short_sign,root_round,long_min,short_min} = this.constructor
-      const _root = root.at(time).round(root_round)
-      state.set(_root, _id, '_root')
+      root = root.at(time).round(root_round)
+      if (_root && root.equals(_root)) return _root
+      state.set(root, _id, '_root')
       if (_long) {
-        let _spot = _root.sum(_long)
-        if (short_sign) _spot = _spot.sum(_short)
-        state.set(_spot, _id, '_spot')
+        let spot = root.sum(_long)
+        if (short_sign) spot = spot.sum(_short)
+        state.set(spot, _id, '_spot')
       }
       else this.set_long(MazeGame.Point.simple(long_min,short_min,1))
-      return _root
+      return root
     }
 
     static act_at(
-      editor, // Editor
+      editor, // MazeGame.Editor
       spot, // MazeGame.Point (in gamespace)
     ) {
       const level = editor.state._child
+      const closest_wall = this.get_closest(level.walls, spot)
 
       if (editor.target) {
         const wall = editor.target
-        wall.set_long(spot.sub(wall.root))
         editor.set_target(null)
+        wall.set_long(spot.sub(wall.root))
+        wall.reroot_locks()
+        return true
+      }
+      else if (closest_wall) {
+        const {_root,_long,_spot,_short,__long_dot} = closest_wall
+
+        if (__long_dot < 0.5) {
+          const {_id, state} = closest_wall
+          state.set(_spot,_id,'_root')
+          state.set(_root,_id,'_spot')
+          state.set(_long.mul(-1).long, _id, '_long')
+          state.set(_short.mul(-1).long,_id,'_short')
+          closest_wall.reroot_locks()
+        }
+
+        editor.set_target(closest_wall)
         return true
       }
       else {
@@ -1249,6 +1492,9 @@ module.exports = (project_name, Lib) => class MazeGame {
       return true
     }
 
+    // return (root,spot:MazeGame.Point)[]
+    get lines() { return [[this.root, this.spot]] }
+
     draw(
       ctx, // CanvasRenderingContext2D
       offset, // MazeGame.Point (in drawspace)
@@ -1263,11 +1509,12 @@ module.exports = (project_name, Lib) => class MazeGame {
       ctx.strokeStyle = stroke_color
 
       ctx.beginPath()
-      ctx.moveTo(_root.x, _root.y)
+      ctx.lineTo(_root.x, _root.y)
       ctx.lineTo(_spot.x, _spot.y)
       ctx.closePath()
       ctx.stroke()
     }
+
   }
 
   static Door = class extends MazeGame.Wall {
@@ -1282,6 +1529,11 @@ module.exports = (project_name, Lib) => class MazeGame {
     static get lock_names() {
       return ['_root_short','_root_long','_spot_long','_spot_short']
     }
+    reroot_locks() {
+      const {lock_names} = this.constructor
+      for (const i in lock_names) this.reroot_lock(lock_names[i])
+    }
+
     reroot_lock(
       name, // String
     ) {
@@ -1293,11 +1545,11 @@ module.exports = (project_name, Lib) => class MazeGame {
       switch (name) {
         case '_root_short':
           root = _short.div(2).sum(_root)
-          long = _long.strip(-length)
+          long = _long.strip(-length).unit
           break
         case '_root_long':
           root = _long.strip(_short.scale/2).sum(_root)
-          long = _short.strip(-length)
+          long = _short.strip(-length).unit
           break
         case '_spot_long':
           root = _long.strip(-_short.scale/2).sum(_spot)
@@ -1317,7 +1569,8 @@ module.exports = (project_name, Lib) => class MazeGame {
     set_length(
       length, // MazeGame.Float
     ) {
-      const {_id,state} = this
+      const {_id,state,_length} = this
+      if (_length && length.equals(_length)) return _length
       return state.set(length,_id,'_length')
     }
 
@@ -1387,6 +1640,26 @@ module.exports = (project_name, Lib) => class MazeGame {
       return _door
     }
 
+    // return Number
+    get extend() {
+      const {state, is_open, length, long} = this
+      const {speed} = this.constructor
+
+      const target = is_open ? 0 : 1
+      const _now = is_open ? length.f : 1 - length.f
+
+      if (_now > 0) {
+        const _time = _now * long.scale / speed + state.time
+        const _lerp = length.lerp(MazeGame.Float.init(target,0,_time))
+        this.set_length(_lerp)
+        // console.log(_time-state.time)
+        return _time
+      }
+      else if (length.tf) this.set_length(MazeGame.Float.simple(target))
+
+      return Infinity
+    }
+
     remove() {
       if (!super.remove()) return false
       const {_id, state, constructor:{lock_names}} = this
@@ -1394,6 +1667,32 @@ module.exports = (project_name, Lib) => class MazeGame {
       state.set(null, '_doors', _id)
       return true
     }
+
+    // return MazeGame.Point[][]
+    // return MazeGame.Point[][]
+    get lines() {
+
+      const {_root,_spot,_short,_long,_length} = this
+
+      const _long_length = _long.mul_float(_length).div(2)
+      const _long_short = _long.strip(_short.scale)
+      const _root_short = _root.sum(_short)
+      const _root_long = _root.sum(_long_short)
+      const _spot_short = _spot.sub(_short)
+      const _spot_long = _spot.sub(_long_short)
+
+      return [
+        [_root, _root_short, _root_long, _root],
+        [_spot, _spot_short, _spot_long, _spot], [
+          _root, _root.sum(_long_length), _root_short.sum(_long_length),
+          _root_short,
+        ], [
+          _spot, _spot.sub(_long_length), _spot_short.sub(_long_length),
+          _spot_short,
+        ],
+      ]
+    }
+
 
     draw(
       ctx, // CanvasRenderingContext2D
@@ -1405,6 +1704,7 @@ module.exports = (project_name, Lib) => class MazeGame {
         stroke_color,fill_color,thin_stroke_color,
       } = this.constructor
       const {root,spot,long,short,length:{f:length}} = this
+
       const _root = root.mul(scale).sum(offset)
       const _spot = spot.mul(scale).sum(offset)
       const _long = long.mul(scale)
@@ -1422,25 +1722,25 @@ module.exports = (project_name, Lib) => class MazeGame {
         const _mid_spot = _mid_root.sum(_short)
 
         ctx.beginPath()
-        _mid_root.moveTo = ctx
-        _mid_spot.moveTo = ctx
-        ctx.closePath()
-        ctx.stroke()
-
-        ctx.beginPath()
-        _root.moveTo = ctx
+        _root.lineTo = ctx
         _root.sum(_long).lineTo = ctx
         _spot.lineTo = ctx
         _root.sum(_short).lineTo = ctx
         ctx.closePath()
         ctx.fill()
         ctx.stroke()
+
+        ctx.beginPath()
+        _mid_root.lineTo = ctx
+        _mid_spot.lineTo = ctx
+        ctx.closePath()
+        ctx.stroke()
       }
       else if (0 < length) {
         const _length = _long.mul(length/2)
 
         ctx.lineWidth = _thin_line_width
-        ctx.strokeStyle = _thin_stroke_color
+        ctx.strokeStyle = thin_stroke_color
         ctx.beginPath()
         _root.sum(_length).lineTo = ctx
         _spot.sub(_length).sub(_short).lineTo = ctx
@@ -1456,7 +1756,7 @@ module.exports = (project_name, Lib) => class MazeGame {
         ctx.strokeStyle = stroke_color
 
         ctx.beginPath()
-        _root.moveTo = ctx
+        _root.lineTo = ctx
         _root.sum(_length).lineTo = ctx
         _root.sum(_length).sum(_short).lineTo = ctx
         _root.sum(_short).lineTo = ctx
@@ -1465,7 +1765,7 @@ module.exports = (project_name, Lib) => class MazeGame {
         ctx.stroke()
 
         ctx.beginPath()
-        _spot.moveTo = ctx
+        _spot.lineTo = ctx
         _spot.sub(_length).lineTo = ctx
         _spot.sub(_length).sub(_short).lineTo = ctx
         _spot.sub(_short).lineTo = ctx
@@ -1493,7 +1793,7 @@ module.exports = (project_name, Lib) => class MazeGame {
       }
 
       ctx.beginPath()
-      _root.moveTo = ctx
+      _root.lineTo = ctx
       _root.sum(_short).lineTo = ctx
       _root.sum(_long.strip(_short.scale)).lineTo = ctx
       ctx.closePath()
@@ -1502,13 +1802,14 @@ module.exports = (project_name, Lib) => class MazeGame {
 
       ctx.beginPath()
       ctx.lineCap = 'round'
-      _spot.moveTo = ctx
+      _spot.lineTo = ctx
       _spot.sub(_short).lineTo = ctx
       _spot.sub(_long.strip(_short.scale)).lineTo = ctx
       ctx.closePath()
       ctx.fill()
       ctx.stroke()
     }
+
   }
 
   static Portal = class extends MazeGame.Door {
@@ -1535,7 +1836,7 @@ module.exports = (project_name, Lib) => class MazeGame {
       const {state, [name]:_lock,_root,_spot,_long,_short} = this
       if (!_lock) return
       const {length} = _lock
-      state.set(_short.strip(-length), _lock.id, '_long')
+      state.set(_short.strip(-length).unit, _lock.id, '_long')
       switch (name) {
         case '_lock_root':
           return _lock.set_root(_root.sum(_long.div(4)))
@@ -1619,7 +1920,7 @@ module.exports = (project_name, Lib) => class MazeGame {
         const _mid_spot = _mid_root.sum(_short)
 
         ctx.beginPath()
-        _root.moveTo = ctx
+        _root.lineTo = ctx
         _root.sum(_long).lineTo = ctx
         _spot.lineTo = ctx
         _root.sum(_short).lineTo = ctx
@@ -1628,7 +1929,7 @@ module.exports = (project_name, Lib) => class MazeGame {
         ctx.stroke()
 
         ctx.beginPath()
-        _mid_root.moveTo = ctx
+        _mid_root.lineTo = ctx
         _mid_spot.lineTo = ctx
         ctx.closePath()
         ctx.stroke()
@@ -1637,7 +1938,7 @@ module.exports = (project_name, Lib) => class MazeGame {
         const _length = _long.mul(length / 2)
 
         ctx.beginPath()
-        _root.moveTo = ctx
+        _root.lineTo = ctx
         _root.sum(_length).lineTo = ctx
         _root.sum(_length).sum(_short).lineTo = ctx
         _root.sum(_short).lineTo = ctx
@@ -1646,7 +1947,7 @@ module.exports = (project_name, Lib) => class MazeGame {
         ctx.stroke()
 
         ctx.beginPath()
-        _spot.moveTo = ctx
+        _spot.lineTo = ctx
         _spot.sub(_length).lineTo = ctx
         _spot.sub(_length).sub(_short).lineTo = ctx
         _spot.sub(_short).lineTo = ctx
@@ -1713,11 +2014,11 @@ module.exports = (project_name, Lib) => class MazeGame {
         _lock.set_key(null)
       }
       if (lock) {
-        state.get(lock.id, _id, '_key') // ...because of this
+        state.get(lock.id, _id, '_lock') // ...because of this
         this.set_root(lock.spot)
         lock.set_key(this)
       }
-      else state.set(null, _id, '_key') // ...and this
+      else state.set(null, _id, '_lock') // ...and this
       return lock
     }
 
@@ -1726,11 +2027,12 @@ module.exports = (project_name, Lib) => class MazeGame {
       root, // MazeGame.Point
     ) {
       const {_id,state,_root} = this
+      if (_root && root.equals(_root)) return _root
       return state.set(root, _id, '_root')
     }
 
     static act_at(
-      editor, // Editor
+      editor, // MazeGame.Editor
       spot, // MazeGame.Point (in gamespace)
     ) {
       const level = editor.state._child
@@ -1747,9 +2049,11 @@ module.exports = (project_name, Lib) => class MazeGame {
       }
       else if (editor.target) {
         const key = editor.target
-        if (closest_lock) closest_lock.set_key(key)
-        else key.set_root(spot)
         editor.set_target(null)
+        if (closest_lock && !closest_lock.is_parent(key)){
+           closest_lock.set_key(key)
+        }
+        else key.set_root(spot)
         return true
       }
       else {
@@ -1842,6 +2146,13 @@ module.exports = (project_name, Lib) => class MazeGame {
   static Jack = class extends MazeGame.Key {
     static get key_bind() { return 'j' }
     static get leg_radius() { return 2 }
+    get is_jack() { return true }
+
+    is_parent(
+      target, // Target
+    ) {
+      return target == this || (this._lock && this._lock.is_parent(target))
+    }
 
     reroot_lock() {
       const {_id,state,_root,_long,_nose} = this
@@ -1867,6 +2178,14 @@ module.exports = (project_name, Lib) => class MazeGame {
       const _root = super.set_root(root)
       if (_nose) _nose.set_root(_root.sum(_long))
       return _root
+    }
+
+    set_spot(
+      spot, // MazeGame.Point
+    ) {
+      const {_id,state,_spot,_root} = this; spot = spot.flatten
+      if (_spot && _spot.equals(spot)) return _spot
+      return state.set(spot, _id, '_spot')
     }
 
     get nose() { return this._nose }
@@ -1909,15 +2228,26 @@ module.exports = (project_name, Lib) => class MazeGame {
       state.get(_id, '_jacks', _id)
       return _jack
     }
+
+    // return Number (closest time)
     expand(
       state, // MazeGame.State
     ) {
-      const {_id,_long,_nose} = this
+      const {_id,_long,_spot,_nose} = this
       _jack = super.expand(state, _id)
       state.set(_long,_id,'_long')
+      if (_spot) state.set(_spot,_id,'_spot')
       MazeGame.expand(_nose, state, _id, '_nose')
       MazeGame.expand(_jack, state, '_jacks', _id)
       return _jack
+    }
+    get extend() {
+      const {_root,_long,_spot,_nose} = this
+      if (!_spot) return Infinity; const {speed} = this.constructor
+
+
+
+      return Infinity
     }
 
     remove() {

@@ -124,7 +124,7 @@ function MazeGame() {
 			log(_level)
 		}
 
-		log(MazeGame.read(client.game_state.serialize))
+		log(MazeGame.read(client.game_state.serialize), client.game_state)
 	}
 
 	function tick() {
