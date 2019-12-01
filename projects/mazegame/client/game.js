@@ -924,6 +924,15 @@ module.exports = (project_name, Lib) => class MazeGame {
 
   static Level = class extends MazeGame {
 
+    get open_portals() {
+      const {_portals} = this, open_portals = []
+      for (const i in _portals) {
+        const portal = _portals[i]
+        if (portal._is_open) open_portals.push(portals)
+      }
+      return open_portals.length == 2 ? open_portals : []
+    }
+
     get tally() {
       const {state, _tally} = this
       return state.set(_tally+1, '_tally')
@@ -975,6 +984,7 @@ module.exports = (project_name, Lib) => class MazeGame {
       this.__lines = []
       for (const id in _walls) this.__lines.push(..._walls[id].lines)
 
+      this.__open_portals = this.open_portals
       for (const id in _jacks) {
         const {extend} = _jacks[id]
         if (extend < min_time) min_time = extend
@@ -1066,17 +1076,28 @@ module.exports = (project_name, Lib) => class MazeGame {
       )
 
       if (closest_key && closest_key.is_jack) {
-        editor.set_target(closest_key)
+        const jack = closest_key
+        editor.set_target(jack)
+        jack.set_long(spot.sub(jack.root))
         return true
       }
 
       const jack = editor.target
       if (!jack) return false
 
-      jack.set_spot(
+      const _spot = (
         closest_key ? closest_key.root :
         closest_lock ? closest_lock.spot : spot
       )
+
+      const sub = spot.sub(jack.root)
+      jack.set_long(sub)
+
+      if (jack.nose.key && sub.length < jack.nose_length) {
+        jack.nose.set_key(null)
+      }
+      else jack.set_spot(_spot)
+
       return true
     }
 
@@ -1119,6 +1140,8 @@ module.exports = (project_name, Lib) => class MazeGame {
     static get radius() { return 0.5 }
     static get search_radius() { return 3 * this.radius }
 
+    get length() { return this.long.scale + (this.key ? this.key.length : 0)}
+
     static get_closest(
       locks, // MazeGame.Lock{}
       spot, // MazeGame.Point
@@ -1135,6 +1158,7 @@ module.exports = (project_name, Lib) => class MazeGame {
       return return_lock
     }
 
+    get parent() { return this._parent }
     is_parent(
       target, // Target
     ) {
@@ -2045,6 +2069,8 @@ module.exports = (project_name, Lib) => class MazeGame {
     static get center_radius() { return MazeGame.Lock.radius }
     static get search_radius() { return this.radius * 2 }
 
+    get length() { return this.constructor.radius }
+
     static get_closest(
       keys, // MazeGame.Key{}
       spot, // MazeGame.Point
@@ -2206,6 +2232,10 @@ module.exports = (project_name, Lib) => class MazeGame {
     static get leg_radius() { return 2 }
     get is_jack() { return true }
 
+    get nose_length() {
+      return this.long.scale + this.nose.length
+    }
+
     is_parent(
       target, // Target
     ) {
@@ -2300,12 +2330,46 @@ module.exports = (project_name, Lib) => class MazeGame {
       return _jack
     }
     get extend() {
-      const {_root,_long,_spot,_nose} = this
-      if (!_spot) return Infinity; const {speed} = this.constructor
+      const {_id,state,_root,_long,_spot,_nose} = this
+      if (!_spot || !_nose) return Infinity
+      const {speed,search_radius} = this.constructor
+      const {__lines,__open_portals,locks,keys} = state._child
 
+      const closest_lock = MazeGame.Lock.get_closest(locks, _spot)
+      const closest_key = (closest_lock && closest_lock.key) || (
+        MazeGame.Key.get_closest(keys, _spot)
+      )
 
+      // TODO check door overlap
+      if (closest_key && _nose.key) {
+        state.set(null, _id, '_spot')
+        this.set_root(_root.flatten)
+        return Infinity
+      }
 
-      return Infinity
+      let root = _root.flatten, offset = MazeGame.Point.zero
+
+      const _sub = _spot.sub(root), _dist = _sub.length
+      if (_dist < search_radius) {
+        if (closest_lock && !closest_lock.is_parent(_nose)) {
+          if (_nose.key) closest_lock.set_key(_nose.key)
+          else {
+            this.set_lock(closest_lock)
+            return Infinity
+          }
+        }
+        else if (closest_key != this) closest_key.set_lock(_nose)
+
+        this.set_root(_spot.sub(offset))
+        state.set(null, _id, '_spot')
+
+        return Infinity
+      }
+
+      const _time = state.time + _dist / speed
+      this.set_root(_spot.at(_time).lerp(_root))
+      this.set_long(_sub)
+      return _time
     }
 
     remove() {
