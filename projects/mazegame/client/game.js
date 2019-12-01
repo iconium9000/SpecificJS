@@ -153,6 +153,64 @@ module.exports = (project_name, Lib) => class MazeGame {
       return sx==_sx && sy==_sy && scale==_scale && tx==_tx && ty==_ty
     }
 
+    // returns the time of intersection after time
+    // lines: [p1,p2], [p3,p4]
+    static intersect(
+      p1,p2,p3,p4, // MazeGame.Point
+      time, // Number
+    ) {
+      const s1=p1.scale,t11=p1.tx*s1,t12=p1.ty*s1,s11=p1.sx*s1,s12=p1.sy*s1
+      const s2=p2.scale,t21=p2.tx*s2,t22=p2.ty*s2,s21=p2.sx*s2,s22=p2.sy*s2
+      const s3=p3.scale,t31=p3.tx*s3,t32=p3.ty*s3,s31=p3.sx*s3,s32=p3.sy*s3
+      const s4=p4.scale,t41=p4.tx*s4,t42=p4.ty*s4,s41=p4.sx*s4,s42=p4.sy*s4
+      const t51=t21-t11,t52=t22-t12,s51=s21-s11,s52=s22-s12
+      const t61=t41-t31,t62=t42-t32,s61=s41-s31,s62=s42-s32
+      const w12=t12*t61+t31*t62-t32*t61-t11*t62
+      const w11=t12*s61+t61*s12+t31*s62+t62*s31-t61*s32-t32*s61-t11*s62-t62*s11
+      const w10=s12*s61+s31*s62-s32*s61-s11*s62
+      const w22=t12*t51+t31*t52-t32*t51-t11*t52
+      const w21=t12*s51+t51*s12+t31*s52+t52*s31-t32*s51-t51*s32-t11*s52-t52*s11
+      const w20=s12*s51+s31*s52-s32*s51-s11*s52
+      const w32=t51*t62-t52*t61
+      const w31=t51*s62+t62*s51-t52*s61-t61*s52
+      const w30=s51*s62-s52*s61
+      const w42=w32-w12,w41=w31-w11,w40=w30-w10
+      const w52=w32-w22,w51=w31-w21,w50=w30-w20
+      const w = [w12,w11,w10,w22,w21,w20,w32,w31,w30,w42,w41,w40,w52,w51,w50]
+
+      const e = [[time,0]]
+      for (let i = 0; i < w.length; i += 3) {
+        const q0 = 1 + Math.floor(i/3) % 3
+        const [w2,w1,w0] = w.slice(i)
+        if (w2 == 0) { if (w1 != 0) e.push([-w0/w1, q0]) }
+        else {
+          const q1 = w1*w1 - 4*w2*w0
+          if (q1 > 0) {
+            const q2 = Math.sqrt(q1), q3 = w2*2
+            e.push([(q2-w1)/q3,q0],[-(q2+w1)/q3,q0])
+          }
+        }
+      }
+
+      e.sort(([a],[b])=>a-b); const l = e.length; e.push([e[l-1][0]+1, 0])
+
+      const f1 = t => w12*t*t + w11*t + w10
+      const f2 = t => w22*t*t + w21*t + w20
+      const f3 = t => w32*t*t + w31*t + w30
+      let t0 = e[0][0], n3 = f3(t0), n1 = f1(t0)/n3, n2 = f2(t0)/n3
+      for (let i = 0; i < l; ++i) {
+        const [t0,q] = e[i], [t2] = e[i+1]
+        if (t0 == t2) continue;
+        if (q>0) {
+          const t1 = (t0+t2)/2, n3 = f3(t1)
+          if (q==1 || q==3) n1 = f1(t1)/n3
+          if (q==2 || q==3) n2 = f2(t2)/n3
+        }
+        if (time<=t0 && 0<n1 && n1<1 && 0<n2 && n2<1) return t0
+      }
+      return Infinity
+    }
+
     static get zero() {
       const _point = new this
       _point._sx = _point._sy = _point._scale = 0
