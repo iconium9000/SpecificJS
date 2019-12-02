@@ -47,8 +47,8 @@ module.exports = (project_name, Lib) => class MazeGame {
       return constructor.init( _sf, _tf, time)
     }
     get flatten() {
-      const {_f} = this
-      return MazeGame.Float.simple(_f)
+      const {_f,_time} = this
+      return MazeGame.Float.init(_f,0,_time)
     }
     get serializable() { return true }
     get serialize() {
@@ -194,6 +194,8 @@ module.exports = (project_name, Lib) => class MazeGame {
 
       e.sort(([a],[b])=>a-b); const l = e.length; e.push([e[l-1][0]+1, 0])
 
+      // console.log(e)
+
       const f1 = t => w12*t*t + w11*t + w10
       const f2 = t => w22*t*t + w21*t + w20
       const f3 = t => w32*t*t + w31*t + w30
@@ -295,8 +297,8 @@ module.exports = (project_name, Lib) => class MazeGame {
       return MazeGame.Point.simple(-_y, _x, 1)
     }
     get flatten() {
-      const {_x,_y} = this
-      return MazeGame.Point.simple(_x, _y, 1)
+      const {_x,_y,_time} = this
+      return MazeGame.Point.init(_x, _y, 1, 0, 0, _time)
     }
     get long() {
       const {x,y,abs_x,abs_y} = this
@@ -685,8 +687,8 @@ module.exports = (project_name, Lib) => class MazeGame {
       state, // MazeGame.State
     ) {
       if (state._id != null) return state._id
-      state._id = state.constructor.name + this.tally
       if (state._parent) this._id_state(state._parent)
+      state._id = state.constructor.name + this.tally
       this.state.set(state, state._id)
       return state._id
     }
@@ -810,7 +812,9 @@ module.exports = (project_name, Lib) => class MazeGame {
         const _offset = center.sub(root)
         const {scale,stroke_color} = MazeGame.Target
         this.act_at(mouse.sub(_offset).div(_scale/scale))
-        state._child.draw(ctx,_offset,_scale/scale)
+        const _level = state._child
+        // const _level = state._child.extend.state.at(state.time)._child
+        _level.draw(ctx,_offset,_scale/scale)
       }
     }
 
@@ -972,6 +976,18 @@ module.exports = (project_name, Lib) => class MazeGame {
       return _level
     }
 
+    _valid_path(
+      root,spot, // MazeGame.Point
+    ) {
+      const lines = this.__lines
+      for (let i = 0, l = lines.length; i < l; i += 2) {
+        if (MazeGame.Point.intersect(
+            root,spot,lines[i],lines[i+1],root.time
+        ) < spot.time) return false
+      }
+      return true
+    }
+
     get extend() {
       const {state,_doors,_walls,_jacks} = this
       let min_time = Infinity
@@ -981,10 +997,17 @@ module.exports = (project_name, Lib) => class MazeGame {
         if (extend < min_time) min_time = extend
       }
 
+      const lines = []
+      for (const id in _walls) lines.push(..._walls[id].lines)
       this.__lines = []
-      for (const id in _walls) this.__lines.push(..._walls[id].lines)
+      for (const i in lines) {
+        for (let j = 0, l = lines[i].length-1; j < l; ++j) {
+          this.__lines.push(lines[i][j], lines[i][j+1])
+        }
+      }
 
       this.__open_portals = this.open_portals
+      MazeGame.sanity = 5
       for (const id in _jacks) {
         const {extend} = _jacks[id]
         if (extend < min_time) min_time = extend
@@ -1000,6 +1023,7 @@ module.exports = (project_name, Lib) => class MazeGame {
     ) {
       ctx.lineJoin = 'round'
       ctx.lineCap = 'round'
+
       const {_locks,_walls,_keys} = this
       for (const id in _locks) _locks[id].draw(ctx,offset,scale)
       for (const id in _keys) _keys[id].draw(ctx,offset,scale)
@@ -1028,9 +1052,9 @@ module.exports = (project_name, Lib) => class MazeGame {
     static get stroke_color() { return 'white' }
     static get thin_stroke_color() { return '#505050' }
     static get line_width() { return 0.5 }
-    static get scale() { return 40 }
+    static get scale() { return 20 }
     static get thin_line_width() { return this.line_width / 3 }
-    static get speed() { return 2e-2 } // dist / time = speed
+    static get speed() { return 1e-2 } // dist / time = speed
 
     is_parent(
       target, // Target
@@ -1077,7 +1101,7 @@ module.exports = (project_name, Lib) => class MazeGame {
 
       if (closest_key && closest_key.is_jack) {
         const jack = closest_key
-        editor.set_target(jack)
+        editor.set_target(jack == editor.target ? null : jack)
         jack.set_long(spot.sub(jack.root))
         return true
       }
@@ -1091,7 +1115,6 @@ module.exports = (project_name, Lib) => class MazeGame {
       )
 
       const sub = spot.sub(jack.root)
-      jack.set_long(sub)
 
       if (jack.nose.key && sub.length < jack.nose_length) {
         jack.nose.set_key(null)
@@ -1912,6 +1935,8 @@ module.exports = (project_name, Lib) => class MazeGame {
     )}
     static get lock_names() { return ['_lock_root','_lock_cent','_lock_spot',] }
 
+    get center() { return this.root.sum(this.spot).div(2) }
+
     reroot_lock(
       name, // String
     ) {
@@ -2254,10 +2279,12 @@ module.exports = (project_name, Lib) => class MazeGame {
     set_long(
       long, // MazeGame.Point
     ) {
-      const {_id,state,constructor:{radius}} = this
-      const _long = state.set(long.unit.strip(radius), _id, '_long')
+      const {_id,state,_long,constructor:{radius}} = this
+      long = long.unit
+      if (!long.scale || (_long && _long.equals(long))) return _long
+      long = state.set(long.strip(radius), _id, '_long')
       this.reroot_lock()
-      return _long
+      return long
     }
     set_root(
       root, // MazeGame.Point
@@ -2268,6 +2295,7 @@ module.exports = (project_name, Lib) => class MazeGame {
       return _root
     }
 
+    get spot() { return this._spot }
     set_spot(
       spot, // MazeGame.Point
     ) {
@@ -2330,46 +2358,54 @@ module.exports = (project_name, Lib) => class MazeGame {
       return _jack
     }
     get extend() {
+      if (MazeGame.sanity-- < 0) return Infinity // TODO SANITY
+
       const {_id,state,_root,_long,_spot,_nose} = this
       if (!_spot || !_nose) return Infinity
-      const {speed,search_radius} = this.constructor
-      const {__lines,__open_portals,locks,keys} = state._child
+      const {speed,search_radius,radius} = this.constructor
+      const level = state._child, {__open_portals,locks,keys} = level
 
       const closest_lock = MazeGame.Lock.get_closest(locks, _spot)
       const closest_key = (closest_lock && closest_lock.key) || (
         MazeGame.Key.get_closest(keys, _spot)
       )
 
+      const {log} = console
+
+      let root = _root.flatten, sub = _spot.sub(root), dist = sub.length
+      let time = state.time + dist / speed
+
+      const valid_path = level._valid_path(root, _spot.at(time))
+      this.set_long(sub)
+
       // TODO check door overlap
-      if (closest_key && _nose.key) {
+      if ((closest_key && _nose.key) || !valid_path) {
         state.set(null, _id, '_spot')
-        this.set_root(_root.flatten)
+        this.set_root(root)
         return Infinity
       }
 
-      let root = _root.flatten, offset = MazeGame.Point.zero
+      log(dist)
+      
+      if (closest_key || _nose.key) {
 
-      const _sub = _spot.sub(root), _dist = _sub.length
-      if (_dist < search_radius) {
-        if (closest_lock && !closest_lock.is_parent(_nose)) {
-          if (_nose.key) closest_lock.set_key(_nose.key)
-          else {
-            this.set_lock(closest_lock)
-            return Infinity
-          }
-        }
-        else if (closest_key != this) closest_key.set_lock(_nose)
 
-        this.set_root(_spot.sub(offset))
+        // sub = sub.div(dist).mul(dist - _nose.long.scale - radius)
+        // log(dist, sub.length, dist - sub.length)
+        // dist = sub.length
+        // time = state.time + dist / speed
+
+        // const lerp = _spot.at(time).lerp(_root)
+      }
+
+      if (dist < search_radius) {
+        this.set_root(_spot)
         state.set(null, _id, '_spot')
-
         return Infinity
       }
 
-      const _time = state.time + _dist / speed
-      this.set_root(_spot.at(_time).lerp(_root))
-      this.set_long(_sub)
-      return _time
+      this.set_root(_spot.at(time).lerp(_root))
+      return time
     }
 
     remove() {
@@ -2389,21 +2425,33 @@ module.exports = (project_name, Lib) => class MazeGame {
       scale, // Number
     ) {
       const {
-        stroke_color,fill_color,line_width,
+        stroke_color,line_width,thin_stroke_color,thin_line_width,
         leg_radius,
       } = this.constructor
-      const {root,long} = this, {pi2} = Lib
+      const {root,long,spot,mid} = this, {pi2} = Lib
       const _root = root.mul(scale).sum(offset)
       const _long = long.mul(scale)
       const _radius = leg_radius * scale
       const _i_long = _long.strip(_radius).invert
       const _h_long = _long.strip(_radius / 2)
 
-      ctx.strokeStyle = stroke_color
-      ctx.fillStyle = fill_color
-      ctx.lineWidth = line_width * scale
       ctx.lineJoin = 'round'
       ctx.lineCap = 'round'
+
+      if (spot || mid) {
+        const _spot = (spot || mid).mul(scale).sum(offset)
+        ctx.strokeStyle = thin_stroke_color
+        ctx.lineWidth = thin_line_width * scale
+
+        ctx.beginPath()
+        _root.lineTo = ctx
+        _spot.lineTo = ctx
+        ctx.closePath()
+        ctx.stroke()
+      }
+
+      ctx.strokeStyle = stroke_color
+      ctx.lineWidth = line_width * scale
 
       ctx.beginPath()
       _root.sum(_i_long).sum(_h_long).lineTo = ctx
