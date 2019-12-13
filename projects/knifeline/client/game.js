@@ -1,7 +1,8 @@
 
 module.exports = () => {
 
-  const Knifeline = {}
+  const Knifeline = class Knifeline {}
+
   const project_name = 'Knifeline:'
   const log = (...msg) => console.log(project_name, ...msg)
 

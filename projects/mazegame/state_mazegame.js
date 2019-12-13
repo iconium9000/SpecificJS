@@ -2386,7 +2386,7 @@ module.exports = (project_name, Lib) => class MazeGame {
       }
 
       log(dist)
-      
+
       if (closest_key || _nose.key) {
 
 

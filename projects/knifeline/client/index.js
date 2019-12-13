@@ -1,3 +1,12 @@
+const module = {
+	set exports(
+		get_constructor, // (Function{Function.name}) => Function
+	) {
+		const constructor = get_constructor(KnifeLine)
+		KnifeLine[constructor.name] = constructor
+	}
+}
+
 function KnifeLine() {
   // -----------------------------------------------------------------------------
   // client setup
@@ -9,8 +18,9 @@ function KnifeLine() {
   const log = (...msg) => console.log(project_name, ...msg)
   const err = console.error
   const pi2 = Math.PI * 2
-
-  const Knifeline = module.exports()
+  
+  const Lib = KnifeLine.Lib
+  const Knifeline = KnifeLine.Knifeline
 
   if (window.Touch) {
     $("#cutCopyPaste").remove()
@@ -75,7 +85,7 @@ function KnifeLine() {
   client.socket.on('connect', () => {
     client.name = null
     if (typeof document.cookie == 'string') {
-      client.name = get_cookie('name')
+      client.name = Lib.get_cookie('name')
     }
     log('name', client.name)
 

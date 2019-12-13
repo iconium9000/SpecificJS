@@ -45,7 +45,7 @@ const http = require('http')
 const serv = http.Server(app)
 const socket_io = require('socket.io')(serv, {})
 
-const Lib = require(`./projects/menu/client/lib.js`)
+const Lib = require(`./projects/menu/client/Lib.js`)
 
 for ( const project_idx in projects ) {
   const project = projects[project_idx]

@@ -3,9 +3,6 @@ module.exports = (project, projects, Lib) => {
   const log = (...msg) => console.log(project_name, ...msg)
   const pi2 = Math.PI * 2
 
-  const MazeGame = require('./client/game.js')(project_name, Lib)
-
-  // let game = MazeGame.get_game()
   const clients = {}
 
   project.socket.on('connection', (socket) => {
