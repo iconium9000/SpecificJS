@@ -130,10 +130,9 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
   ) {
     const _serialize = super.serialize(src)
 
-    const {_root,_long,_parent,_key,constructor} = this
+    const {_length,_parent,_key,constructor} = this
 
-    _serialize.root = _root.serialize()
-    _serialize.long = _long.serialize()
+    _serialize.length = _length
     _serialize.parent = constructor.serialize(_parent, src)
     if (_key) _serialize.key = constructor.serialize(_key, src)
 
@@ -146,10 +145,8 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
   ) {
     super.read(serialize, id, src)
 
-    const {root,long,parent,key} = serialize[id], {constructor} = this
-    this._root = constructor.read(root)
-    this._long = constructor.read(long)
-    this._length = _long.s
+    const {length,parent,key} = serialize[id], {constructor} = this
+    this._length = length
     this.parent = constructor.read(serialize, src, parent)
     if (key) this.key = constructor.read(serialize, src, key)
 

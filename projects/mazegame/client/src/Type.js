@@ -66,24 +66,29 @@ module.exports = MazeGame => class Type {
     return _serialize
   }
   static read(
-    serialize, // Object,Null
+    serialize, // Object
     src, // Type,Null
     id, // String,Null
   ) {
-    if (!serialize || !MazeGame[serialize._constructor]) return serialize
     if (src && src[id]) return src[id]
-    return (new MazeGame[serialize._constructor]).read(serialize, src, id)
+    const _serialize = src ? serialize[id] : serialize
+    if (!_serialize || !MazeGame[_serialize._constructor]) return _serialize
+    return (new MazeGame[_serialize._constructor]).read(serialize, src, id)
   }
   read(
     serialize, // Object
     src, // Type,Null
     id, // String,Null
   ) {
-    const {name} = serialize
-    if (name) this._name = name
-    if (id) this._id = id
-    this.src = src
+    if (src) {
+      serialize = serialize[id]
 
+      const {name} = serialize
+      if (name) this._name = name
+
+      this._id = id
+      this.src = src
+    }
     const {constructor} = this
     for (const id in serialize) constructor.read(serialize, this, id)
 
