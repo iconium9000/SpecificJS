@@ -51,7 +51,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     const {id,nose} = this, {jacks} = src
     if (jacks[id]) return jacks[id]
     const _jack = super.copy(src)
-    
+    if (nose) _jack.nose = nose.copy(src)
     return _jack
   }
 
@@ -66,7 +66,8 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
   }
 
   remove() {
-    const {id,src} = this
+    const {id,src,nose} = this
+    if (nose) nose.remove()
     super.remove()
     delete src.jacks[id]
   }

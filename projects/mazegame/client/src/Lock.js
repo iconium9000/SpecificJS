@@ -29,7 +29,7 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
   ) {
     const {_parent,name} = this
     if (_parent == parent) return
-    if (_parent) {this._parent = null; _parent[name] = null}
+    if (_parent) { this._parent = null; _parent.set_lock(null, name) }
     if (parent) { this._parent = parent; parent.set_lock(this, name) }
   }
   is_parent(
@@ -114,8 +114,11 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
     const {id,_name,_parent,_length,_key} = this, {locks} = src
     if (locks[id]) return locks[id]
     const _lock = super.copy(src)
-    _lock.parent = _parent && _parent.copy(src)
-    if (_key) _lock.key = _key.copy(src)
+    _lock._length = _length
+    if (_parent) {
+      _lock.parent = _parent.copy(src)
+      if (_key) _lock.key = _key.copy(src)
+    }
     return _lock
   }
 
@@ -124,7 +127,8 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
     name, // String
   ) {
     if (parent[name]) return parent[name]
-    const _lock = super.init(parent.src, null, parent.name + name)
+    const _lock = super.init(parent.src, parent.name + name)
+    _lock._length = this.long_min
     parent.set_lock(_lock, name)
     return _lock
   }

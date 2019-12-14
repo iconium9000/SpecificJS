@@ -17,8 +17,8 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
   ) {
     let min_dist = Infinity, return_wall = null
     for (const label in walls) {
-      const wall = walls[label], {short_sign} = wall.constructor
-      const {root,long,short} = wall, _sub = spot.sub(root)
+      const wall = walls[label], {root,long,short,constructor} = wall
+      const {short_sign} = constructor, _sub = spot.sub(root)
 
       wall.__long_dot = long.strip(1).dot(_sub) / long.scale
       let _short_dot = short.strip(1).dot(_sub)
@@ -53,28 +53,25 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
 
     this._long = long.long.cramp(long_min,long_max,long_round)
     this._short = long.short.cramp(short_min,short_max,short_round)
+
     this._spot = _root.sum(this._long)
     if (short_sign) this._spot = this._spot.sum(this._short)
   }
 
   get root() { return this._root }
-  set_root(
-    root, // MazeGame.Point
+  set root(
+    root, // Point
   ) {
-    const {_root, _long, _short, constructor} = this
-    const {
-      short_sign,root_round,long_min,short_min
-    } = constructor
+    const {_root,_long,_short,constructor} = this
+    const {short_sign,root_round} = constructor
 
     root = root.round(root_round)
     if (_root && root.equals(_root)) return _root
-    this._root = root
 
-    if (_long) {
-      this._spot = root.sum(_long)
-      if (short_sign) this._spot = spot.sum(_short)
-    }
-    else this.long = Point.init(long_min,short_min,1)
+    this._root = root
+    this._spot = root.sum(_long)
+    if (short_sign) this._spot = this._spot.sum(_short)
+
     return root
   }
 
@@ -86,6 +83,18 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
     const {id} = this
     super.src = src
     level.walls[id] = this
+  }
+
+  static init(
+    src, // Level
+    root, // Point
+  ) {
+    const {long_min,short_min} = this
+    const _wall = super.init(src)
+    _wall._long = Point.init(1,0,long_min)
+    _wall._short = Point.init(0,1,short_min)
+    _wall.root = root
+    return _wall
   }
 
   remove() {

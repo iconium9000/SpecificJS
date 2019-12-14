@@ -12,6 +12,16 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     return ['root_short','root_long','spot_long','spot_short',]
   }
 
+  get length() { return this._length }
+  set length(
+    length, // Number
+  ) {
+    const {_length,constructor}
+    length = length < 0 ? 0 : length > 1 ? 1 : length
+    if (_length == length) return
+    this._length = length
+  }
+
   set_lock(
     lock, // Lock,Null
     name, // String
@@ -60,6 +70,15 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     const {id} = this
     super.src = level
     level.doors[id] = this
+  }
+
+  static init(
+    src, // Level
+    root, // Point
+  ) {
+    const _door = super.init(src,root)
+    _door.length = 0
+    return _door
   }
 
   remove() {

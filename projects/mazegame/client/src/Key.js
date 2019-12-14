@@ -57,8 +57,9 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
     lock, // Lock,Null
     root, // Null,Point
   ) {
-    const _key = super.init(src, lock ? lock.spot : root)
-    _key.lock = lock
+    const _key = super.init(src)
+    if (lock) _key.lock = lock
+    else _key.root = root
     return _key
   }
 

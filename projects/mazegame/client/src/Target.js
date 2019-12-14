@@ -63,11 +63,10 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
 
   static init(
     src, // Level
-    root, // Point
     id, // String,Null
   ) {
     const _target = super.init(src,id)
-    if (root) this.root = root
+    
     return _target
   }
 
