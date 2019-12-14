@@ -13,14 +13,41 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
     this._root_level = root_level
   }
 
-  copy() {
-    const {_editors,_root_level} = this
-    const _game = super.copy()
+  copy(
+    src, // Null
+  ) {
+    const _game = super.copy(src)
 
-    if (_root_level) _game._root_level = _root_level.copy(_game)
-    for (const id in _editors) _editors[id].copy(_level)
+    const {_root_level,constructor} = this
+
+    if (_root_level) _game.root_level = constructor.copy(_root_level, _game)
 
     return _game
+  }
+  serialize(
+    src, // Null
+  ) {
+    const _serialize = super.serialize(src)
+
+    const {_root_level,constructor} = this
+
+    if (_root_level) {
+      _serialize.root = constructor.serialize(_root_level, _serialize)
+    }
+
+    return _serialize
+  }
+  read(
+    serialize, // Object
+    src, // Null
+    id, // Null
+  ) {
+    super.read(serialize, src, id)
+
+    const {root} = serialize, {constructor} = this
+    if (root) this.root_level = constructor.read(serialize, this, root)
+
+    return this
   }
 
   static init() {

@@ -4,6 +4,10 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
   static get leg_radius() { return 2 }
   get is_jack() { return true }
 
+  static get lock_names() {
+    return ['nose',]
+  }
+
   set_lock(
     lock, // Lock,Null
   ) {
@@ -15,10 +19,10 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
   }
 
   reroot_lock() {
-    const {_root,_long,_nose} = this
-    if (_nose) {
-      _nose._long = _long.strip(_nose.length)
-      _nose.root = _root.sum(_long)
+    const {_root,_long,nose} = this
+    if (nose) {
+      nose._long = _long.strip(nose.length)
+      nose.root = _root.sum(_long)
     }
   }
 
@@ -26,33 +30,63 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
   set long(
     long, // Point
   ) {
-    this._long = long.unit
+    this._long = long.unit.strip(this.constructor.radius)
   }
 
   get root() { return this._root }
+  get spot() { return this._root.sum(this._long) }
   set root(
     root, // Point
   ) {
-    const {_root, _long, nose} = this
+    super.root = root
+    if (this._root == root) this.reroot_lock()
   }
 
   get src() { return super.src }
   set src(
-    level, // Level
+    src, // Level
   ) {
     const {id} = this
-    super.src = level
-    level.jacks[id] = this
+    super.src = src
+    src.jacks[id] = this
   }
 
   copy(
     src, // Level
   ) {
-    const {id,nose} = this, {jacks} = src
-    if (jacks[id]) return jacks[id]
     const _jack = super.copy(src)
-    if (nose) _jack.nose = nose.copy(src)
+
+    const {_long,nose,constructor} = this
+
+    _jack._long = _long
+    if (nose) _jack.set_lock(constructor.copy(nose, src), 'nose')
+
     return _jack
+  }
+  serialize(
+    src, // Object
+  ) {
+    const _serialize = super.serialize(src)
+
+    const {_long,nose,constructor} = this
+
+    _serialize.long = _long.serialize()
+    if (nose) _serialize.nose = constructor.serialize(nose, src)
+
+    return _serialize
+  }
+  read(
+    serialize, // Object
+    src, // Level
+    id, // String
+  ) {
+    super.read(serialize, id, src)
+
+    const {long,nose} = serialize[id], {constructor} = this
+    this._long = constructor.read(long)
+    if (nose) this.set_lock(constructor.read(serialize, src, nose))
+
+    return this
   }
 
   static init(

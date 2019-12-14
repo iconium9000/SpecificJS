@@ -59,9 +59,10 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
   set root(
     root, // Point
   ) {
-    const {id,_root,_long,_key} = this
-    if (_root && root.equals(_root)) return _root
-    this._root = root
+    super.root = root
+
+    const {_root,_key} = this
+    if (_root != root) return
     if (_key) _key.root = this.spot
   }
 
@@ -111,15 +112,48 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
   copy(
     src, // Level
   ) {
-    const {id,_name,_parent,_length,_key} = this, {locks} = src
-    if (locks[id]) return locks[id]
     const _lock = super.copy(src)
+
+    const {_parent,_length,_root,_long,_key,constructor} = this
+
     _lock._length = _length
-    if (_parent) {
-      _lock.parent = _parent.copy(src)
-      if (_key) _lock.key = _key.copy(src)
-    }
+    _lock._long = _long
+    _lock._root = _root
+    _lock.parent = constructor.copy(_parent, src)
+
+    if (_key) _lock.key = constructor.copy(_key, src)
+
     return _lock
+  }
+  serialize(
+    src, // Object
+  ) {
+    const _serialize = super.serialize(src)
+
+    const {_root,_long,_parent,_key,constructor} = this
+
+    _serialize.root = _root.serialize()
+    _serialize.long = _long.serialize()
+    _serialize.parent = constructor.serialize(_parent, src)
+    if (_key) _serialize.key = constructor.serialize(_key, src)
+
+    return _serialize
+  }
+  read(
+    serialize, // Object
+    src, // Level
+    id, // String
+  ) {
+    super.read(serialize, id, src)
+
+    const {root,long,parent,key} = serialize[id], {constructor} = this
+    this._root = constructor.read(root)
+    this._long = constructor.read(long)
+    this._length = _long.s
+    this.parent = constructor.read(serialize, src, parent)
+    if (key) this.key = constructor.read(serialize, src, key)
+
+    return this
   }
 
   static init(

@@ -62,17 +62,14 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
   set root(
     root, // Point
   ) {
-    const {_root,_long,_short,constructor} = this
-    const {short_sign,root_round} = constructor
+    const {short_sign,root_round} = this.constructor
+    super.root = root = root.round(this.constructor.root_round)
 
-    root = root.round(root_round)
-    if (_root && root.equals(_root)) return _root
+    const {_root,_long,_short} = this
+    if (_root != root) return
 
-    this._root = root
     this._spot = root.sum(_long)
     if (short_sign) this._spot = this._spot.sum(_short)
-
-    return root
   }
 
 
@@ -83,6 +80,45 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
     const {id} = this
     super.src = src
     level.walls[id] = this
+  }
+
+  copy(
+    src, // Level
+  ) {
+    const _wall = super.copy(src)
+
+    const {_root,_long,_short,_spot,constructor} = this
+
+    _wall._root = _root
+    _wall._long = _long
+    _wall._short = _short
+    _wall._spot = _spot
+
+    return _wall
+  }
+  serialize(
+    src, // Object
+  ) {
+    const _serialize = super.serialize(src)
+
+    const {_root,_long,_short,constructor} = this
+    _serialize.root = constructor.serialize(_root)
+    _serialize.long = constructor.serialize(_long.sum(_short))
+
+    return _serialize
+  }
+  read(
+    serialize, // Object
+    src, // Level
+    id, // String
+  ) {
+    super.read(serialize, id, src)
+
+    const {root,long} = serialize[id], {constructor} = this
+    this._root = constructor.read(root)
+    this.long = constructor.read(long)
+
+    return this
   }
 
   static init(

@@ -1,7 +1,7 @@
 module.exports = MazeGame => class Type {
-
   _tally = 0
   get tally() { return ++this._tally }
+
   get id() { return this._id }
   get name() { return this._name }
 
@@ -9,20 +9,85 @@ module.exports = MazeGame => class Type {
   set src(
     src, // Type,Null
   ) {
-    const {_src} = this
+    const {_id,_src} = this
     if (_src || !src) return
+    src[_id] = this
     this._src = src
+  }
+
+  static copy(
+    type, // Type
+    src, // Type,Null
+  ) {
+    return src && src[type.id] ? src[type.id] : type.copy(src)
   }
 
   copy(
     src, // Type,Null
   ) {
-    const {_id,_name,_tally,constructor} = this, _type = new constructor
-    _type._tally = _tally
-    _type._id = _id
+    const {_id,_name,constructor} = this
+    const _type = new constructor
+
+    if (_id) _type._id = _id
     if (_name) _type._name = _name
     _type.src = src
+
+    for (const id in this) {
+      if (this[id] && this[id].id == id) {
+        constructor.copy(this[id], src)
+      }
+    }
+
     return _type
+  }
+  static serialize(
+    type, // Type
+    src, // Object,Null
+  ) {
+    if (!src || !src[type.id]) type.serialize(src)
+    return type.id
+  }
+  serialize(
+    src, // Object,Null
+  ) {
+    const {_id,_name,constructor} = this
+    const _serialize = {_constructor:constructor.name}
+
+    if (_id) _serialize.id = _id
+    if (_name) _serialize.name = _name
+    if (src) src[_id] = _serialize
+
+    for (const id in this) {
+      if (this[id] && this[id].id == id) {
+        constructor.serialize(this[id], _serialize)
+      }
+    }
+
+    return _serialize
+  }
+  static read(
+    serialize, // Object,Null
+    src, // Type,Null
+    id, // String,Null
+  ) {
+    if (!serialize || !MazeGame[serialize._constructor]) return serialize
+    if (src && src[id]) return src[id]
+    return (new MazeGame[serialize._constructor]).read(serialize, src, id)
+  }
+  read(
+    serialize, // Object
+    src, // Type,Null
+    id, // String,Null
+  ) {
+    const {name} = serialize
+    if (name) this._name = name
+    if (id) this._id = id
+    this.src = src
+
+    const {constructor} = this
+    for (const id in serialize) constructor.read(serialize, this, id)
+
+    return this
   }
 
   static init(
@@ -30,9 +95,7 @@ module.exports = MazeGame => class Type {
     id, // String,Null
   ) {
     const _type = new this
-    if (id) _type._id = id
-    else if (src) _type._id = this.name + src.tally
-    else _type._id = this.name
+    if (src) _type._id = (id || this.name) + src.tally
     _type.src = src
     return _type
   }

@@ -47,11 +47,11 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
 
   get src() { return super.src }
   set src(
-    level, // Level
+    src, // Level
   ) {
     const {id} = this
-    super.src = level
-    level.portals[id] = this
+    super.src = src
+    src.portals[id] = this
   }
 
   remove() {

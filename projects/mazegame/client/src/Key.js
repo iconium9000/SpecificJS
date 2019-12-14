@@ -33,23 +33,49 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
 
   get src() { return super.src }
   set src(
-    level, // Level
+    src, // Level
   ) {
     const {id} = this
-    super.src = level
-    level.keys[id] = this
+    super.src = src
+    src.keys[id] = this
   }
 
   copy(
     src, // Level
   ) {
-    const {id, _lock, _root, _long} = this, {keys} = src
-    if (keys[id]) return keys[id]
     const _key = super.copy(src)
-    if (_long) this._long = _long
-    if (_lock) _key.lock = _lock.copy(src)
-    else _key.root = _root
+
+    const {_root,_lock,constructor} = this
+
+    if (_lock) _key.lock = constructor.copy(_lock, src)
+    else _key._root = _root
+
     return _key
+  }
+  serialize(
+    src, // Object
+  ) {
+    const _serialize = super.serialize(src)
+
+    const {_root,_lock,constructor} = this
+
+    if (_lock) _serialize.lock = constructor.serialize(_lock, src)
+    else _serialize.root = _root.serialize()
+
+    return _serialize
+  }
+  read(
+    serialize, // Object
+    src, // Level
+    id, // String
+  ) {
+    super.read(serialize, id, src)
+
+    const {root,lock} = serialize[id], {constructor} = this
+    if (lock) this.lock = constructor.read(serialize, src, lock)
+    else this._root = constructor.read(root)
+
+    return this
   }
 
   static init(

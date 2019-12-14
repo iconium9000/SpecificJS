@@ -48,20 +48,47 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   }
 
   copy(
-    game, // Game,Null
+    src, // Game,Null
   ) {
-    const {id,_targets,_editors,_prev_level,_next_level} = this
-    if (game && game.levels[id]) return game.levels[id]
+    const _level = super.copy(src)
 
-    const _level = super.copy(game)
-    if (game && _prev_level) _level.prev_level = _prev_level.copy(game)
-    if (game && _next_level) _level.next_level = _next_level.copy(game)
-
-    for (const id in _targets) _targets[id].copy(_level)
-    for (const id in _editors) _editors[id].copy(_level)
+    const {_prev_level,_next_level,constructor} = this
+    if (src) {
+      if (_prev_level) _level.prev_level = constructor.copy(_prev_level, src)
+      if (_next_level) _level.next_level = constructor.copy(_next_level, src)
+    }
 
     return _level
   }
+  serialize(
+    src, // Object,Null
+  ) {
+    const _serialize = super.serialize(src)
+
+    const {_prev_level,_next_level,constructor} = this
+    if (src) {
+      if (_prev_level) _serialize.prev = constructor.serialize(_prev_level, src)
+      if (_next_level) _serialize.next = constructor.serialize(_next_level, src)
+    }
+
+    return _serialize
+  }
+  read(
+    serialize, // Object
+    src, // Game,Null
+    id, // String,Null
+  ) {
+    super.read(serialize, src, id)
+
+    if (src) {
+      const {prev,next} = serialize[id], constructor = this
+      this.prev_level = constructor.read(serialize, src, prev)
+      this.next_level = constructor.read(serialize, src, next)
+    }
+
+    return this
+  }
+
 
   static init(
     src, // Game,Null

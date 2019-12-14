@@ -28,6 +28,8 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
   set root(
     root, // Point
   ) {
+    const {_root} = this
+    if (_root && _root.equals(root)) return
     this._root = root
   }
 
@@ -43,22 +45,47 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
 
   get src() { return super.src }
   set src(
-    level, // Level
+    src, // Level
   ) {
     const {id} = this
-    super.src = level
-    level.targets[id] = this
+    super.src = src
+    src.targets[id] = this
   }
 
   copy(
     src, // Level
   ) {
-    const {id,constructor,_editor,_root} = this, {targets} = this
-    if (targets[id]) return targets[id]
     const _target = super.copy(src)
-    _target._root = _root
-    if (_editor) _target.editor = _editor.copy(src)
+
+    const {_editor,_is_open,constructor} = this
+    if (_is_open) _target._is_open = _is_open
+    if (_editor) _target.editor = constructor.copy(_editor, src)
+
     return _target
+  }
+  serialize(
+    src, // Object
+  ) {
+    const _serialize = super.serialize(src)
+
+    const {_editor,_is_open,constructor} = this
+    if (_is_open) _serialize.is_open = _is_open
+    if (_editor) _serialize.editor = _editor.serialize(src)
+
+    return _serialize
+  }
+  read(
+    serialize, // Object
+    src, // Level
+    id, // String
+  ) {
+    super.read(serialize, id, src)
+
+    const {editor,is_open} = serialize[id], {constructor} = this
+    if (is_open) this._is_open = is_open
+    if (editor) this.editor = constructor.read(serialize, src, editor)
+
+    return this
   }
 
   static init(
@@ -66,7 +93,6 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
     id, // String,Null
   ) {
     const _target = super.init(src,id)
-    
     return _target
   }
 
@@ -75,4 +101,9 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
     super.remove()
     delete src.targets[id]
   }
+
+  draw(
+    ctx, // CanvasRenderingContext2D
+    center,root,mouse, // MazeGame.Point (in drawspace)
+  ) {}
 }

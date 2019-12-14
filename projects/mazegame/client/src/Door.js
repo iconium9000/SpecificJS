@@ -16,7 +16,7 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
   set length(
     length, // Number
   ) {
-    const {_length,constructor}
+    const {_length} = this
     length = length < 0 ? 0 : length > 1 ? 1 : length
     if (_length == length) return
     this._length = length
@@ -26,7 +26,7 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     lock, // Lock,Null
     name, // String
   ) {
-    const {name} = lock, {[name]:_lock} = this
+    const {[name]:_lock} = this
     if (_lock == lock) return
     if (_lock) _lock.remove()
     if (lock) { this[name] = lock; lock.parent = this; this.reroot_lock(name) }
@@ -65,11 +65,57 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
 
   get src() { return super.src }
   set src(
-    level, // Level
+    src, // Level
   ) {
     const {id} = this
-    super.src = level
-    level.doors[id] = this
+    super.src = src
+    src.doors[id] = this
+  }
+
+  copy(
+    src, // Level
+  ) {
+    const _wall = super.copy(src)
+
+    const {_length,constructor} = this
+    _wall._length = _length
+
+    return _wall
+  }
+  serialize(
+    src, // Object
+  ) {
+    const _serialize = super.serialize(src)
+
+    const {_length,constructor} = this
+    _serialize.length = _length
+
+    const {lock_names} = constructor
+    for (const i in lock_names) {
+      const lock_name = lock_names[i]
+      if (this[lock_name]) {
+        _serialize[lock_name] = constructor.serialize(this[lock_name])
+      }
+    }
+
+    return _serialize
+  }
+  read(
+    serialize, // Object
+    src, // Level
+    id, // String
+  ) {
+    super.read(serialize, id, src)
+
+    const {length} = serialize[id], {constructor} = this
+    this._length = length
+
+    const {lock_names} = constructor
+    for (const i in lock_names) {
+      constructor.read(serialize, src, serialize[id][lock_names[i]])
+    }
+
+    return this
   }
 
   static init(

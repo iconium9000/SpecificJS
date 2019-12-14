@@ -156,4 +156,15 @@ module.exports = constructors => class Point {
     _point._x = sx * s; _point._y = sy * s
     return _point
   }
+  serialize() {
+    const {_sx,_sy,_s,constructor:{name}} = this
+    return {sx:_sx,sy:_sy,s:_s,_constructor:name}
+  }
+  read(
+    {sx,sy,s}, // Number
+  ) {
+    this._sx = sx; this._sy = sy; this._s = s
+    this._x = sx*s; this._y = sy*s
+    return this
+  }
 }

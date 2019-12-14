@@ -31,14 +31,39 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
   }
 
   copy(
-    src, // Level
+    src, // Game,Level
   ) {
-    const {id,_target} = this, {editors} = src
-    if (editors[id]) return editors[id]
-
     const _editor = super.copy(src)
-    if (_target) _editor.target = _target.copy(src)
+
+    const {_target,_level,constructor} = this
+    if (_target) _editor.target = constructor.copy(_target, src)
+    if (_level) _editor.level = constructor.copy(_level, src)
+
     return _editor
+  }
+  serialize(
+    src, // Object
+  ) {
+    const _serialize = super.serialize(src)
+
+    const {_target,_level,constructor} = this
+    if (_target) _serialize.target = constructor.serialize(_target, src)
+    if (_level) _serialize.level = constructor.serialize(_level, src)
+
+    const _serialize
+  }
+  read(
+    serialize, // Object
+    src, // Game,Level
+    id, // String
+  ) {
+    super.read(serialize, src, id)
+
+    const {target,level} = serialize[id], {constructor} = this
+    if (target) this.target = constructor.read(serialize, src, target)
+    if (level) this.level = constructor.read(serialize, src, level)
+
+    return this
   }
 
   static init(
@@ -56,5 +81,12 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
     super.remove()
     this.target = null
     delete src.editors[id]
+  }
+
+  draw(
+    ctx, // CanvasRenderingContext2D
+    center,root,mouse, // MazeGame.Point (in drawspace)
+  ) {
+
   }
 }
