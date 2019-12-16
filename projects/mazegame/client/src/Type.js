@@ -1,4 +1,13 @@
 module.exports = MazeGame => class Type {
+
+  static tally_id() { return true }
+  static get min_dt() { return 0.01 }
+
+  static act_at(
+    editor, // Editor
+    spot, // Point
+  ) {}
+
   _tally = 0
   get tally() { return ++this._tally }
 
@@ -25,16 +34,17 @@ module.exports = MazeGame => class Type {
   copy(
     src, // Type,Null
   ) {
-    const {_id,_name,constructor} = this
+    const {_id,_name,_tally,constructor} = this
     const _type = new constructor
 
+    if (_tally) _type._tally = _tally
     if (_id) _type._id = _id
     if (_name) _type._name = _name
     _type.src = src
 
     for (const id in this) {
       if (this[id] && this[id].id == id) {
-        constructor.copy(this[id], src)
+        constructor.copy(this[id], _type)
       }
     }
 
@@ -50,11 +60,11 @@ module.exports = MazeGame => class Type {
   serialize(
     src, // Object,Null
   ) {
-    const {_id,_name,constructor} = this
+    const {_id,_name,_tally,constructor} = this
     const _serialize = {_constructor:constructor.name}
 
-    if (_id) _serialize.id = _id
-    if (_name) _serialize.name = _name
+    if (_tally) _serialize._tally = _tally
+    if (_name) _serialize._name = _name
     if (src) src[_id] = _serialize
 
     for (const id in this) {
@@ -82,16 +92,13 @@ module.exports = MazeGame => class Type {
   ) {
     if (src) {
       serialize = serialize[id]
-
-      const {name} = serialize
-      if (name) this._name = name
-
       this._id = id
       this.src = src
     }
-    const {constructor} = this
+    const {_tally,_name} = serialize, {constructor} = this
+    if (_name) this._name = _name
+    if (_tally) this._tally = _tally
     for (const id in serialize) constructor.read(serialize, this, id)
-
     return this
   }
 
@@ -100,10 +107,19 @@ module.exports = MazeGame => class Type {
     id, // String,Null
   ) {
     const _type = new this
-    if (src) _type._id = (id || this.name) + src.tally
+    if (src) _type._id = (id || this.name) + (this.tally_id ? src.tally : '')
     _type.src = src
     return _type
   }
   remove() {}
 
+  move(
+    dt, // Number (milliseconds)
+  ) {}
+
+  draw(
+    ctx, // CanvasRenderingContext2D
+    offset, // MazeGame.Point (in drawspace)
+    scale, // Number
+  ) {}
 }

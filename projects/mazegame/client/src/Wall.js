@@ -11,6 +11,42 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
   static get short_sign() { return false }
   static get is_portal() { return false }
 
+  static act_at(
+    editor, // Editor
+    spot, // Point
+  ) {
+    const level = editor.src
+    const closest_wall = this.get_closest(level.walls, spot)
+
+    if (editor.target) {
+      const wall = editor.target
+      editor.target = null
+      wall.long = spot.sub(wall.root)
+      wall.reroot_locks()
+      return true
+    }
+    else if (closest_wall) {
+      const {_root,_long,_spot,_short,__long_dot} = closest_wall
+
+      if (__long_dot < 0.5) {
+        closest_wall._root = _spot
+        closest_wall._spot = _root
+        closest_wall._long = _long.mul(-1).long
+        closest_wall._short = _short.mul(-1).long
+        closest_wall.reroot_locks()
+      }
+
+      editor.target = closest_wall
+      return true
+    }
+    else {
+      const _wall = this.init(level, spot)
+      editor.target = _wall
+      return true
+    }
+
+  }
+
   static get_closest(
     walls, // Wall{}
     spot, // Point
@@ -44,7 +80,7 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
   set long(
     long, // Point
   ) {
-    const {_root, constructor} = this
+    const {_root,_length,constructor} = this
     const {
       short_min,short_max,short_round,
       long_min,long_max,long_round,
@@ -53,7 +89,7 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
 
     this._long = long.long.cramp(long_min,long_max,long_round)
     this._short = long.short.cramp(short_min,short_max,short_round)
-
+    
     this._spot = _root.sum(this._long)
     if (short_sign) this._spot = this._spot.sum(this._short)
   }
@@ -79,7 +115,7 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
   ) {
     const {id} = this
     super.src = src
-    level.walls[id] = this
+    src.walls[id] = this
   }
 
   copy(
@@ -88,7 +124,6 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
     const _wall = super.copy(src)
 
     const {_root,_long,_short,_spot,constructor} = this
-
     _wall._root = _root
     _wall._long = _long
     _wall._short = _short
@@ -102,8 +137,8 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
     const _serialize = super.serialize(src)
 
     const {_root,_long,_short,constructor} = this
-    _serialize.root = constructor.serialize(_root)
-    _serialize.long = constructor.serialize(_long.sum(_short))
+    _serialize._root = _root.serialize()
+    _serialize._long = _long.sum(_short).serialize()
 
     return _serialize
   }
@@ -112,11 +147,11 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
     src, // Level
     id, // String
   ) {
-    super.read(serialize, id, src)
+    super.read(serialize, src, id)
 
-    const {root,long} = serialize[id], {constructor} = this
-    this._root = constructor.read(root)
-    this.long = constructor.read(long)
+    const {_root,_long} = serialize[id], {constructor} = this
+    this._root = constructor.read(_root)
+    this.long = constructor.read(_long)
 
     return this
   }
@@ -127,8 +162,8 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
   ) {
     const {long_min,short_min} = this
     const _wall = super.init(src)
-    _wall._long = Point.init(1,0,long_min)
-    _wall._short = Point.init(0,1,short_min)
+    _wall._long = MazeGame.Point.init(1,0,long_min)
+    _wall._short = MazeGame.Point.init(0,1,short_min)
     _wall.root = root
     return _wall
   }
@@ -137,5 +172,27 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
     const {id,src} = this
     super.remove()
     delete src.walls[id]
+  }
+
+  draw(
+    ctx, // CanvasRenderingContext2D
+    offset, // MazeGame.Point (in drawspace)
+    scale, // Number
+  ) {
+    const {line_width,stroke_color,} = this.constructor
+    const {root,spot} = this
+    const _root = root.mul(scale).sum(offset)
+    const _spot = spot.mul(scale).sum(offset)
+
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.lineWidth = line_width * scale
+    ctx.strokeStyle = stroke_color
+
+    ctx.beginPath()
+    _root.lineTo = ctx
+    _spot.lineTo = ctx
+    ctx.closePath()
+    ctx.stroke()
   }
 }

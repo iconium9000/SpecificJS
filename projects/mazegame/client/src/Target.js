@@ -5,9 +5,9 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
   static get stroke_color() { return 'white' }
   static get thin_stroke_color() { return '#505050' }
   static get line_width() { return 0.5 }
-  static get scale() { return 20 }
+  static get scale() { return 60 }
   static get thin_line_width() { return this.line_width / 3 }
-  static get speed() { return 1e-2 } // dist / time = speed
+  static get speed() { return 5e1 } // dist / time = speed
 
   is_parent(
     target, // Target
@@ -69,8 +69,8 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
     const _serialize = super.serialize(src)
 
     const {_editor,_is_open,constructor} = this
-    if (_is_open) _serialize.is_open = _is_open
-    if (_editor) _serialize.editor = _editor.serialize(src)
+    if (_is_open) _serialize._is_open = _is_open
+    if (_editor) _serialize._editor = constructor.serialize(_editor, src)
 
     return _serialize
   }
@@ -79,11 +79,11 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
     src, // Level
     id, // String
   ) {
-    super.read(serialize, id, src)
+    super.read(serialize, src, id)
 
-    const {editor,is_open} = serialize[id], {constructor} = this
-    if (is_open) this._is_open = is_open
-    if (editor) this.editor = constructor.read(serialize, src, editor)
+    const {_editor,_is_open} = serialize[id], {constructor} = this
+    if (_is_open) this._is_open = _is_open
+    if (_editor) this.editor = constructor.read(serialize, src, _editor)
 
     return this
   }
@@ -101,9 +101,4 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
     super.remove()
     delete src.targets[id]
   }
-
-  draw(
-    ctx, // CanvasRenderingContext2D
-    center,root,mouse, // MazeGame.Point (in drawspace)
-  ) {}
 }

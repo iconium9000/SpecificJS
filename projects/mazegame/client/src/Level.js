@@ -5,6 +5,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   _walls = {}; _doors = {}; _portals = {}
   _keys = {}; _jacks = {}
 
+  get editors() { return this._editors }
   get targets() { return this._targets }
   get locks() { return this._locks }
   get lasers() { return this._lasers }
@@ -67,8 +68,12 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
 
     const {_prev_level,_next_level,constructor} = this
     if (src) {
-      if (_prev_level) _serialize.prev = constructor.serialize(_prev_level, src)
-      if (_next_level) _serialize.next = constructor.serialize(_next_level, src)
+      if (_prev_level) {
+        _serialize._prev_level = constructor.serialize(_prev_level, src)
+      }
+      if (_next_level) {
+        _serialize._next_level = constructor.serialize(_next_level, src)
+      }
     }
 
     return _serialize
@@ -81,9 +86,9 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     super.read(serialize, src, id)
 
     if (src) {
-      const {prev,next} = serialize[id], constructor = this
-      this.prev_level = constructor.read(serialize, src, prev)
-      this.next_level = constructor.read(serialize, src, next)
+      const {_prev_level,_next_level} = serialize[id], {constructor} = this
+      this.prev_level = constructor.read(serialize, src, _prev_level)
+      this.next_level = constructor.read(serialize, src, _next_level)
     }
 
     return this
@@ -113,5 +118,26 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
       if (_prev_level) _prev_level.next_level = _next_level
       else if (_next_level) _next_level.prev_level = _prev_level
     }
+  }
+
+  move(
+    dt, // Number (milliseconds)
+  ) {
+    const {_jacks,_doors,} = this
+
+    for (const id in _jacks) _jacks[id].move(dt)
+    for (const id in _doors) _doors[id].move(dt)
+  }
+
+  draw(
+    ctx, // CanvasRenderingContext2D
+    offset, // MazeGame.Point (in drawspace)
+    scale, // Number
+  ) {
+    const {_locks,_keys,_walls,} = this
+
+    for (const id in _locks) _locks[id].draw(ctx,offset,scale)
+    for (const id in _keys) _keys[id].draw(ctx,offset,scale)
+    for (const id in _walls) _walls[id].draw(ctx,offset,scale)
   }
 }

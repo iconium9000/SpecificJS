@@ -15,7 +15,7 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
     Math.pow(this.short_max - this.center_short, 2) +
     Math.pow(this.long_max - this.center_long, 2)
   )}
-  static get lock_names() { return ['lock_root','lock_cent','lock_spot',] }
+  static get lock_names() { return ['_lock_root','_lock_cent','_lock_spot',] }
 
   get center() { return this.root.sum(this.spot).div(2) }
 
@@ -27,16 +27,21 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
     const {length} = _lock
     _lock._long = _short.strip(-length)
     switch (name) {
-      case 'lock_root':
+      case '_lock_root':
         return _lock.root = _root.sum(_long.div(4))
-      case 'lock_cent':
+      case '_lock_cent':
         return _lock.root = _root.sum(_long.div(2))
-      case 'lock_spot':
+      case '_lock_spot':
         return _lock.root = _root.sum(_long.mul(3/4))
       default: return
     }
   }
 
+  set is_open(
+    is_open, // Boolean
+  ) {
+    super.is_open = is_open
+  }
   get is_open() {
     const {src:{portals},_is_open} = this
     if (!_is_open) return false

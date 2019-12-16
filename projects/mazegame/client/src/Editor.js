@@ -1,14 +1,32 @@
 module.exports = MazeGame => class Editor extends MazeGame.Type {
 
+  static get tally_id() { return false }
+
+  _mode = MazeGame.Wall
+  get mode() { return this._mode }
+  set mode(
+    mode, // Function
+  ) {
+    const {_mode,_level,_target,id} = this
+    if (!MazeGame[mode.name]) return
+    if (_level) _level[id].mode = mode
+    else if (_mode == mode) return
+    else {
+      this._mode = mode
+      if (_target) this.target = null
+    }
+  }
+
+  get editor() { return this._editor }
   get level() { return this._level }
   set level(
     level, // Level,Null
   ) {
-    const {id,name,_level,constructor} = this
+    const {id,name,_level,_editor,constructor} = this
     if (_level == level) return
     this._level = level
-    if (_level && _level.editors[id]) _level.editors[id].remove()
-    if (level) constructor.init(level, id, name)
+    if (_editor) _editor.remove()
+    this._editor = level && constructor.init(level, id, name)
   }
 
   get target() { return this._target }
@@ -23,11 +41,11 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
 
   get src() { return super.src }
   set src(
-    level, // Level
+    src, // Game,Level
   ) {
     const {id} = this
-    super.src = level
-    level.editors[id] = this
+    super.src = src
+    src.editors[id] = this
   }
 
   copy(
@@ -35,9 +53,10 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
   ) {
     const _editor = super.copy(src)
 
-    const {_target,_level,constructor} = this
+    const {_target,_level,_mode,constructor} = this
     if (_target) _editor.target = constructor.copy(_target, src)
     if (_level) _editor.level = constructor.copy(_level, src)
+    _editor._mode = _mode
 
     return _editor
   }
@@ -46,11 +65,12 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
   ) {
     const _serialize = super.serialize(src)
 
-    const {_target,_level,constructor} = this
-    if (_target) _serialize.target = constructor.serialize(_target, src)
-    if (_level) _serialize.level = constructor.serialize(_level, src)
+    const {_target,_level,_mode,constructor} = this
+    if (_target) _serialize._target = constructor.serialize(_target, src)
+    if (_level) _serialize._level = constructor.serialize(_level, src)
+    _serialize._mode = _mode.name
 
-    const _serialize
+    return _serialize
   }
   read(
     serialize, // Object
@@ -59,9 +79,10 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
   ) {
     super.read(serialize, src, id)
 
-    const {target,level} = serialize[id], {constructor} = this
-    if (target) this.target = constructor.read(serialize, src, target)
-    if (level) this.level = constructor.read(serialize, src, level)
+    const {_target,_level,_mode} = serialize[id], {constructor} = this
+    if (_target) this.target = constructor.read(serialize, src, _target)
+    if (_level) this.level = constructor.read(serialize, src, _level)
+    this.mode = MazeGame[_mode]
 
     return this
   }
@@ -85,8 +106,27 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
 
   draw(
     ctx, // CanvasRenderingContext2D
-    center,root,mouse, // MazeGame.Point (in drawspace)
+    center,root,mouse, // Point (in drawspace)
   ) {
+    const {id,level,target,src,mode} = this
 
+    if (level) {
+      level[id].draw(ctx,center,root,mouse)
+    }
+    else {
+      const {time} = MazeGame.Lib
+      const {id,_time,_mode,constructor:{min_dt}} = this
+      const {scale} = MazeGame.Target
+
+      const _scale = center.short.scale
+      const _offset = center.sub(root)
+      const _level = src.copy()
+      _mode.act_at(_level[id], mouse.sub(_offset).div(_scale/scale))
+      _level.draw(ctx,_offset,_scale/scale)
+
+      const dt = time - _time
+      src.move(0 < dt && dt < min_dt ? dt : min_dt)
+      this._time = time
+    }
   }
 }

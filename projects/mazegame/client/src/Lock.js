@@ -7,6 +7,43 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
   static get radius() { return 0.5 }
   static get search_radius() { return 3 * this.radius }
 
+  static act_at(
+    editor, // Editor
+    spot, // Point (in gamespace)
+  ) {
+    const level = editor.src
+
+    if (editor.target) {
+      const lock = editor.target, {_root,_long} = lock
+      editor.target = null
+      lock.length = spot.sub(_root).dot(_long.strip(1))
+      return true
+    }
+
+    const closest_lock = this.get_closest(level.locks, spot)
+    if (closest_lock) {
+      editor.target = closest_lock
+      return true
+    }
+
+    const closest_door = MazeGame.Door.get_closest(level.doors, spot)
+    if (closest_door) {
+      const {lock_names} = closest_door.constructor
+      const lock_name = lock_names[
+        Math.floor(closest_door.__long_dot * lock_names.length)
+      ]
+      if (!lock_name) return false
+      else if (closest_door[lock_name]) {
+        editor.target = closest_door[lock_name]
+        return true
+      }
+
+      const _lock = this.init(closest_door, lock_name)
+      if (this.long_max > this.long_min) editor.target = _lock
+      return true
+    }
+  }
+
   static get_closest(
     locks, // Lock{}
     spot, // Point
@@ -82,11 +119,9 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
     const {_key} = this
     return _key ? _key.is_open : false
   }
-  set is_open(
-    is_open, // Boolean
-  ) {
-    const {_parent,_is_open} = this
-    _parent.is_open = _is_open
+  set is_open(_) {
+    const {_parent,is_open} = this
+    _parent.is_open = is_open
   }
 
   get key() { return this._key }
@@ -96,7 +131,7 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
     const {_key} = this
     if (_key == key) return
     if (_key) { this._key = null; _key.lock = null }
-    if (key) { this._key = key; _key.lock = this; this.is_open = key.is_open }
+    if (key) { this._key = key; key.lock = this; this.is_open = key.is_open }
     else this.is_open = false
   }
 
@@ -106,7 +141,7 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
   ) {
     const {id} = this
     super.src = src
-    level.locks[id] = this
+    src.locks[id] = this
   }
 
   copy(
@@ -132,9 +167,9 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
 
     const {_length,_parent,_key,constructor} = this
 
-    _serialize.length = _length
-    _serialize.parent = constructor.serialize(_parent, src)
-    if (_key) _serialize.key = constructor.serialize(_key, src)
+    _serialize._length = _length
+    _serialize._parent = constructor.serialize(_parent, src)
+    if (_key) _serialize._key = constructor.serialize(_key, src)
 
     return _serialize
   }
@@ -143,12 +178,12 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
     src, // Level
     id, // String
   ) {
-    super.read(serialize, id, src)
+    super.read(serialize, src, id)
 
-    const {length,parent,key} = serialize[id], {constructor} = this
-    this._length = length
-    this.parent = constructor.read(serialize, src, parent)
-    if (key) this.key = constructor.read(serialize, src, key)
+    const {_length,_parent,_key} = serialize[id], {constructor} = this
+    this._length = _length
+    this.parent = constructor.read(serialize, src, _parent)
+    if (_key) this.key = constructor.read(serialize, src, _key)
 
     return this
   }
@@ -158,7 +193,8 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
     name, // String
   ) {
     if (parent[name]) return parent[name]
-    const _lock = super.init(parent.src, parent.name + name)
+    const _lock = super.init(parent.src, parent.id + name)
+    _lock._name = name
     _lock._length = this.long_min
     parent.set_lock(_lock, name)
     return _lock
@@ -170,5 +206,38 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
     this.parent = null
     super.remove()
     delete src.locks[id]
+  }
+
+  draw(
+    ctx, // CanvasRenderingContext2D
+    offset, // MazeGame.Point (in drawspace)
+    scale, // Number
+  ) {
+    const {root,spot,constructor} = this, {pi2} = MazeGame.Lib
+    const {
+      stroke_color,fill_color,line_width,
+      radius,
+    } = constructor
+    const _root = root.mul(scale).sum(offset)
+    const _spot = spot.mul(scale).sum(offset)
+    const _radius = radius * scale
+
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.strokeStyle = stroke_color
+    ctx.fillStyle = fill_color
+    ctx.lineWidth = line_width * scale
+
+    ctx.beginPath()
+    _root.lineTo = ctx
+    _spot.lineTo = ctx
+    ctx.closePath()
+    ctx.stroke()
+
+    ctx.beginPath()
+    ctx.arc(_spot.x, _spot.y, _radius, 0, pi2)
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
   }
 }

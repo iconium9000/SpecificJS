@@ -5,24 +5,25 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
   get is_jack() { return true }
 
   static get lock_names() {
-    return ['nose',]
+    return ['_nose',]
   }
 
+  get nose() { return this._nose }
   set_lock(
     lock, // Lock,Null
   ) {
-    const {nose} = this
-    if (nose == lock) return
-    if (nose) { this.nose = null; nose.remove() }
-    if (lock) { this.nose = lock; lock.parent = this }
-    else MazeGame.Lock.init(this, 'nose')
+    const {_nose} = this
+    if (_nose == lock) return
+    if (_nose) { this._nose = null; _nose.remove() }
+    if (lock) { this._nose = lock; lock.parent = this }
+    else MazeGame.Lock.init(this, '_nose')
   }
 
   reroot_lock() {
-    const {_root,_long,nose} = this
-    if (nose) {
-      nose._long = _long.strip(nose.length)
-      nose.root = _root.sum(_long)
+    const {_root,_long,_nose} = this
+    if (_nose) {
+      _nose._long = _long.strip(_nose.length)
+      _nose.root = _root.sum(_long)
     }
   }
 
@@ -51,15 +52,26 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     src.jacks[id] = this
   }
 
+  get editor() { return super.editor }
+  set editor(
+    editor, // Editor,Null
+  ) {
+    super.editor = editor
+    super.is_open = !editor
+  }
+
+  get is_open() { return !this.editor }
+  set is_open(_) { super.is_open = !this.editor }
+
   copy(
     src, // Level
   ) {
     const _jack = super.copy(src)
 
-    const {_long,nose,constructor} = this
+    const {_long,_nose,constructor} = this
 
     _jack._long = _long
-    if (nose) _jack.set_lock(constructor.copy(nose, src), 'nose')
+    if (_nose) _jack.set_lock(constructor.copy(_nose, src), '_nose')
 
     return _jack
   }
@@ -68,10 +80,10 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
   ) {
     const _serialize = super.serialize(src)
 
-    const {_long,nose,constructor} = this
+    const {_long,_nose,constructor} = this
 
-    _serialize.long = _long.serialize()
-    if (nose) _serialize.nose = constructor.serialize(nose, src)
+    _serialize._long = _long.serialize()
+    if (_nose) _serialize._nose = constructor.serialize(_nose, src)
 
     return _serialize
   }
@@ -80,11 +92,11 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     src, // Level
     id, // String
   ) {
-    super.read(serialize, id, src)
+    super.read(serialize, src, id)
 
-    const {long,nose} = serialize[id], {constructor} = this
-    this._long = constructor.read(long)
-    if (nose) this.set_lock(constructor.read(serialize, src, nose))
+    const {_long,_nose} = serialize[id], {constructor} = this
+    this._long = constructor.read(_long)
+    if (_nose) this.set_lock(constructor.read(serialize, src, _nose))
 
     return this
   }
@@ -95,13 +107,13 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     point, // Null,Point
   ) {
     const _jack = super.init(src,lock,point)
-    MazeGame.Lock.init(_jack, 'nose')
+    MazeGame.Lock.init(_jack, '_nose')
     return _jack
   }
 
   remove() {
-    const {id,src,nose} = this
-    if (nose) nose.remove()
+    const {id,src,_nose} = this
+    if (_nose) _nose.remove()
     super.remove()
     delete src.jacks[id]
   }

@@ -31,7 +31,7 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
 
     const {_root_level,constructor} = this
     if (_root_level) {
-      _serialize.root = constructor.serialize(_root_level, _serialize)
+      _serialize._root_level = constructor.serialize(_root_level, _serialize)
     }
 
     return _serialize
@@ -43,8 +43,10 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
   ) {
     super.read(serialize, src, id)
 
-    const {root} = serialize, {constructor} = this
-    if (root) this.root_level = constructor.read(serialize, this, root)
+    const {_root_level} = serialize, {constructor} = this
+    if (_root_level) {
+      this.root_level = constructor.read(serialize, this, _root_level)
+    }
 
     return this
   }

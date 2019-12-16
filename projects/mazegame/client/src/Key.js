@@ -5,6 +5,37 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
   static get center_radius() { return MazeGame.Lock.radius }
   static get search_radius() { return this.radius * 2 }
 
+  static act_at(
+    editor, // MazeGame.Editor
+    spot, // MazeGame.Point (in gamespace)
+  ) {
+    const level = editor.src
+    const closest_lock = MazeGame.Lock.get_closest(level.locks, spot)
+
+    const closest_key = (
+      (closest_lock && closest_lock.key) ||
+      this.get_closest(level.keys, spot)
+    )
+    if (closest_key && closest_key != editor.target) {
+      editor.target = closest_key
+      closest_key.lock = null
+      return true
+    }
+    else if (editor.target) {
+      const key = editor.target
+      editor.target = null
+      if (closest_lock && !closest_lock.is_parent(key)){
+         closest_lock.key = key
+      }
+      else key.root = spot
+      return true
+    }
+    else {
+      const _key = this.init(level, closest_lock, spot)
+      return true
+    }
+  }
+
   static get_closest(
     keys, // MazeGame.Key{}
     spot, // MazeGame.Point
@@ -19,6 +50,15 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
       }
     }
     return return_key
+  }
+
+  get is_open () { return super.is_open }
+  set is_open(
+    is_open, // Boolean
+  ) {
+    super.is_open = is_open
+    const {_lock} = this
+    if (_lock) _lock.is_open = is_open
   }
 
   get lock() { return this._lock }
@@ -59,8 +99,8 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
 
     const {_root,_lock,constructor} = this
 
-    if (_lock) _serialize.lock = constructor.serialize(_lock, src)
-    else _serialize.root = _root.serialize()
+    if (_lock) _serialize._lock = constructor.serialize(_lock, src)
+    else _serialize._root = _root.serialize()
 
     return _serialize
   }
@@ -69,11 +109,11 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
     src, // Level
     id, // String
   ) {
-    super.read(serialize, id, src)
+    super.read(serialize, src, id)
 
-    const {root,lock} = serialize[id], {constructor} = this
-    if (lock) this.lock = constructor.read(serialize, src, lock)
-    else this._root = constructor.read(root)
+    const {_root,_lock} = serialize[id], {constructor} = this
+    if (_lock) this.lock = constructor.read(serialize, src, _lock)
+    else this._root = constructor.read(_root)
 
     return this
   }
@@ -84,6 +124,7 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
     root, // Null,Point
   ) {
     const _key = super.init(src)
+    _key._is_open = true
     if (lock) _key.lock = lock
     else _key.root = root
     return _key
@@ -93,5 +134,53 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
     const {id,src} = this
     super.remove()
     delete src.keys[id]
+  }
+
+  draw(
+    ctx, // CanvasRenderingContext2D
+    offset, // MazeGame.Point (in drawspace)
+    scale, // Number
+  ) {
+    const {root,is_open,constructor} = this, {pi2} = MazeGame.Lib
+    const {
+      stroke_color,fill_color,line_width,
+      radius,center_radius,
+    } = constructor
+    const _root = root.mul(scale).sum(offset)
+    const _radius = radius * scale
+    const _center_radius = center_radius * scale
+
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+    ctx.strokeStyle = stroke_color
+    ctx.fillStyle = fill_color
+    ctx.lineWidth = line_width * scale
+
+    ctx.beginPath()
+    ctx.arc(_root.x, _root.y, _radius, 0, pi2)
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
+
+    if (is_open) {
+      ctx.fillStyle = stroke_color
+      ctx.beginPath()
+      ctx.arc(_root.x, _root.y, _center_radius, 0, pi2)
+      ctx.closePath()
+      ctx.fill()
+    }
+    else {
+      ctx.beginPath()
+      ctx.lineTo(_root.x+_center_radius, _root.y+_center_radius)
+      ctx.lineTo(_root.x-_center_radius, _root.y-_center_radius)
+      ctx.closePath()
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.lineTo(_root.x-_center_radius, _root.y+_center_radius)
+      ctx.lineTo(_root.x+_center_radius, _root.y-_center_radius)
+      ctx.closePath()
+      ctx.stroke()
+    }
   }
 }

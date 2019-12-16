@@ -4,7 +4,7 @@ module.exports = constructors => class Point {
   get y() { return this._y }
   get sx() { return this._sx }
   get sy() { return this._sy }
-  get s() { return this._s }
+  get scale() { return this._scale }
   get abs_x () { return Math.abs(this._x) }
   get abs_y () { return Math.abs(this._y) }
 
@@ -39,8 +39,8 @@ module.exports = constructors => class Point {
     )
   }
   get invert() {
-    const {_sx,_sy,_s} = this
-    return Point.init(-_sy, _sx, _s)
+    const {_sx,_sy,_scale} = this
+    return Point.init(-_sy, _sx, _scale)
   }
   get long() {
     const {_x,_y,abs_x,abs_y} = this
@@ -59,16 +59,16 @@ module.exports = constructors => class Point {
     )
   }
   set(
-    s, // Number
+    scale, // Number
   ) {
     const {_x, _y} = this
-    return Point.init(_x,_y,s)
+    return Point.init(_x,_y,scale)
   }
   strip(
-    s, // Number
+    scale, // Number
   ) {
     const {_sx, _sy} = this
-    return Point.init(_sx,_sy,s)
+    return Point.init(_sx,_sy,scale)
   }
   atan2(
     {x,y}, // Point
@@ -81,6 +81,12 @@ module.exports = constructors => class Point {
   ) {
     const {_x,_y} = this
     return x*_x + y*_y
+  }
+  dot(
+    {x,y}, // MazeGame.Point
+  ) {
+    const {_x,_y} = this
+    return _x*x + _y*y
   }
   sum(
     {x,y}, // Point
@@ -97,14 +103,14 @@ module.exports = constructors => class Point {
   mul(
     mul, // Number
   ) {
-    const {_sx,_sy,_s} = this
-    return Point.init(_sx,_sy,_s * mul)
+    const {_sx,_sy,_scale} = this
+    return Point.init(_sx,_sy,_scale * mul)
   }
   div(
     div, // Number
   ) {
-    const {_sx,_sy,_s} = this
-    return Point.init(_sx,_sy,_s / div)
+    const {_sx,_sy,_scale} = this
+    return Point.init(_sx,_sy,_scale / div)
   }
 
   round(
@@ -119,52 +125,55 @@ module.exports = constructors => class Point {
   }
 
   // NOTE: ignores tx,ty,time
-  // NOTE: assumes that sx*sx+sy*sy == 1 && _s > 0
+  // NOTE: assumes that sx*sx+sy*sy == 1 && _scale > 0
   clamp(
     min,ceil, // Number
   ) {
-    const {_sx,_sy,_s} = this
+    const {_sx,_sy,_scale} = this
     return Point.init(
       _sx,_sy,
-      _s < min ? min : Math.ceil(_s / ceil) * ceil
+      _scale < min ? min : Math.ceil(_scale / ceil) * ceil
     )
   }
 
   // NOTE: ignores tx,ty,time
-  // NOTE: assumes that sx*sx+sy*sy == 1 && _s > 0
+  // NOTE: assumes that sx*sx+sy*sy == 1 && _scale > 0
   cramp(
     min,max,round, // Float
   ) {
-    const {_sx,_sy,_s} = this
+    const {_sx,_sy,_scale} = this
     return Point.init(_sx,_sy,
-      _s < min ? min : max < _s ? max :
-      0 < round ? Math.ceil(_s / round) * round : _s
+      _scale < min ? min : max < _scale ? max :
+      0 < round ? Math.ceil(_scale / round) * round : _scale
     )
   }
 
   static get zero() {
     const _point = new this
-    _point.sx = _point._sy = _point._s = _point._x = _point._y = 0
+    _point._sx = _point._sy = _point._scale = _point._x = _point._y = 0
     return _point
   }
 
   static init(
-    sx,sy,s, // Number
+    sx,sy,scale, // Number
   ) {
     const _point = new this
-    _point._sx = sx; _point._sy = sy; _point._s = s
-    _point._x = sx * s; _point._y = sy * s
+    _point._sx = sx; _point._sy = sy; _point._scale = scale
+    _point._x = sx * scale; _point._y = sy * scale
     return _point
   }
   serialize() {
-    const {_sx,_sy,_s,constructor:{name}} = this
-    return {sx:_sx,sy:_sy,s:_s,_constructor:name}
+    const {_sx,_sy,_scale,constructor:{name}} = this
+    return {sx:_sx,sy:_sy,scale:_scale,_constructor:name}
   }
   read(
-    {sx,sy,s}, // Number
+    serialize, // Object
+    src, // Object,Null
+    id, // String,Null
   ) {
-    this._sx = sx; this._sy = sy; this._s = s
-    this._x = sx*s; this._y = sy*s
+    const {sx,sy,scale} = src ? serialize[id] : serialize
+    this._sx = sx; this._sy = sy; this._scale = scale
+    this._x = sx*scale; this._y = sy*scale
     return this
   }
 }
