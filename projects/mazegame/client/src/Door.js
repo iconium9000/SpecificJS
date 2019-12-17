@@ -50,6 +50,26 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     this.is_open = true
   }
 
+  get lines() {
+    const {root,long,short,spot,is_open} = this, {sign} = spot.sub(root)
+    const root_short = root.sum(short), spot_short = spot.sub(short)
+
+    if (is_open) {
+      const long_short = long.strip(short.scale)
+      const root_long = root.sum(long_short), spot_long = spot.sub(long_short)
+      return sign > 0 ? [
+        [root,root_short,root_long,root,], [spot,spot_short,spot_long,spot,],
+      ] : [
+        [root,root_long,root_short,root,], [spot,spot_long,spot_short,spot,],
+      ]
+    }
+    else return sign > 0 ? [
+      [root,root_short,spot,spot_short,root,],
+    ] : [
+      [root,spot_short,spot,root_short,root,],
+    ]
+  }
+
   reroot_locks() {
     const {lock_names} = this.constructor
     for (const i in lock_names) this.reroot_lock(lock_names[i])

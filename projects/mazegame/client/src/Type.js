@@ -1,7 +1,7 @@
 module.exports = MazeGame => class Type {
 
   static tally_id() { return true }
-  static get min_dt() { return 0.01 }
+  static get min_dt() { return 1/0x80 }
 
   static act_at(
     editor, // Editor
@@ -10,6 +10,21 @@ module.exports = MazeGame => class Type {
 
   _tally = 0
   get tally() { return ++this._tally }
+
+  get lines() { return [] }
+  static intersect(
+    lines, // Point[][]
+    root,spot, // Point
+  ) {
+    const {intersect} = MazeGame.Point
+    for (const i in lines) {
+      const sub = lines[i]
+      for (let j = 1; j < sub.length; ++j) {
+        if (intersect(root,spot,sub[j-1],sub[j])) return true
+      }
+    }
+    return false
+  }
 
   get id() { return this._id }
   get name() { return this._name }

@@ -118,9 +118,9 @@ function MazeGame() {
 			// TODO UNDO
 		}
 		else if (c == ' ') {
-			client.game = MazeGame.Type.read(client.game.serialize())
-			client.editor = client.game[editor.id]
 			log(client.editor)
+			// client.game = MazeGame.Type.read(client.game.serialize())
+			// client.editor = client.game[editor.id]
 		}
 	}
 

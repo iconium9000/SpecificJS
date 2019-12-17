@@ -1,5 +1,42 @@
 module.exports = MazeGame => class Game extends MazeGame.Type {
 
+  static get key_bind() { return 'g' }
+
+  static act_at(
+    editor, // Editor
+    spot, // Point
+  ) {
+    const level = editor.src
+
+    const closest_lock = MazeGame.Lock.get_closest(level.locks, spot)
+    const closest_key = (closest_lock && closest_lock.key) || (
+      MazeGame.Key.get_closest(level.keys, spot)
+    )
+
+    if (closest_key && closest_key.is_jack) {
+      const jack = closest_key
+      editor.target = jack == editor.target ? null : jack
+      jack.long = spot.sub(jack.root)
+      return true
+    }
+
+    const jack = editor.target
+    if (!jack) return false
+
+    const _spot = (
+      closest_key ? closest_key.root :
+      closest_lock ? closest_lock.spot : spot
+    )
+
+    const sub = _spot.sub(jack.root)
+    if (jack.nose.key && sub.length < jack.nose_length) {
+      jack.nose.key = null
+    }
+    else jack.spot = _spot
+
+    return true
+  }
+
   _levels = {}; _editors = {}
   get levels() { return this._levels }
   get editors() { return this._editors }

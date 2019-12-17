@@ -19,6 +19,18 @@ module.exports = constructors => class Point {
     ctx.lineTo(this._x, this._y)
   }
 
+  static intersect(
+    {x:ax,y:ay},{x:bx,y:by},{x:gx,y:gy},{x:hx,y:hy}, // Point
+  ) {
+    const dx = bx-ax, dy = by-ay, vx = hx-gx, vy = hy-gy
+    const c = dx*vy - dy*vx
+    if (c == 0) return false
+    const px = gx-ax, py = gy-ay
+    if ( dx*py <= dy*px ) return false
+    const k = (px*vy - py*vx) / c
+    return 0 < k && k < 1 && dx*(hy-ay) < dy*(hx-ax)
+  }
+
   equals(
     {x,y}, // Float
   ) {
@@ -26,6 +38,7 @@ module.exports = constructors => class Point {
     return x == _x && y == _y
   }
 
+  get sign() { return this._x * this._y }
   get length() {
     const {_x,_y} = this
     return Math.sqrt(_x*_x + _y*_y)
@@ -76,7 +89,7 @@ module.exports = constructors => class Point {
     const {_x,_y} = this
     return Math.atan2( y-_y, x-_x )
   }
-  atan2(
+  dot(
     {x,y}, // Point
   ) {
     const {_x,_y} = this

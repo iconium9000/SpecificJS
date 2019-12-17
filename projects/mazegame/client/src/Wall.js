@@ -71,6 +71,11 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
     return return_wall
   }
 
+  get lines() {
+    const {root,spot} = this
+    return [ [root,spot,root], ]
+  }
+
   reroot_locks() {}
 
   get spot() { return this._spot }
@@ -89,7 +94,7 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
 
     this._long = long.long.cramp(long_min,long_max,long_round)
     this._short = long.short.cramp(short_min,short_max,short_round)
-    
+
     this._spot = _root.sum(this._long)
     if (short_sign) this._spot = this._spot.sum(this._short)
   }

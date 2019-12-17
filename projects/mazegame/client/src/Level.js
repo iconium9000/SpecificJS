@@ -15,6 +15,31 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   get keys() { return this._keys }
   get jacks() { return this._jacks }
 
+  get_lock_key(
+    spot, // Point
+  ) {
+    const {_locks,_keys} = this
+    const closest_lock = MazeGame.Lock.get_closest(_locks, spot)
+    const closest_key = (closest_lock && closest_lock.key) || (
+      MazeGame.Key.get_closest(_keys, spot)
+    )
+    return [ closest_lock, closest_key ]
+  }
+
+  get portals_active() {
+    this.__active_portals = []
+    const {_portals,__active_portals} = this
+    for (const id in _portals) {
+      if (_portals[id]._is_open) __active_portals.push(_portals[id])
+    }
+    return __active_portals.length == 2
+  }
+  get lines() {
+    const {_walls} = this, lines = this.__lines = []
+    for (const id in _walls) lines.push(..._walls[id].lines)
+    return lines
+  }
+
   get prev_level() { return this._prev_level }
   set prev_level(
     prev_level, // Level,Null
@@ -35,17 +60,6 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     if (next_level) {
       next_level.prev_level = this
     }
-  }
-
-  get src() { return this._src }
-  set src(
-    src, // Game,Null
-  ) {
-    const {id,_src} = this
-    if (_src == src) return
-    this._src = src
-    if (_src) delete _src.levels[id]
-    if (src) src.levels[id] = this
   }
 
   copy(
@@ -112,18 +126,18 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
 
   remove() {
     const {id,src,_prev_level,_next_level} = this
-    super.remove()
     if (src) {
       delete src.level[id]
       if (_prev_level) _prev_level.next_level = _next_level
       else if (_next_level) _next_level.prev_level = _prev_level
     }
+    super.remove()
   }
 
   move(
     dt, // Number (milliseconds)
   ) {
-    const {_jacks,_doors,} = this
+    const {_jacks,_doors,lines} = this
 
     for (const id in _jacks) _jacks[id].move(dt)
     for (const id in _doors) _doors[id].move(dt)
@@ -134,10 +148,22 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     offset, // MazeGame.Point (in drawspace)
     scale, // Number
   ) {
-    const {_locks,_keys,_walls,} = this
+    const {_locks,_keys,_walls,lines} = this
 
     for (const id in _locks) _locks[id].draw(ctx,offset,scale)
     for (const id in _keys) _keys[id].draw(ctx,offset,scale)
     for (const id in _walls) _walls[id].draw(ctx,offset,scale)
+
+    // const {thin_line_width,thin_stroke_color} = MazeGame.Target
+    // ctx.lineWidth = thin_line_width * scale
+    // ctx.strokeStyle = thin_stroke_color
+    //
+    // for (const i in lines) {
+    //   const sub = lines[i]
+    //   ctx.beginPath()
+    //   for (const j in sub) sub[j].mul(scale).sum(offset).lineTo = ctx
+    //   ctx.closePath()
+    //   ctx.stroke()
+    // }
   }
 }

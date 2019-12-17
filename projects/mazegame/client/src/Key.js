@@ -10,12 +10,8 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
     spot, // MazeGame.Point (in gamespace)
   ) {
     const level = editor.src
-    const closest_lock = MazeGame.Lock.get_closest(level.locks, spot)
 
-    const closest_key = (
-      (closest_lock && closest_lock.key) ||
-      this.get_closest(level.keys, spot)
-    )
+    const [closest_lock,closest_key] = level.get_lock_key(spot)
     if (closest_key && closest_key != editor.target) {
       editor.target = closest_key
       closest_key.lock = null

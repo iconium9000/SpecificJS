@@ -19,6 +19,15 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
 
   get center() { return this.root.sum(this.spot).div(2) }
 
+  get lines() {
+    const {root,short,long,spot,is_open} = this
+    if (is_open) {
+      const root_long = root.sum(long), root_short = root.sum(short)
+      return [[root_short,root,root_long,spot,root_long,root,root_short,],]
+    }
+    else return super.lines
+  }
+
   reroot_lock(
     name, // String
   ) {
@@ -43,11 +52,7 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
     super.is_open = is_open
   }
   get is_open() {
-    const {src:{portals},_is_open} = this
-    if (!_is_open) return false
-    let count = 0
-    for (const id in portals) if (portals[id]._is_open) ++count
-    return count == 2
+    return super.is_open && this.src.portals_active
   }
 
   get src() { return super.src }
@@ -63,5 +68,104 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
     const {id,src} = this
     super.remove()
     delete src.portals[id]
+  }
+
+  draw(
+    ctx, // CanvasRenderingContext2D
+    offset, // MazeGame.Point (in drawspace)
+    scale, // Number
+  ) {
+    const {root,spot,long,short,length,constructor} = this
+    const {
+      line_width,thin_line_width,
+      stroke_color,fill_color,thin_stroke_color,
+      center_short, center_long, radius,
+    } = constructor
+    const _root = root.mul(scale).sum(offset)
+    const _spot = spot.mul(scale).sum(offset)
+    const _long = long.mul(scale)
+    const _short = short.mul(scale)
+
+    const _radius = radius * scale
+    const _center_short = center_short * scale
+    const _center_long = center_long * scale
+    const _center = (
+      _root.sum(_short.strip(_center_short)).sum(_long.strip(_center_long))
+    )
+    const _angle_root = _center.atan2(_root.sum(_short))
+    const _angle_spot = _center.atan2(_spot)
+
+    const _line_width = line_width * scale
+    const _thin_line_width = thin_line_width * scale
+
+    ctx.lineWidth = _line_width
+    ctx.strokeStyle = stroke_color
+    ctx.fillStyle = fill_color
+    ctx.lineJoin = 'round'
+    ctx.lineCap = 'round'
+
+    if (1 <= length) {
+      const _mid_root = _long.div(2).sum(_root)
+      const _mid_spot = _mid_root.sum(_short)
+
+      ctx.beginPath()
+      _root.lineTo = ctx
+      _root.sum(_long).lineTo = ctx
+      _spot.lineTo = ctx
+      _root.sum(_short).lineTo = ctx
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+
+      ctx.beginPath()
+      _mid_root.lineTo = ctx
+      _mid_spot.lineTo = ctx
+      ctx.closePath()
+      ctx.stroke()
+    }
+    else if (0 < length) {
+      const _length = _long.mul(length / 2)
+
+      ctx.beginPath()
+      _root.lineTo = ctx
+      _root.sum(_length).lineTo = ctx
+      _root.sum(_length).sum(_short).lineTo = ctx
+      _root.sum(_short).lineTo = ctx
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+
+      ctx.beginPath()
+      _spot.lineTo = ctx
+      _spot.sub(_length).lineTo = ctx
+      _spot.sub(_length).sub(_short).lineTo = ctx
+      _spot.sub(_short).lineTo = ctx
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+    }
+
+    ctx.beginPath()
+    if (
+      (_long._sx + _short._sx) > 0 ^
+      (_long._sy + _short._sy) > 0 ^
+      _long._sx == 0
+    ) {
+      _root.sum(_short).lineTo = ctx
+      _root.lineTo = ctx
+      _root.sum(_long).lineTo = ctx
+      _spot.lineTo = ctx
+      ctx.arc( _center.x, _center.y, _radius, _angle_spot, _angle_root, )
+    }
+    else {
+      ctx.arc( _center.x, _center.y, _radius, _angle_root, _angle_spot, )
+      _spot.lineTo = ctx
+      _root.sum(_long).lineTo = ctx
+      _root.lineTo = ctx
+      _root.sum(_short).lineTo = ctx
+    }
+    ctx.closePath()
+    ctx.fill()
+    ctx.stroke()
   }
 }
