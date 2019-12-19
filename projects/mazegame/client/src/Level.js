@@ -17,11 +17,12 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
 
   get_lock_key(
     spot, // Point
+    flag, // Jack,Null
   ) {
     const {_locks,_keys} = this
     const closest_lock = MazeGame.Lock.get_closest(_locks, spot)
     const closest_key = (closest_lock && closest_lock.key) || (
-      MazeGame.Key.get_closest(_keys, spot)
+      MazeGame.Key.get_closest(_keys, spot, flag)
     )
     return [ closest_lock, closest_key ]
   }

@@ -33,12 +33,16 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
   }
 
   static get_closest(
-    keys, // MazeGame.Key{}
-    spot, // MazeGame.Point
+    keys, // Key{}
+    spot, // Point
+    flag, // Jack,Null
   ) {
     let min_dist = Infinity, return_key = null
     for (const label in keys) {
-      const key = keys[label], {search_radius} = key.constructor
+      const key = keys[label]
+      if (flag && key.is_parent(flag)) continue
+      
+      const {search_radius} = key.constructor
       const _dist = key.root.sub(spot).length
       if (_dist < min_dist && _dist < search_radius) {
         return_key = key
@@ -46,6 +50,13 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
       }
     }
     return return_key
+  }
+
+  is_parent(
+    target, // Target
+  ) {
+    const {lock} = this
+    return super.is_parent(target) || (lock && lock.is_parent(target))
   }
 
   get is_open () { return super.is_open }

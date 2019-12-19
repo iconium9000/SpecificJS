@@ -42,6 +42,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
   set long(
     long, // Point
   ) {
+    if (long.length == 0) return
     this._long = long.unit.strip(this.constructor.radius)
     this.reroot_lock()
   }
@@ -137,36 +138,82 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     spot, // Point,Null
   ) {
     this.__root_portal = this.__spot_portal = null
-    if (!spot) return this._spot = null
+    const {nose,root,src:level,constructor} = this
+    if (!spot || !nose) return this._spot = null
+    this.lock = null
 
-    const {nose,root,src,constructor} = this
-    const {lines} = src, {intersect} = constructor
-    if (intersect(lines,root,spot)) return
-    this._spot = spot
+    const {lines} = level, {radius,intersect} = constructor
+    const [ lock, key ] = level.get_lock_key(spot,this)
+    this._spot = spot// = key ? key.root : lock ? lock.spot : spot
 
-    // const {
-    //   portals_active,
-    //   __active_portals:[root_portal,spot_portal]
-    // } = src, _paths = [ [ [root,spot], ], ]
-    //
-    //
-    //
-    // if (portals_active) {
-    //   const r = root_portal.center, s = spot_portal.center
-    //   _paths.push(
-    //     [[root,r,root_portal], [s,spot,spot_portal]],
-    //     [[root,s,spot_portal], [r,spot,root_portal]],
-    //   )
-    // }
+    if (!intersect(lines,root,spot)) {
+      this.long = spot.sub(root)
+      const shift = nose.key || (key && lock)
+      const sub = spot.sub(shift ? nose.spot : root).unit
+      const search_radius = radius * (nose.key && key ? 2 : 1)
+      const length = nose.length + radius + search_radius
+
+      if (sub.scale < search_radius) {
+        this._spot = null
+        this.root = shift ? spot.sub(sub.strip(length)) : spot
+
+        if (nose.key && lock && !key) lock.key = nose.key
+        else if (key && !nose.key) nose.key = key
+        else if (lock && !nose.key && !key) {
+          this.lock = lock
+          this.editor = null
+        }
+
+      }
+      return
+    } else if (level.portals_active) {
+      const [root_portal,spot_portal] = level.__active_portals
+      const root_center = root_portal.center
+      const spot_center = spot_portal.center
+
+      if (
+        !intersect(lines,root,root_center) &&
+        !intersect(lines,spot_center,spot)
+      ) {
+        const sub = root_center.sub(root)
+        if (sub.length < radius) {
+          this.long = spot.sub(spot_center)
+          this.root = spot_center
+        }
+        else this.long = sub
+        return
+      }
+      else if (
+        !intersect(lines,root,spot_center) &&
+        !intersect(lines,root_center,spot)
+      ) {
+        const sub = spot_center.sub(root)
+        if (sub.length < radius) {
+          this.long = spot.sub(root_center)
+          this.root = root_center
+        }
+        else this.long = sub
+        return
+      }
+    }
+
+    this.long = spot.sub(root)
+    if (intersect(lines,root,nose.spot)){
+      this._spot = null
+    }
   }
 
   move(
     dt, // Number (milliseconds)
   ) {
     this.spot = this.spot
-    const {spot,__root_portal,__spot_portal} = this
+    const {root,spot,long,constructor:{speed}} = this
 
-    // if (__root_portal)/
+    if (spot) {
+      // log(spot)
+      this.root = root.sum(long.strip(speed * dt))
+    }
+
   }
 
   draw(
