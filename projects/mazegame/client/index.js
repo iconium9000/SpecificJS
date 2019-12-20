@@ -125,6 +125,9 @@ function MazeGame() {
 			editor.mode = new_mode
 			// TODO UNDO
 		}
+		else if (c == 'r') {
+			client.socket.emit('serial')
+		}
 		else if (c == 'q') {
 			send_game()
 		}

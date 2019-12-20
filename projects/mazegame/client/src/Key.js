@@ -41,7 +41,7 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
     for (const label in keys) {
       const key = keys[label]
       if (flag && key.is_parent(flag)) continue
-      
+
       const {search_radius} = key.constructor
       const _dist = key.root.sub(spot).length
       if (_dist < min_dist && _dist < search_radius) {

@@ -1,5 +1,7 @@
 module.exports = MazeGame => class Target extends MazeGame.Type {
 
+  get is_jack() { return false }
+
   is_parent(
     target, // Target
   ) {

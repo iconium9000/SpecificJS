@@ -1,9 +1,9 @@
 {
  "_constructor": "Game",
- "_tally": 1,
+ "_tally": 3,
  "Level1": {
   "_constructor": "Level",
-  "_tally": 33,
+  "_tally": 36,
   "_name": "Tap, Don't Drag",
   "Key19": {
    "_constructor": "Key",
@@ -138,7 +138,6 @@
   },
   "Header32": {
    "_constructor": "Header",
-   "_is_open": true,
    "_root": {
     "sx": -2,
     "sy": -7,
@@ -151,14 +150,199 @@
     "scale": 1,
     "_constructor": "Point"
    },
-   "_length": 1
+   "_length": 1,
+   "_lock2": "Header32_lock236"
   },
-  "Header32_lock233": {
-   "_constructor": "Lock",
+  "Header32_lock236": {
+   "_constructor": "Slot",
    "_name": "_lock2",
    "_length": 3,
    "_parent": "Header32"
-  }
+  },
+  "_next_level": "Level2"
  },
- "_root_level": "Level1"
+ "Level2": {
+  "_constructor": "Level",
+  "_tally": 15,
+  "_name": "Baggage",
+  "Header1": {
+   "_constructor": "Header",
+   "_root": {
+    "sx": 8,
+    "sy": -24,
+    "scale": 1,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": -16,
+    "sy": -4,
+    "scale": 1,
+    "_constructor": "Point"
+   },
+   "_length": 1,
+   "_lock1": "Header1_lock12",
+   "_lock3": "Header1_lock33"
+  },
+  "Header1_lock12": {
+   "_constructor": "Slot",
+   "_name": "_lock1",
+   "_length": 3,
+   "_parent": "Header1"
+  },
+  "Header1_lock33": {
+   "_constructor": "Slot",
+   "_name": "_lock3",
+   "_length": 3,
+   "_parent": "Header1"
+  },
+  "Door4": {
+   "_constructor": "Door",
+   "_root": {
+    "sx": -3,
+    "sy": -3,
+    "scale": 4,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": 24,
+    "sy": 4,
+    "scale": 1,
+    "_constructor": "Point"
+   },
+   "_length": 1,
+   "_spot_long": "Door4_spot_long11"
+  },
+  "Door4_spot_long11": {
+   "_constructor": "Lock",
+   "_name": "_spot_long",
+   "_length": 3,
+   "_parent": "Door4"
+  },
+  "Wall5": {
+   "_constructor": "Wall",
+   "_root": {
+    "sx": -6,
+    "sy": -4,
+    "scale": 2,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": -6,
+    "sy": 2,
+    "scale": 1,
+    "_constructor": "Point"
+   }
+  },
+  "Wall6": {
+   "_constructor": "Wall",
+   "_root": {
+    "sx": -9,
+    "sy": -4,
+    "scale": 2,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": 2,
+    "sy": 20,
+    "scale": 1,
+    "_constructor": "Point"
+   }
+  },
+  "Wall7": {
+   "_constructor": "Wall",
+   "_root": {
+    "sx": -9,
+    "sy": 6,
+    "scale": 2,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": 36,
+    "sy": 2,
+    "scale": 1,
+    "_constructor": "Point"
+   }
+  },
+  "Wall8": {
+   "_constructor": "Wall",
+   "_root": {
+    "sx": 9,
+    "sy": 6,
+    "scale": 2,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": 2,
+    "sy": -24,
+    "scale": 1,
+    "_constructor": "Point"
+   }
+  },
+  "Wall10": {
+   "_constructor": "Wall",
+   "_root": {
+    "sx": 6,
+    "sy": -6,
+    "scale": 2,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": 6,
+    "sy": 2,
+    "scale": 1,
+    "_constructor": "Point"
+   }
+  },
+  "Key12": {
+   "_constructor": "Key",
+   "_is_open": true,
+   "_root": {
+    "sx": 106,
+    "sy": 49.5,
+    "scale": 0.10362694300518134,
+    "_constructor": "Point"
+   }
+  },
+  "Key13": {
+   "_constructor": "Key",
+   "_is_open": true,
+   "_root": {
+    "sx": -112,
+    "sy": 45.5,
+    "scale": 0.10362694300518134,
+    "_constructor": "Point"
+   }
+  },
+  "Jack14": {
+   "_constructor": "Jack",
+   "_is_open": true,
+   "_root": {
+    "sx": -110,
+    "sy": -31.5,
+    "scale": 0.10362694300518134,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": 1,
+    "sy": 0,
+    "scale": 1.5,
+    "_constructor": "Point"
+   },
+   "_nose": "Jack14_nose15"
+  },
+  "Jack14_nose15": {
+   "_constructor": "Lock",
+   "_name": "_nose",
+   "_length": 3,
+   "_parent": "Jack14"
+  },
+  "_prev_level": "Level1",
+  "_next_level": "Level3"
+ },
+ "Level3": {
+  "_constructor": "Level",
+  "_name": "Level3",
+  "_prev_level": "Level2"
+ },
+ "_root_level": "Level2"
 }

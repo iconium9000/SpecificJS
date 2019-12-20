@@ -10,7 +10,7 @@ module.exports = (project, projects, super_require) => {
   const super_classes = ['Lib','Point']
   const classes = [
     'Type','Target',
-    'Lock','Laser',
+    'Lock','Laser','Slot',
     'Wall','Door','Header','Portal',
     'Key','Jack',
     'Editor','Level','Game'

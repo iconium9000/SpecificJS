@@ -42,11 +42,14 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     const {[name]:_lock} = this
     if (_lock == lock) return
     if (_lock) _lock.remove()
+
     if (lock) {
       this[name] = lock
       lock.parent = this
       this.reroot_lock(name)
     }
+    else delete this[name]
+
     this.is_open = true
   }
 

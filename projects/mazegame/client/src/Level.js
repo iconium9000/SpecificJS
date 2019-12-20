@@ -1,7 +1,7 @@
 module.exports = MazeGame => class Level extends MazeGame.Type {
 
   _targets = {}; _editors = {}
-  _locks = {}; _lasers = {}
+  _locks = {}; _lasers = {}; _slots = {}
   _walls = {}; _doors = {}; _headers = {}; _portals = {}
   _keys = {}; _jacks = {}
 
@@ -9,6 +9,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   get targets() { return this._targets }
   get locks() { return this._locks }
   get lasers() { return this._lasers }
+  get slots() { return this._slots }
   get walls() { return this._walls }
   get doors() { return this._doors }
   get headers() { return this._headers }
@@ -165,16 +166,16 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     for (const id in _keys) _keys[id].draw(ctx,offset,scale)
     for (const id in _walls) _walls[id].draw(ctx,offset,scale)
 
-    const {thin_line_width,thin_stroke_color} = MazeGame.Target
-    ctx.lineWidth = thin_line_width * scale
-    ctx.strokeStyle = thin_stroke_color
-
-    for (const i in lines) {
-      const sub = lines[i]
-      ctx.beginPath()
-      for (const j in sub) sub[j].mul(scale).sum(offset).lineTo = ctx
-      ctx.closePath()
-      ctx.stroke()
-    }
+    // const {thin_line_width,thin_stroke_color} = MazeGame.Target
+    // ctx.lineWidth = thin_line_width * scale
+    // ctx.strokeStyle = thin_stroke_color
+    //
+    // for (const i in lines) {
+    //   const sub = lines[i]
+    //   ctx.beginPath()
+    //   for (const j in sub) sub[j].mul(scale).sum(offset).lineTo = ctx
+    //   ctx.closePath()
+    //   ctx.stroke()
+    // }
   }
 }
