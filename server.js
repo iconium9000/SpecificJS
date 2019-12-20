@@ -45,7 +45,8 @@ const http = require('http')
 const serv = http.Server(app)
 const socket_io = require('socket.io')(serv, {})
 
-const Lib = require(`./projects/menu/client/Lib.js`)
+// const Lib = require(`./projects/menu/client/Lib.js`)
+// const Point = require(`./projects/menu/client/Point.js`)
 
 for ( const project_idx in projects ) {
   const project = projects[project_idx]
@@ -66,7 +67,7 @@ for ( const project_idx in projects ) {
 
 for ( const project_idx in projects ) {
   const project = projects[project_idx]
-  require(`./projects/${project.name}/server.js`)(project, projects, Lib)
+  require(`./projects/${project.name}/server.js`)(project, projects, require)
 }
 
 app.use('/images', express.static(__dirname + '/images'))

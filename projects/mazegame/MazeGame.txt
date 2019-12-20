@@ -1,0 +1,164 @@
+{
+ "_constructor": "Game",
+ "_tally": 1,
+ "Level1": {
+  "_constructor": "Level",
+  "_tally": 33,
+  "_name": "Tap, Don't Drag",
+  "Key19": {
+   "_constructor": "Key",
+   "_is_open": true,
+   "_root": {
+    "sx": -57.5,
+    "sy": 0.5,
+    "scale": 0.08724100327153762,
+    "_constructor": "Point"
+   }
+  },
+  "Jack20": {
+   "_constructor": "Jack",
+   "_is_open": true,
+   "_root": {
+    "sx": 61.5,
+    "sy": 1.5,
+    "scale": 0.08724100327153762,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": 1,
+    "sy": 0,
+    "scale": 1.5,
+    "_constructor": "Point"
+   },
+   "_nose": "Jack20_nose21"
+  },
+  "Jack20_nose21": {
+   "_constructor": "Lock",
+   "_name": "_nose",
+   "_length": 3,
+   "_parent": "Jack20"
+  },
+  "Door22": {
+   "_constructor": "Door",
+   "_root": {
+    "sx": -2,
+    "sy": -3,
+    "scale": 4,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": 16,
+    "sy": -4,
+    "scale": 1,
+    "_constructor": "Point"
+   },
+   "_length": 1,
+   "_root_long": "Door22_root_long23"
+  },
+  "Door22_root_long23": {
+   "_constructor": "Lock",
+   "_name": "_root_long",
+   "_length": 3,
+   "_parent": "Door22"
+  },
+  "Wall25": {
+   "_constructor": "Wall",
+   "_root": {
+    "sx": -16,
+    "sy": 10,
+    "scale": 1,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": 2,
+    "sy": -26,
+    "scale": 1,
+    "_constructor": "Point"
+   }
+  },
+  "Wall26": {
+   "_constructor": "Wall",
+   "_root": {
+    "sx": -8,
+    "sy": 5,
+    "scale": 2,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": 32,
+    "sy": 2,
+    "scale": 1,
+    "_constructor": "Point"
+   }
+  },
+  "Wall27": {
+   "_constructor": "Wall",
+   "_root": {
+    "sx": 8,
+    "sy": 5,
+    "scale": 2,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": 2,
+    "sy": -26,
+    "scale": 1,
+    "_constructor": "Point"
+   }
+  },
+  "Wall29": {
+   "_constructor": "Wall",
+   "_root": {
+    "sx": -4,
+    "sy": -8,
+    "scale": 2,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": -8,
+    "sy": 2,
+    "scale": 1,
+    "_constructor": "Point"
+   }
+  },
+  "Wall31": {
+   "_constructor": "Wall",
+   "_root": {
+    "sx": 8,
+    "sy": -8,
+    "scale": 2,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": -8,
+    "sy": 2,
+    "scale": 1,
+    "_constructor": "Point"
+   }
+  },
+  "Header32": {
+   "_constructor": "Header",
+   "_is_open": true,
+   "_root": {
+    "sx": -2,
+    "sy": -7,
+    "scale": 4,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": 16,
+    "sy": -4,
+    "scale": 1,
+    "_constructor": "Point"
+   },
+   "_length": 1
+  },
+  "Header32_lock233": {
+   "_constructor": "Lock",
+   "_name": "_lock2",
+   "_length": 3,
+   "_parent": "Header32"
+  }
+ },
+ "_root_level": "Level1"
+}

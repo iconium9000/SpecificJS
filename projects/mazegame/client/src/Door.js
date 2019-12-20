@@ -167,7 +167,12 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
   }
 
   remove() {
-    const {id,src} = this
+    const {id,src,constructor} = this
+    const {lock_names} = constructor
+    for (const i in lock_names) {
+      const lock = this[lock_names[i]]
+      if (lock) lock.remove()
+    }
     super.remove()
     delete src.doors[id]
   }

@@ -2,7 +2,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
 
   _targets = {}; _editors = {}
   _locks = {}; _lasers = {}
-  _walls = {}; _doors = {}; _portals = {}
+  _walls = {}; _doors = {}; _headers = {}; _portals = {}
   _keys = {}; _jacks = {}
 
   get editors() { return this._editors }
@@ -11,9 +11,17 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   get lasers() { return this._lasers }
   get walls() { return this._walls }
   get doors() { return this._doors }
+  get headers() { return this._headers }
   get portals() { return this._portals }
   get keys() { return this._keys }
   get jacks() { return this._jacks }
+
+  get name() { return this._name }
+  set name(
+    name, // String
+  ) {
+    this._name = name
+  }
 
   get_lock_key(
     spot, // Point
@@ -114,12 +122,14 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     src, // Game,Null
   ) {
     const _level = super.init(src)
+    _level._name = _level.id
+
     if (src) {
-      const {root_level} = src
-      if (root_level && root_level.next_level) {
-        _level.next_level = root_level.next_level
+      const {_root_level} = src
+      if (_root_level && _root_level.next_level) {
+        _level.next_level = _root_level.next_level
       }
-      _level.prev_level = root_level
+      _level.prev_level = _root_level
       src.root_level = _level
     }
     return _level
@@ -149,22 +159,22 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     offset, // MazeGame.Point (in drawspace)
     scale, // Number
   ) {
-    const {_locks,_keys,_walls,lines} = this
+    const {_locks,_keys,_walls,lines,name,constructor} = this
 
     for (const id in _locks) _locks[id].draw(ctx,offset,scale)
     for (const id in _keys) _keys[id].draw(ctx,offset,scale)
     for (const id in _walls) _walls[id].draw(ctx,offset,scale)
 
-    // const {thin_line_width,thin_stroke_color} = MazeGame.Target
-    // ctx.lineWidth = thin_line_width * scale
-    // ctx.strokeStyle = thin_stroke_color
-    //
-    // for (const i in lines) {
-    //   const sub = lines[i]
-    //   ctx.beginPath()
-    //   for (const j in sub) sub[j].mul(scale).sum(offset).lineTo = ctx
-    //   ctx.closePath()
-    //   ctx.stroke()
-    // }
+    const {thin_line_width,thin_stroke_color} = MazeGame.Target
+    ctx.lineWidth = thin_line_width * scale
+    ctx.strokeStyle = thin_stroke_color
+
+    for (const i in lines) {
+      const sub = lines[i]
+      ctx.beginPath()
+      for (const j in sub) sub[j].mul(scale).sum(offset).lineTo = ctx
+      ctx.closePath()
+      ctx.stroke()
+    }
   }
 }

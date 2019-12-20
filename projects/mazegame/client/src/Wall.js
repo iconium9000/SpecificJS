@@ -79,6 +79,7 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
   reroot_locks() {}
 
   get spot() { return this._spot }
+  get center() { return this._root.sum(this._spot).div(2) }
 
   get short() { return this._short }
   get long() { return this._long }

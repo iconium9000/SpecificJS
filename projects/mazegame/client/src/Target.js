@@ -1,13 +1,5 @@
 module.exports = MazeGame => class Target extends MazeGame.Type {
 
-  static get fill_color() { return 'black' }
-  static get stroke_color() { return 'white' }
-  static get thin_stroke_color() { return '#505050' }
-  static get line_width() { return 0.5 }
-  static get scale() { return 40 }
-  static get thin_line_width() { return this.line_width / 3 }
-  static get speed() { return 5e1 } // dist / time = speed
-
   is_parent(
     target, // Target
   ) {
@@ -97,6 +89,7 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
 
   remove() {
     const {id,src} = this
+    this.editor = null
     super.remove()
     delete src.targets[id]
   }

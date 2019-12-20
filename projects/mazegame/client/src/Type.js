@@ -1,7 +1,16 @@
 module.exports = MazeGame => class Type {
 
-  static tally_id() { return true }
+  static get fill_color() { return 'black' }
+  static get stroke_color() { return 'white' }
+  static get thin_stroke_color() { return '#505050' }
+  static get line_width() { return 0.5 }
+  static get scale() { return 40 }
+  static get font_scale() { return 3 }
+  static get thin_line_width() { return this.line_width / 3 }
+  static get speed() { return 5e1 } // dist / time = speed
   static get min_dt() { return 1/0x80 }
+
+  static get tally_id() { return true }
 
   static act_at(
     editor, // Editor
@@ -126,7 +135,10 @@ module.exports = MazeGame => class Type {
     _type.src = src
     return _type
   }
-  remove() {}
+  remove() {
+    const {_src,_id} = this
+    delete _src[_id]
+  }
 
   move(
     dt, // Number (milliseconds)

@@ -25,7 +25,10 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
     const {id,name,_level,_editor,constructor} = this
     if (_level == level) return
     this._level = level
-    if (_editor) _editor.remove()
+    if (_editor) {
+      _editor.remove()
+      this._editor = null
+    }
     this._editor = level && constructor.init(level, id, name)
   }
 
@@ -100,6 +103,7 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
   remove() {
     const {id,src} = this
     super.remove()
+    this.level = null
     this.target = null
     delete src.editors[id]
   }

@@ -40,7 +40,7 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
   get levels() { return this._levels }
   get editors() { return this._editors }
 
-  get root_level() { return this._root_level }
+  get root_level() { return this._root_level || MazeGame.Level.init(this) }
   set root_level(
     root_level, // Level,Null
   ) {
