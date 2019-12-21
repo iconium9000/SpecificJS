@@ -3235,78 +3235,6 @@
    "_name": "Chrome",
    "_mode": "Game"
   },
-  "Door1": {
-   "_constructor": "Door",
-   "_root": {
-    "sx": -3,
-    "sy": -5,
-    "scale": 4,
-    "_constructor": "Point"
-   },
-   "_long": {
-    "sx": 32,
-    "sy": 4,
-    "scale": 1,
-    "_constructor": "Point"
-   },
-   "_length": 0.830078125,
-   "_root_short": "Door1_root_short1",
-   "_root_long": "Door1_root_long1",
-   "_spot_long": "Door1_spot_long"
-  },
-  "Door1_root_short1": {
-   "_constructor": "Lock",
-   "_name": "_root_short",
-   "_length": 3,
-   "_parent": "Door1",
-   "_key": "Key2"
-  },
-  "Key2": {
-   "_constructor": "Key",
-   "_is_open": true,
-   "_lock": "Door1_root_short1"
-  },
-  "Door1_root_long1": {
-   "_constructor": "Lock",
-   "_name": "_root_long",
-   "_length": 3,
-   "_parent": "Door1",
-   "_key": "Key1"
-  },
-  "Key1": {
-   "_constructor": "Key",
-   "_is_open": true,
-   "_lock": "Door1_root_long1"
-  },
-  "Door1_spot_long": {
-   "_constructor": "Lock",
-   "_name": "_spot_long",
-   "_length": 3,
-   "_parent": "Door1"
-  },
-  "Jack1": {
-   "_constructor": "Jack",
-   "_is_open": true,
-   "_root": {
-    "sx": -87.5,
-    "sy": -60.5,
-    "scale": 0.10905125408942203,
-    "_constructor": "Point"
-   },
-   "_long": {
-    "sx": 1,
-    "sy": 0,
-    "scale": 1.5,
-    "_constructor": "Point"
-   },
-   "_nose": "Jack1_nose1"
-  },
-  "Jack1_nose1": {
-   "_constructor": "Lock",
-   "_name": "_nose",
-   "_length": 3,
-   "_parent": "Jack1"
-  },
   "/mazegame#mB-VGcM5WPyHoCvdAAAE": {
    "_constructor": "Editor",
    "_name": "Chrome",
@@ -3314,5 +3242,5 @@
   },
   "_prev_level": "Level9"
  },
- "_root_level": "Level11"
+ "_root_level": "Level1"
 }
