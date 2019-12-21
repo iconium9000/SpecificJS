@@ -35,7 +35,6 @@ module.exports = MazeGame => class Laser extends MazeGame.Lock {
     const _spot = spot.mul(scale).sum(offset)
     const _radius = radius * scale
     const _long = long.strip(MazeGame.Lock.long_min * scale)
-    const _root_long = _root.sum(_long)
     const _spot_long = _spot.sub(_long)
 
     ctx.lineJoin = 'round'
@@ -44,7 +43,7 @@ module.exports = MazeGame => class Laser extends MazeGame.Lock {
     ctx.strokeStyle = thin_stroke_color
 
     ctx.beginPath()
-    _root_long.lineTo = ctx
+    _root.lineTo = ctx
     _spot_long.lineTo = ctx
     ctx.stroke()
 
@@ -52,14 +51,20 @@ module.exports = MazeGame => class Laser extends MazeGame.Lock {
     ctx.lineWidth = line_width * scale
 
     ctx.beginPath()
-    _root.lineTo = ctx
-    _root_long.lineTo = ctx
-    ctx.stroke()
-
-    ctx.beginPath()
     _spot_long.lineTo = ctx
     _spot.lineTo = ctx
     ctx.stroke()
+
+    ctx.fillStyle = stroke_color
+    ctx.beginPath()
+    ctx.arc(_root.x, _root.y, _radius, 0, pi2)
+    ctx.closePath()
+    ctx.fill()
+
+    ctx.beginPath()
+    ctx.arc(_spot_long.x, _spot_long.y, _radius, 0, pi2)
+    ctx.closePath()
+    ctx.fill()
 
     ctx.fillStyle = fill_color
     ctx.beginPath()

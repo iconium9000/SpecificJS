@@ -225,7 +225,6 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'
     ctx.strokeStyle = stroke_color
-    ctx.fillStyle = fill_color
     ctx.lineWidth = line_width * scale
 
     ctx.beginPath()
@@ -234,6 +233,13 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
     ctx.closePath()
     ctx.stroke()
 
+    ctx.fillStyle = stroke_color
+    ctx.beginPath()
+    ctx.arc(_root.x, _root.y, _radius, 0, pi2)
+    ctx.closePath()
+    ctx.fill()
+
+    ctx.fillStyle = fill_color
     ctx.beginPath()
     ctx.arc(_spot.x, _spot.y, _radius, 0, pi2)
     ctx.closePath()

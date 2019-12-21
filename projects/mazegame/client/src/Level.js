@@ -72,6 +72,15 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     }
   }
 
+  get src() { return super.src }
+  set src(
+    src, // Game,Null
+  ) {
+    const {id} = this
+    super.src = src
+    if (src) src.levels[id] = this
+  }
+
   copy(
     src, // Game,Null
   ) {

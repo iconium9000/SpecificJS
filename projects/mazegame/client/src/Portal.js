@@ -32,7 +32,7 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
     const {[name]:_lock,_root,_spot,_long,_short} = this
     if (!_lock) return
     const {length} = _lock
-    _lock._long = _short.strip(-length)
+    _lock._long = _short.strip(-length).unit
     switch (name) {
       case '_lock_root':
         return _lock.root = _root.sum(_long.div(4))

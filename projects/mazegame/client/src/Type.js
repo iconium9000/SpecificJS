@@ -10,15 +10,10 @@ module.exports = MazeGame => class Type {
   static get speed() { return 5e1 } // dist / time = speed
   static get min_dt() { return 1/0x80 }
 
-  static get tally_id() { return true }
-
   static act_at(
     editor, // Editor
     spot, // Point
   ) {}
-
-  _tally = 0
-  get tally() { return ++this._tally }
 
   get lines() { return [] }
   static intersect(
@@ -58,10 +53,9 @@ module.exports = MazeGame => class Type {
   copy(
     src, // Type,Null
   ) {
-    const {_id,_name,_tally,constructor} = this
+    const {_id,_name,constructor} = this
     const _type = new constructor
 
-    if (_tally) _type._tally = _tally
     if (_id) _type._id = _id
     if (_name) _type._name = _name
     _type.src = src
@@ -84,10 +78,9 @@ module.exports = MazeGame => class Type {
   serialize(
     src, // Object,Null
   ) {
-    const {_id,_name,_tally,constructor} = this
+    const {_id,_name,constructor} = this
     const _serialize = {_constructor:constructor.name}
 
-    if (_tally) _serialize._tally = _tally
     if (_name) _serialize._name = _name
     if (src) src[_id] = _serialize
 
@@ -119,9 +112,8 @@ module.exports = MazeGame => class Type {
       this._id = id
       this.src = src
     }
-    const {_tally,_name} = serialize, {constructor} = this
+    const {_name} = serialize, {constructor} = this
     if (_name) this._name = _name
-    if (_tally) this._tally = _tally
     for (const id in serialize) constructor.read(serialize, this, id)
     return this
   }
@@ -131,7 +123,13 @@ module.exports = MazeGame => class Type {
     id, // String,Null
   ) {
     const _type = new this
-    if (src) _type._id = (id || this.name) + (this.tally_id ? src.tally : '')
+    if (src) {
+      if (id) _type._id = id
+      else {
+        let tally = 0
+        while (src[_type._id = this.name + ++tally]);
+      }
+    }
     _type.src = src
     return _type
   }
