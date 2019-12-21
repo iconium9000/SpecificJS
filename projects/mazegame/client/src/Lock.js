@@ -3,7 +3,7 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
   static get key_bind() { return 'l' }
   static get long_min() { return 3 }
   static get long_max() { return 3 }
-  static get long_round() { return 3 }
+  static get long_round() { return 1 }
   static get radius() { return 0.5 }
   static get search_radius() { return 3 * this.radius }
 

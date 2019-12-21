@@ -1,5 +1,22 @@
 module.exports = MazeGame => class Target extends MazeGame.Type {
 
+  static get key_bind() { return 'x' }
+
+  static act_at(
+    editor, // Editor
+    spot, // Point (in gamespace)
+  ) {
+    const level = editor.src
+    const closest_key = MazeGame.Key.get_closest(level.keys, spot)
+
+
+    if (closest_key && !closest_key.is_jack) {
+      closest_key.is_open = !closest_key.is_open
+      return true
+    }
+    else return false
+  }
+
   get is_jack() { return false }
 
   is_parent(

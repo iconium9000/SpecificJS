@@ -2,7 +2,7 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
 
   static get tally_id() { return false }
 
-  _mode = MazeGame.Wall
+  _mode = MazeGame.Game
   get mode() { return this._mode }
   set mode(
     mode, // Function

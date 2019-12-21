@@ -1,6 +1,6 @@
 module.exports = MazeGame => class Laser extends MazeGame.Lock {
 
-  static get key_bind() { return 's' }
+  static get key_bind() { return 'z' }
   static get long_min() { return 9 }
   static get long_max() { return Infinity }
 
