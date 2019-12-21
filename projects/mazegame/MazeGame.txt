@@ -653,7 +653,7 @@
  },
  "Level4": {
   "_constructor": "Level",
-  "_tally": 34,
+  "_tally": 36,
   "_name": "The Cake is a Lie",
   "Header3": {
    "_constructor": "Header",
@@ -670,11 +670,18 @@
     "_constructor": "Point"
    },
    "_length": 1,
-   "_lock2": "Header3_lock24"
+   "_lock1": "Header3_lock136",
+   "_lock3": "Header3_lock335"
   },
-  "Header3_lock24": {
+  "Header3_lock136": {
    "_constructor": "Slot",
-   "_name": "_lock2",
+   "_name": "_lock1",
+   "_length": 3,
+   "_parent": "Header3"
+  },
+  "Header3_lock335": {
+   "_constructor": "Slot",
+   "_name": "_lock3",
    "_length": 3,
    "_parent": "Header3"
   },
@@ -1418,21 +1425,6 @@
    "_name": "_lock_cent",
    "_length": 3,
    "_parent": "Portal29"
-  },
-  "Wall33": {
-   "_constructor": "Wall",
-   "_root": {
-    "sx": -10,
-    "sy": -4,
-    "scale": 2,
-    "_constructor": "Point"
-   },
-   "_long": {
-    "sx": 12,
-    "sy": -2,
-    "scale": 1,
-    "_constructor": "Point"
-   }
   },
   "Jack36": {
    "_constructor": "Jack",
@@ -2803,35 +2795,30 @@
  },
  "Level10": {
   "_constructor": "Level",
-  "_tally": 207,
+  "_tally": 221,
   "_name": "Air Locks",
   "Header1": {
    "_constructor": "Header",
    "_root": {
-    "sx": -2,
-    "sy": 8,
-    "scale": 4,
+    "sx": -32,
+    "sy": 24,
+    "scale": 1,
     "_constructor": "Point"
    },
    "_long": {
-    "sx": -16,
+    "sx": 16,
     "sy": 4,
     "scale": 1,
     "_constructor": "Point"
    },
    "_length": 1,
-   "_lock1": "Header1_lock12",
-   "_lock3": "Header1_lock34"
+   "_lock0": "Header1_lock0212",
+   "_lock2": "Header1_lock2213",
+   "_lock4": "Header1_lock4211"
   },
-  "Header1_lock12": {
+  "Header1_lock0212": {
    "_constructor": "Slot",
-   "_name": "_lock1",
-   "_length": 3,
-   "_parent": "Header1"
-  },
-  "Header1_lock34": {
-   "_constructor": "Slot",
-   "_name": "_lock3",
+   "_name": "_lock0",
    "_length": 3,
    "_parent": "Header1",
    "_key": "Jack113"
@@ -2839,7 +2826,7 @@
   "Jack113": {
    "_constructor": "Jack",
    "_is_open": true,
-   "_lock": "Header1_lock34",
+   "_lock": "Header1_lock0212",
    "_long": {
     "sx": 1,
     "sy": 0,
@@ -2854,15 +2841,23 @@
    "_length": 3,
    "_parent": "Jack113"
   },
+  "Header1_lock2213": {
+   "_constructor": "Slot",
+   "_name": "_lock2",
+   "_length": 3,
+   "_parent": "Header1"
+  },
+  "Header1_lock4211": {
+   "_constructor": "Slot",
+   "_name": "_lock4",
+   "_length": 3,
+   "_parent": "Header1",
+   "_key": "Jack94"
+  },
   "Jack94": {
    "_constructor": "Jack",
    "_is_open": true,
-   "_root": {
-    "sx": -125,
-    "sy": 64,
-    "scale": 0.14836795252225518,
-    "_constructor": "Point"
-   },
+   "_lock": "Header1_lock4211",
    "_long": {
     "sx": 1,
     "sy": 0,
@@ -2876,36 +2871,6 @@
    "_name": "_nose",
    "_length": 3,
    "_parent": "Jack94"
-  },
-  "Door101": {
-   "_constructor": "Door",
-   "_is_open": true,
-   "_root": {
-    "sx": 3,
-    "sy": 5,
-    "scale": 4,
-    "_constructor": "Point"
-   },
-   "_long": {
-    "sx": -4,
-    "sy": -16,
-    "scale": 1,
-    "_constructor": "Point"
-   },
-   "_length": 0,
-   "_spot_short": "Door101_spot_short102"
-  },
-  "Door101_spot_short102": {
-   "_constructor": "Lock",
-   "_name": "_spot_short",
-   "_length": 3,
-   "_parent": "Door101",
-   "_key": "Key207"
-  },
-  "Key207": {
-   "_constructor": "Key",
-   "_is_open": true,
-   "_lock": "Door101_spot_short102"
   },
   "Portal103": {
    "_constructor": "Portal",
@@ -2930,39 +2895,16 @@
    "_length": 3,
    "_parent": "Portal103"
   },
-  "Door106": {
-   "_constructor": "Door",
-   "_root": {
-    "sx": 3,
-    "sy": 0,
-    "scale": 4,
-    "_constructor": "Point"
-   },
-   "_long": {
-    "sx": 16,
-    "sy": 4,
-    "scale": 1,
-    "_constructor": "Point"
-   },
-   "_length": 1,
-   "_spot_long": "Door106_spot_long107"
-  },
-  "Door106_spot_long107": {
-   "_constructor": "Lock",
-   "_name": "_spot_long",
-   "_length": 3,
-   "_parent": "Door106"
-  },
   "Wall116": {
    "_constructor": "Wall",
    "_root": {
-    "sx": 12,
+    "sx": 28,
     "sy": 20,
     "scale": 1,
     "_constructor": "Point"
    },
    "_long": {
-    "sx": 16,
+    "sx": -20,
     "sy": 2,
     "scale": 1,
     "_constructor": "Point"
@@ -2994,13 +2936,13 @@
   "Wall139": {
    "_constructor": "Wall",
    "_root": {
-    "sx": 8,
+    "sx": -24,
     "sy": 4,
     "scale": 1,
     "_constructor": "Point"
    },
    "_long": {
-    "sx": -32,
+    "sx": 36,
     "sy": 2,
     "scale": 1,
     "_constructor": "Point"
@@ -3061,7 +3003,6 @@
   },
   "Key180": {
    "_constructor": "Key",
-   "_is_open": true,
    "_root": {
     "sx": 148,
     "sy": -202,
@@ -3114,11 +3055,11 @@
     "_constructor": "Point"
    },
    "_length": 1,
-   "_root_long": "Door188_root_long193"
+   "_spot_short": "Door188_spot_short221"
   },
-  "Door188_root_long193": {
+  "Door188_spot_short221": {
    "_constructor": "Lock",
-   "_name": "_root_long",
+   "_name": "_spot_short",
    "_length": 3,
    "_parent": "Door188"
   },
@@ -3220,7 +3161,7 @@
     "_constructor": "Point"
    }
   },
-  "Wall201": {
+  "Wall209": {
    "_constructor": "Wall",
    "_root": {
     "sx": -24,
@@ -3230,16 +3171,46 @@
    },
    "_long": {
     "sx": 2,
-    "sy": 40,
+    "sy": 24,
     "scale": 1,
     "_constructor": "Point"
    }
   },
-  "Door202": {
+  "Door216": {
+   "_constructor": "Door",
+   "_is_open": true,
+   "_root": {
+    "sx": 2,
+    "sy": 1,
+    "scale": 4,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": -4,
+    "sy": 16,
+    "scale": 1,
+    "_constructor": "Point"
+   },
+   "_length": 0,
+   "_root_short": "Door216_root_short217"
+  },
+  "Door216_root_short217": {
+   "_constructor": "Lock",
+   "_name": "_root_short",
+   "_length": 3,
+   "_parent": "Door216",
+   "_key": "Key218"
+  },
+  "Key218": {
+   "_constructor": "Key",
+   "_is_open": true,
+   "_lock": "Door216_root_short217"
+  },
+  "Door219": {
    "_constructor": "Door",
    "_root": {
-    "sx": -2,
-    "sy": 4,
+    "sx": 7,
+    "sy": 0,
     "scale": 4,
     "_constructor": "Point"
    },
@@ -3250,28 +3221,13 @@
     "_constructor": "Point"
    },
    "_length": 1,
-   "_root_short": "Door202_root_short203"
+   "_spot_long": "Door219_spot_long220"
   },
-  "Door202_root_short203": {
+  "Door219_spot_long220": {
    "_constructor": "Lock",
-   "_name": "_root_short",
+   "_name": "_spot_long",
    "_length": 3,
-   "_parent": "Door202"
-  },
-  "Wall204": {
-   "_constructor": "Wall",
-   "_root": {
-    "sx": 8,
-    "sy": 20,
-    "scale": 1,
-    "_constructor": "Point"
-   },
-   "_long": {
-    "sx": -16,
-    "sy": 2,
-    "scale": 1,
-    "_constructor": "Point"
-   }
+   "_parent": "Door219"
   },
   "_prev_level": "Level9",
   "_next_level": "Level11"
@@ -3282,5 +3238,5 @@
   "_name": "Level11",
   "_prev_level": "Level10"
  },
- "_root_level": "Level10"
+ "_root_level": "Level1"
 }
