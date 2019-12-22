@@ -31,6 +31,7 @@ function MazeGame() {
 		right_down: false, left_down: false,
 		get id() { return client.socket.id }
 	}
+	MazeGame.client = client
 	client.name = client.id
 	setup_game()
 
@@ -85,6 +86,8 @@ function MazeGame() {
 		const {root,right_down,mouse} = client
 		const _mouse = MazeGame.Point.init(e.offsetX,e.offsetY,1)
 		if (right_down) client.root = root.sum(mouse.sub(_mouse))
+
+
 		client.mouse = _mouse
 	})
 
@@ -215,7 +218,21 @@ function MazeGame() {
 		const {time,pi2} = Lib, {editor,mouse,root,socket:{id}} = client
 		try {
 
-			ctx.fillStyle = 'white'
+			{
+				ctx.fillStyle = 'white'
+	      const {scale} = MazeGame.Target
+	      const _scale = _center.short.scale / scale
+	      const _offset = _center.sub(root)
+				const {level} = editor, {target} = editor.editor
+
+				const spot = mouse.sub(_offset).div(_scale)
+				const [ lock, key ] = level.get_lock_key(spot,target)
+				ctx.fillText(
+					`${lock && lock.id} ${key && key.id} ${target && target.id}`,
+					20, 20,
+				)
+			}
+
 			ctx.beginPath()
 			ctx.arc(_center.x,_center.y,2,0,pi2)
 			ctx.fill()

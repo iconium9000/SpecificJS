@@ -137,25 +137,35 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
   set spot(
     spot, // Point,Null
   ) {
-    this.__root_portal = this.__spot_portal = null
-    const {nose,root,src:level,constructor} = this
-    if (!spot || !nose) return this._spot = null
-    this.lock = null
+    this._spot = spot
+    if (spot) {
+      const {root} = this
+      this.long = spot.sub(root)
+      this.lock = null
+    }
+  }
 
-    const {lines} = level, {radius,intersect} = constructor
+  move(
+    dt, // Number (milliseconds)
+  ) {
+    let {root,spot} = this
+    if (!spot) return
+
+    const {src:level,long,nose,constructor} = this
+    const {lines} = level, {speed,radius,intersect} = constructor
     const [ lock, key ] = level.get_lock_key(spot,this)
+    const dist = dt * speed
     this._spot = spot// = key ? key.root : lock ? lock.spot : spot
 
     if (!intersect(lines,root,spot)) {
-      this.long = spot.sub(root)
       const shift = nose.key || (key && lock)
       const sub = spot.sub(shift ? nose.spot : root).unit
-      const search_radius = radius * (nose.key && key ? 2 : 1)
-      const length = nose.length + radius + search_radius
 
-      if (sub.scale < search_radius) {
-        this._spot = null
+      if (sub.scale < dist) {
+        const length = nose.length + radius
+        this.long = spot.sub(root)
         this.root = shift ? spot.sub(sub.strip(length)) : spot
+        this._spot = null
 
         if (nose.key && lock && !key) lock.key = nose.key
         else if (key && !nose.key) nose.key = key
@@ -163,57 +173,33 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
           this.lock = lock
           this.editor = null
         }
-
+        return
       }
-      return
-    } else if (level.portals_active) {
+    }
+    else if (level.portals_active) {
       const [root_portal,spot_portal] = level.__active_portals
       const root_center = root_portal.center
       const spot_center = spot_portal.center
-
-      if (
-        !intersect(lines,root,root_center) &&
-        !intersect(lines,spot_center,spot)
-      ) {
-        const sub = root_center.sub(root)
-        if (sub.length < radius) {
-          this.long = spot.sub(spot_center)
-          this.root = spot_center
+      const temp = [ [root_center,spot_center], [spot_center,root_center], ]
+      for (const i in temp) {
+        const [root_center,spot_center] = temp[i]
+        if (
+          !intersect(lines,root,root_center) &&
+          !intersect(lines,spot_center,spot)
+        ) {
+          const sub = root_center.sub(root)
+          if (sub.length < dist) this.root = spot_center
+          else spot = root_center
+          break
         }
-        else this.long = sub
-        return
-      }
-      else if (
-        !intersect(lines,root,spot_center) &&
-        !intersect(lines,root_center,spot)
-      ) {
-        const sub = spot_center.sub(root)
-        if (sub.length < radius) {
-          this.long = spot.sub(root_center)
-          this.root = root_center
-        }
-        else this.long = sub
-        return
       }
     }
 
+    root = this.root
     this.long = spot.sub(root)
-    if (intersect(lines,root,nose.spot)){
-      this._spot = null
-    }
-  }
-
-  move(
-    dt, // Number (milliseconds)
-  ) {
-    this.spot = this.spot
-    const {root,spot,long,constructor:{speed}} = this
-
-    if (spot) {
-      // log(spot)
-      this.root = root.sum(long.strip(speed * dt))
-    }
-
+    spot = this.long.strip(dist).sum(root)
+    if (intersect(lines,root,spot)) this._spot = null
+    else this.root = spot
   }
 
   draw(

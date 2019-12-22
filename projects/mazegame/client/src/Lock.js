@@ -47,10 +47,14 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
   static get_closest(
     locks, // Lock{}
     spot, // Point
+    flag, // Jack,Null
   ) {
     let min_dist = Infinity, return_lock = null
     for (const label in locks) {
-      const lock = locks[label], {search_radius} = lock.constructor
+      const lock = locks[label]
+      if (flag && lock.is_parent(flag)) continue
+
+      const {search_radius} = lock.constructor
       const _dist = lock.spot.sub(spot).length
       if (_dist < min_dist && _dist < search_radius) {
         return_lock = lock

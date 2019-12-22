@@ -61,15 +61,15 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
       const long_short = long.strip(short.scale)
       const root_long = root.sum(long_short), spot_long = spot.sub(long_short)
       return sign > 0 ? [
-        [root,root_short,root_long,root,], [spot,spot_short,spot_long,spot,],
-      ] : [
         [root,root_long,root_short,root,], [spot,spot_long,spot_short,spot,],
+      ] : [
+        [root,root_short,root_long,root,], [spot,spot_short,spot_long,spot,],
       ]
     }
     else return sign > 0 ? [
-      [root,root_short,spot,spot_short,root,],
-    ] : [
       [root,spot_short,spot,root_short,root,],
+    ] : [
+      [root,root_short,spot,spot_short,root,],
     ]
   }
 
