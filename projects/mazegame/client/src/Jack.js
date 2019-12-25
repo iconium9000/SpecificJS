@@ -159,10 +159,10 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
   move(
     dt, // Number (milliseconds)
   ) {
-    let {root,spot} = this
+    let {root,spot,long} = this
     if (!spot) return
 
-    const {src:level,long,nose,constructor} = this
+    const {src:level,nose,constructor} = this
     const {lines} = level, {speed,radius,intersect} = constructor
     const [ lock, key ] = level.get_lock_key(spot,this)
     const dist = dt * speed
@@ -208,9 +208,11 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
 
     root = this.root
     this.long = spot.sub(root)
-    spot = this.long.strip(dist).sum(root)
-    if (intersect(lines,root,spot)) this._spot = null
-    else this.root = spot
+    long = this.long
+    if (intersect(lines,root,long.strip(radius+dist).sum(root))) {
+      this._spot = null
+    }
+    else this.root = long.strip(dist).sum(root)
   }
 
   draw(
