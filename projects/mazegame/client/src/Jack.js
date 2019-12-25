@@ -30,6 +30,14 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     }
   }
 
+  get lock() { return super.lock }
+  set lock(
+    lock, // Lock,Null
+  ) {
+    super.lock = lock
+    if (this.lock) this.long = this.lock.long
+  }
+
   reroot_lock() {
     const {_root,_long,_nose} = this
     if (_nose) {
@@ -72,8 +80,11 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     super.is_open = !editor
   }
 
-  get is_open() { return !this.editor }
-  set is_open(_) { super.is_open = !this.editor }
+  get is_open() {
+    const {editor, lock} = this
+    return !(editor || (lock && lock.is_slot))
+  }
+  set is_open(_) { super.is_open = this.is_open }
 
   copy(
     src, // Level
@@ -140,7 +151,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     this._spot = spot
     if (spot) {
       const {root} = this
-      this.long = spot.sub(root)
+      // this.long = spot.sub(root)
       this.lock = null
     }
   }
@@ -155,10 +166,10 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     const {lines} = level, {speed,radius,intersect} = constructor
     const [ lock, key ] = level.get_lock_key(spot,this)
     const dist = dt * speed
-    this._spot = spot// = key ? key.root : lock ? lock.spot : spot
+    this._spot = spot
 
     if (!intersect(lines,root,spot)) {
-      const shift = nose.key || (key && lock)
+      const shift = nose.key || key
       const sub = spot.sub(shift ? nose.spot : root).unit
 
       if (sub.scale < dist) {

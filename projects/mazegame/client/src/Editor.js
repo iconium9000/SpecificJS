@@ -17,6 +17,17 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
     }
   }
 
+  get root() {
+    const {_level} = this
+    return _level ? _level.root : MazeGame.Point.zero
+  }
+  set root(
+    root, // Point
+  ) {
+    const {_level} = this
+    if (_level) _level.root = root
+  }
+
   get editor() { return this._editor }
   get level() { return this._level }
   set level(

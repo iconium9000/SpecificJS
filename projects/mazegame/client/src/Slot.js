@@ -1,6 +1,7 @@
 module.exports = MazeGame => class Slot extends MazeGame.Lock {
 
   static get key_bind() { return 's' }
+  get is_slot() { return true }
 
   get is_open() {
     const {_key} = this

@@ -5,6 +5,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   _walls = {}; _doors = {}; _headers = {}; _portals = {}
   _keys = {}; _jacks = {}
 
+
   get editors() { return this._editors }
   get targets() { return this._targets }
   get locks() { return this._locks }
@@ -16,6 +17,14 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   get portals() { return this._portals }
   get keys() { return this._keys }
   get jacks() { return this._jacks }
+
+  _root = MazeGame.Point.zero
+  set root(
+    root, // Point
+  ) {
+    this._root = root
+  }
+  get root() { return this._root || MazeGame.Point.zero }
 
   get name() { return this._name }
   set name(
@@ -86,7 +95,9 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   ) {
     const _level = super.copy(src)
 
-    const {_prev_level,_next_level,constructor} = this
+    const {root,_prev_level,_next_level,constructor} = this
+    _level.root = root
+
     if (src) {
       if (_prev_level) _level.prev_level = constructor.copy(_prev_level, src)
       if (_next_level) _level.next_level = constructor.copy(_next_level, src)
@@ -99,7 +110,9 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   ) {
     const _serialize = super.serialize(src)
 
-    const {_prev_level,_next_level,constructor} = this
+    const {root,_prev_level,_next_level,constructor} = this
+    _serialize._root = root.serialize()
+
     if (src) {
       if (_prev_level) {
         _serialize._prev_level = constructor.serialize(_prev_level, src)
@@ -117,6 +130,9 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     id, // String,Null
   ) {
     super.read(serialize, src, id)
+
+    const {_root} = serialize[id], {constructor} = this
+    if (_root) this.root = constructor.read(_root)
 
     if (src) {
       const {_prev_level,_next_level} = serialize[id], {constructor} = this
@@ -169,7 +185,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     offset, // MazeGame.Point (in drawspace)
     scale, // Number
   ) {
-    const {_locks,_keys,_walls,lines,name,constructor} = this
+    const {_locks,_keys,_walls,name,constructor} = this
 
     for (const id in _locks) _locks[id].draw(ctx,offset,scale)
     for (const id in _keys) _keys[id].draw(ctx,offset,scale)

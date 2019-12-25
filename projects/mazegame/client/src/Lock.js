@@ -64,6 +64,8 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
     return return_lock
   }
 
+  get is_slot() { return false }
+
   get parent() { return this._parent }
   set parent(
     parent, // Door,Jack,Null

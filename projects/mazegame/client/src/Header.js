@@ -42,7 +42,7 @@ module.exports = MazeGame => class Header extends MazeGame.Door {
     offset, // MazeGame.Point (in drawspace)
     scale, // Number
   ) {
-    const {center,src:level,constructor} = this
+    const {center,src:level,constructor,is_open} = this
     const {stroke_color,font_scale} = constructor
 
     const _center = center.mul(scale).sum(offset)

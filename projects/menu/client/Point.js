@@ -38,7 +38,10 @@ module.exports = constructors => class Point {
     return x == _x && y == _y
   }
 
-  get sign() { return this._x * this._y }
+  get sign() {
+    const {_x,_y,abs_x,abs_y} = this
+    return _x * _y * (abs_x - abs_y)
+  }
   get length() {
     const {_x,_y} = this
     return Math.sqrt(_x*_x + _y*_y)

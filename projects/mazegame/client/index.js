@@ -49,6 +49,11 @@ function MazeGame() {
 		client.socket.emit('serial', serial)
 	}
 
+	function get_center_scale(canvas) {
+		const _center = MazeGame.Point.init(canvas.width, canvas.height, 0.5)
+		return [_center, _center.short.scale / MazeGame.Target.scale ]
+	}
+
 	client.socket.on('connect', () => {
 		client.name = null
 	  if (typeof document.cookie == 'string') {
@@ -83,10 +88,13 @@ function MazeGame() {
 	})
 
 	$(document).mousemove(e => {
-		const {root,right_down,mouse} = client
+		const {right_down,mouse,editor} = client
 		const _mouse = MazeGame.Point.init(e.offsetX,e.offsetY,1)
-		if (right_down) client.root = root.sum(mouse.sub(_mouse))
+		const [_center,_scale] = get_center_scale(e.target)
 
+		if (right_down) {
+			editor.root = mouse.sub(_mouse).div(_scale).sum(editor.root)
+		}
 
 		client.mouse = _mouse
 	})
@@ -100,17 +108,13 @@ function MazeGame() {
 		const {time} = Lib, {target} = e
 		target.width = window.innerWidth - 20
 		target.height = window.innerHeight - 20
-		const _center = MazeGame.Point.init(target.width, target.height, 0.5)
+		const [_center, _scale] = get_center_scale(target)
 		const _mouse = MazeGame.Point.init(e.offsetX,e.offsetY,1)
 		client[e.button == 2 ? 'right_down' : 'left_down'] = false
 
-		const {editor,root} = client
-		const {_editor} = editor, {_mode} = _editor
-		const {scale} = MazeGame.Target
-
-		const _scale = _center.short.scale
-    const _offset = _center.sub(root)
-    _mode.act_at(_editor, _mouse.sub(_offset).div(_scale/scale))
+		const {editor} = client
+		const {_editor,root} = editor, {_mode} = _editor
+    _mode.act_at(_editor, _mouse.sub(_center).div(_scale).sum(root))
 
 		client.mouse = _mouse
 	})
@@ -214,33 +218,28 @@ function MazeGame() {
 		canvas.height = window.innerHeight - 20
 		window.requestAnimationFrame(tick)
 
-		const _center = MazeGame.Point.init(canvas.width, canvas.height, 0.5)
-		const {time,pi2} = Lib, {editor,mouse,root,socket:{id}} = client
+		const [_center, _scale] = get_center_scale(canvas)
+
+		const {time,pi2} = Lib, {editor,mouse} = client
+		const root = editor.root.mul(_scale)
 		try {
 
 			{
-				ctx.fillStyle = 'white'
-	      const {scale} = MazeGame.Target
-	      const _scale = _center.short.scale / scale
-	      const _offset = _center.sub(root)
-				const {level} = editor, {target} = editor.editor
+				ctx.strokeStyle = 'white'
+				const {scale} = _center.short, {x,y} = _center
 
-				const spot = mouse.sub(_offset).div(_scale)
-				const [ lock, key ] = level.get_lock_key(spot,target)
-				ctx.fillText(
-					`${lock && lock.id} ${key && key.id} ${target && target.id}`,
-					20, 20,
-				)
+				ctx.beginPath()
+				ctx.rect(x - scale, y - scale, 2*scale, 2*scale)
+				ctx.closePath()
+				ctx.stroke()
 			}
 
+			ctx.fillStyle = 'white'
 			ctx.beginPath()
 			ctx.arc(_center.x,_center.y,2,0,pi2)
 			ctx.fill()
+
 			editor.draw(ctx,_center,root,mouse)
-			// MazeGame.State.build_count = 0
-			// game_state.at(time)._child[id].draw( ctx, _center, root, mouse)
-			// ctx.fillStyle = 'white'
-			// ctx.fillText(MazeGame.State.build_count, 20, 20)
 		}
 		catch(e) { log(e) }
 	}
