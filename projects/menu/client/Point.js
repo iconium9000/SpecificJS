@@ -173,10 +173,12 @@ module.exports = constructors => class Point {
   static init(
     sx,sy,scale, // Number
   ) {
-    const _point = new this
-    _point._sx = sx; _point._sy = sy; _point._scale = scale
-    _point._x = sx * scale; _point._y = sy * scale
-    return _point
+    return (new this).init(sx,sy,scale)
+  }
+  init(sx,sy,scale) {
+    this._sx = sx; this._sy = sy; this._scale = scale
+    this._x = sx * scale; this._y = sy * scale
+    return this
   }
   serialize() {
     const {_sx,_sy,_scale,constructor:{name}} = this

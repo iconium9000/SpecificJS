@@ -3096,29 +3096,6 @@
     "_constructor": "Point"
    }
   },
-  "Door188": {
-   "_constructor": "Door",
-   "_root": {
-    "sx": 16,
-    "sy": -28,
-    "scale": 1,
-    "_constructor": "Point"
-   },
-   "_long": {
-    "sx": -16,
-    "sy": 4,
-    "scale": 1,
-    "_constructor": "Point"
-   },
-   "_length": 1,
-   "_spot_short": "Door188_spot_short221"
-  },
-  "Door188_spot_short221": {
-   "_constructor": "Lock",
-   "_name": "_spot_short",
-   "_length": 3,
-   "_parent": "Door188"
-  },
   "Door191": {
    "_constructor": "Door",
    "_is_open": true,
@@ -3261,6 +3238,29 @@
    "_constructor": "Key",
    "_is_open": true,
    "_lock": "Door216_root_short217"
+  },
+  "Door1": {
+   "_constructor": "Door",
+   "_root": {
+    "sx": 0,
+    "sy": -7,
+    "scale": 4,
+    "_constructor": "Point"
+   },
+   "_long": {
+    "sx": 16,
+    "sy": 4,
+    "scale": 1,
+    "_constructor": "Point"
+   },
+   "_length": 1,
+   "_root_short": "Door1_root_short"
+  },
+  "Door1_root_short": {
+   "_constructor": "Lock",
+   "_name": "_root_short",
+   "_length": 3,
+   "_parent": "Door1"
   },
   "_root": {
    "sx": 0,

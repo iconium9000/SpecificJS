@@ -26,7 +26,12 @@ const projects = [
     name: '2048',
     path: '2048',
     title: '2048',
-  }
+  },
+  {
+    name: 'mazegame_solver',
+    path: 'mazegame_solver',
+    title: 'MazeGame Solver',
+  },
 ]
 
 const jquery_dir = '/node_modules/jquery/dist/'
