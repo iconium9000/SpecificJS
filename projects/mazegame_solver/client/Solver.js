@@ -1,4 +1,4 @@
-const {log} = console
+const {log,error} = console
 const module = {
 	set exports(
 		get_constructor, // (Function{Function.name}) => Function
@@ -16,6 +16,7 @@ function Solver() {
   } = Solver
 
   const client = {
+		socket: io('/mazegame_solver'),
     right_down: false,
     left_down: false,
     mouse: Point.zero,
@@ -23,16 +24,41 @@ function Solver() {
     mode: Node,
   }
 
+	const solve = 10
+	client.socket.on('serial', serial => {
+		log(serial)
+		try {
+			client.level = (new Level).read(JSON.parse(serial))
+			log(client.level.solve(solve))
+		}
+		catch (e) { log(e) }
+		client.node = null
+	})
+
   document.onkeydown = e => {
 		const {which} = e
 		var c = String.fromCharCode(which | 0x20)
 
-    let {mode,level,node} = client
+    let {mode,level,node,socket} = client
 
     if (c == ' ') {
       log(level)
       return
     }
+		if (c == 'q') {
+			try { socket.emit('serial', JSON.stringify(level.serialize,null,' ')) }
+			catch (e) { error(e) }
+			return
+		}
+		if (c == 'e') {
+			try { socket.emit('serial') }
+			catch (e) { error(e) }
+			return
+		}
+		if (c == 'v') {
+			try { log(level.solve(solve)) }
+			catch (e) { error(e) }
+		}
 
     if (c == 'r') mode = Room
     else if (c == 'w') mode = Node

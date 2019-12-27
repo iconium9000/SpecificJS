@@ -48,6 +48,36 @@ module.exports = Solver => class Key extends Solver.Node {
     delete _level._keys[_id]
     super.remove()
   }
+  copy(
+    level, // Level
+  ) {
+    const _key = super.copy(level)
+    const {_level,_id,_parent,constructor} = this
+    _key._parent = constructor.copy(_level,level,_parent._id)
+    if (_key._parent._keys) _key._parent._keys[_id] = _key
+    else _key._parent._key = _key
+    return _key
+  }
+  serialize(
+    sLevel, // sLevel
+  ) {
+    const _sKey = super.serialize(sLevel), {_parent} = this
+    _sKey._parent = _parent._id
+    return _sKey
+  }
+  read(
+    sLevel, // sLevel
+    level, // Level
+    id, // String
+  ) {
+    super.read(sLevel,level,id)
+    const {_parent} = sLevel[id], {read} = this.constructor
+    level._keys[id] = this
+    this._parent = read(sLevel,level,_parent)
+    if (this._parent._keys) this._parent._keys[id] = this
+    else this._parent._key = this
+    return this
+  }
 
   set draw(
     ctx, // CanvasRenderingContext2D

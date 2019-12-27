@@ -7,6 +7,8 @@ module.exports = Solver => class Level {
   _portals = {}
   _keys = {}
 
+  get _headers() { return {[this._header._id]: this._header} }
+
   get is_open() {
     const {_locks,_doors,_portals,_header} = this
     for (const i in _locks) _locks[i]._is_open = _locks[i].is_open
@@ -33,10 +35,28 @@ module.exports = Solver => class Level {
     for (const i in _nodes) _nodes[i].draw = ctx
   }
 
-
   get copy() {
     const _level = new this.constructor, {copy} = Solver.Node
     for (const id in this._nodes) copy(this,_level,id)
     return _level
+  }
+  get serialize() {
+    const _sLevel = {}, {_nodes} = this
+    for (const id in _nodes) _nodes[id].serialize(_sLevel)
+    return _sLevel
+  }
+  read(
+    sLevel, // sLevel
+  ) {
+    const {read} = Solver.Node
+    for (const id in sLevel) read(sLevel,this,id)
+    return this
+  }
+
+  solve(
+    count, // Number
+  ) {
+    if (!this._header) return null
+    return new Solver.Fast(this,count)
   }
 }

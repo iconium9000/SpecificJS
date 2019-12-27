@@ -36,7 +36,7 @@ module.exports = Solver => class Portal extends Solver.Node {
   ) {
     const {_level,_point} = parent
     const _portal = super.init(_level,_point)
-    _level._portals[this._id] = _portal
+    _level._portals[_portal._id] = _portal
     _portal._parent = parent
     parent._portals[_portal._id] = _portal
     return _portal
@@ -47,6 +47,34 @@ module.exports = Solver => class Portal extends Solver.Node {
     delete _level._portals[_id]
     delete _parent._portals[_id]
     super.remove()
+  }
+  copy(
+    level, // Level
+  ) {
+    const _portal = super.copy(level)
+    const {_id,_level,_parent,constructor} = this
+    _portal._parent = constructor.copy(_level,level,_parent._id)
+    _portal._parent._portals[_id] = _portal
+    return _portal
+  }
+  serialize(
+    sLevel, // sLevel
+  ) {
+    const _sPortal = super.serialize(sLevel), {_parent} = this
+    _sPortal._parent = _parent._id
+    return _sPortal
+  }
+  read(
+    sLevel, // sLevel
+    level, // Level
+    id, // String
+  ) {
+    super.read(sLevel,level,id)
+    const {_parent} = sLevel[id], {read} = this.constructor
+    level._portals[id] = this
+    this._parent = read(sLevel,level,_parent)
+    this._parent._portals[id] = this
+    return this
   }
 
   set draw(

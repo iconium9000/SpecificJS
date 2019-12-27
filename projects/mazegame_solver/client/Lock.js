@@ -3,6 +3,8 @@ module.exports = Solver => class Lock extends Solver.Node {
   get color() { return 'green' }
   get lineWidth() { return 2 }
   get radius() { return super.radius * 0.5 }
+  get is_slot() { return false }
+  get type() { return 1 }
 
   get is_open() {
     const {_key} = this
@@ -65,6 +67,44 @@ module.exports = Solver => class Lock extends Solver.Node {
     if (_room) delete _room._locks[_id]
     delete _level._locks[_id]
     super.remove()
+  }
+  copy(
+    level, // Level
+  ) {
+    const _lock = super.copy(level)
+    const {_level,_id,_parent,_room,constructor} = this
+    level._locks[_id] = this
+    _lock._parent = constructor.copy(_level,level,_parent._id)
+    _lock._parent._locks[_id] = _lock
+    if (_room) {
+      _lock._room = constructor.copy(_level,level,_room._id)
+      _lock._room._locks[_id] = _lock
+    }
+    return _lock
+  }
+  serialize(
+    sLevel, // sLevel
+  ) {
+    const _sLock = super.serialize(sLevel), {_parent,_room} = this
+    _sLock._parent = _parent._id
+    if (_room) _sLock._room = _room._id
+    return _sLock
+  }
+  read(
+    sLevel, // sLevel
+    level, // Level
+    id, // String
+  ) {
+    super.read(sLevel,level,id)
+    const {_parent,_room} = sLevel[id], {read} = this.constructor
+    level._locks[id] = this
+    this._parent = read(sLevel,level,_parent)
+    this._parent._locks[id] = this
+    if (_room) {
+      this._room = read(sLevel,level,_room)
+      this._room._locks[id] = this
+    }
+    return this
   }
 
   set draw(

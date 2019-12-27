@@ -31,9 +31,26 @@ module.exports = Solver => class Header extends Solver.Node {
     return _header
   }
   remove() {
-    const {_id,_level} = this
+    const {_id,_level,_locks} = this
+    for (const i in _locks) _locks[i].remove()
     delete _level._header
     super.remove()
+  }
+  copy(
+    level, // Level
+  ) {
+    const _header = super.copy(level)
+    level._header = _header
+    return _header
+  }
+  read(
+    sLevel, // sLevel
+    level, // Level
+    id, // String
+  ) {
+    super.read(sLevel,level,id)
+    level._header = this
+    return this
   }
 
   set draw(

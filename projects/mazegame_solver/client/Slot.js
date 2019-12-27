@@ -1,6 +1,9 @@
 module.exports = Solver => class Slot extends Solver.Lock {
 
   get color() { return 'grey' }
+  get is_slot() { return true }
+  get type() { return 2 }
+
 
   get is_open() {
     const {_key} = this

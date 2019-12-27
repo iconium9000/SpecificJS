@@ -1,4 +1,6 @@
 module.exports = Solver => class Room extends Solver.Node {
+  get type() { return 0 }
+
   static act_at(
     level, // Level
     spot, // Point
@@ -38,6 +40,22 @@ module.exports = Solver => class Room extends Solver.Node {
     for (const i in _doors) _doors[i].remove()
     for (const i in _portals) _portals[i].remove()
     super.remove()
+  }
+  copy(
+    level, // Level
+  ) {
+    const _room = super.copy(level)
+    level._rooms[this._id] = _room
+    return _room
+  }
+  read(
+    sLevel, // sLevel
+    level, // Level
+    id, // String
+  ) {
+    super.read(sLevel,level,id)
+    level._rooms[id] = this
+    return this
   }
 
   set draw(

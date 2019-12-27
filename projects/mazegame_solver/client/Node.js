@@ -70,12 +70,15 @@ module.exports = Solver => class Node {
   serialize(
     sLevel, // sLevel
   ) {
-    const {_point,_id,constructor} = this
+    const {_point,_move,_id,constructor} = this
     if (sLevel[_id]) return sLevel[_id]
-    return sLevel[_id] = {
+    const _sNode = {
       _constructor:constructor.name,
-      _point:point.serialize()
+      _point:_point.serialize(),
     }
+    sLevel[_id] = _sNode
+    if (!_move) _sNode = false
+    return _sNode
   }
   static read(
     sLevel, // sLevel
@@ -84,8 +87,7 @@ module.exports = Solver => class Node {
   ) {
     const {_nodes} = level
     if (_nodes[id]) return _nodes[id]
-    const {_constructor} = sLevel[id]
-    const constructor = Solver[_constructor]
+    const constructor = Solver[sLevel[id]._constructor]
     if (!constructor) throw `error`
     return (new constructor).read(sLevel, level, id)
   }
@@ -94,10 +96,11 @@ module.exports = Solver => class Node {
     level, // Level
     id, // String
   ) {
-    const {_nodes,constructor} = level
+    const {_nodes} = level, {read} = this.constructor
     this._level = level
     this._id = id
-    this._point = constructor.read(sLevel[id], level, '_point')
+    this._point = read(sLevel[id], level, '_point')
+    this._move = sLevel[id]._move != false
     _nodes[id] = this
     return this
   }

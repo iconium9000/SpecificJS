@@ -87,6 +87,30 @@ module.exports = Solver => class Door extends Solver.Node {
     if (_roomB) _door._roomB = constructor.copy(_level,level,_roomB._id)
     return _door
   }
+  serialize(
+    sLevel, // sLevel
+  ) {
+    const _sDoor = super.serialize(sLevel), {_roomA,_roomB} = this
+    _sDoor._roomA = _roomA._id
+    if (_roomB) _sDoor._roomB = _roomB._id
+    return _sDoor
+  }
+  read(
+    sLevel, // sLevel
+    level, // Level
+    id, // String
+  ) {
+    super.read(sLevel,level,id)
+    const {_roomA,_roomB} = sLevel[id], {read,Link} = this.constructor
+    level._doors[id] = this
+    this._roomA = read(sLevel,level,_roomA)
+    if (_roomB) {
+      this._roomB = read(sLevel,level,_roomB)
+      this._roomA._doors[id] = new Link(this,this._roomB)
+      this._roomB._doors[id] = new Link(this,this._roomA)
+    }
+    return this
+  }
 
   set draw(
     ctx, // CanvasRenderingContext2D
