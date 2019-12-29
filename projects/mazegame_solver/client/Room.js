@@ -1,5 +1,5 @@
 module.exports = Solver => class Room extends Solver.Node {
-  get type() { return 0 }
+  get type() { return -1 }
 
   static act_at(
     level, // Level

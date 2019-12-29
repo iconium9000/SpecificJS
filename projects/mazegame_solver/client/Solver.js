@@ -24,12 +24,13 @@ function Solver() {
     mode: Node,
   }
 
-	const solve = 10
+	const solve = 1e6
 	client.socket.on('serial', serial => {
 		log(serial)
 		try {
 			client.level = (new Level).read(JSON.parse(serial))
 			log(client.level.solve(solve))
+			client.socket.emit('solve', client.level.toString)
 		}
 		catch (e) { log(e) }
 		client.node = null
@@ -41,38 +42,45 @@ function Solver() {
 
     let {mode,level,node,socket} = client
 
-    if (c == ' ') {
-      log(level)
-      return
-    }
-		if (c == 'q') {
-			try { socket.emit('serial', JSON.stringify(level.serialize,null,' ')) }
-			catch (e) { error(e) }
+		// delete: code = 8,46
+		if (which == 8 || which == 46) {
+			client.node = node && node.remove()
 			return
 		}
-		if (c == 'e') {
-			try { socket.emit('serial') }
-			catch (e) { error(e) }
-			return
-		}
-		if (c == 'v') {
-			try { log(level.solve(solve)) }
-			catch (e) { error(e) }
-		}
 
-    if (c == 'r') mode = Room
-    else if (c == 'w') mode = Node
-    else if (c == 'd') mode = Door
-    else if (c == 'l') mode = Lock
-    else if (c == 's') mode = Slot
-    else if (c == 'p') mode = Portal
-    else if (c == 'k') mode = Key
-    else if (c == 'x') mode = Xey
-    else if (c == 'j') mode = Jack
-    else if (c == 'h') mode = Header
-
-    // delete: code = 8,46
-		else if (which == 8 || which == 46) client.node = node && node.remove()
+		switch (c) {
+			case 'm':
+				log(level)
+				return
+			case 'n':
+				client.socket.emit('solve', level.toString)
+				return
+			case ' ':
+				level.pop()
+				return
+			case 'q':
+				try { socket.emit('serial', JSON.stringify(level.serialize,null,' ')) }
+				catch (e) { error(e) }
+				return
+			case 'e':
+				try { socket.emit('serial') }
+				catch (e) { error(e) }
+				return
+			case 'v':
+				try { log(level.solve(solve)) }
+				catch (e) { error(e) }
+				return
+			case 'r': mode = Room; break
+			case 'w': mode = Node; break
+			case 'd': mode = Door; break
+			case 'l': mode = Lock; break
+			case 's': mode = Slot; break
+			case 'p': mode = Portal; break
+			case 'k': mode = Key; break
+			case 'x': mode = Xey; break
+			case 'j': mode = Jack; break
+			case 'h': mode = Header; break
+		}
 
     if (client.mode != mode) {
       client.mode = mode

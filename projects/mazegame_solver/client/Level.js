@@ -4,6 +4,7 @@ module.exports = Solver => class Level {
   _rooms = {}
   _doors = {}
   _locks = {}
+  _slots = {}
   _portals = {}
   _keys = {}
 
@@ -32,7 +33,10 @@ module.exports = Solver => class Level {
     const {_nodes} = this
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'
+    ctx.font = 'Bold 8px Arial'
+    ctx.textAlign = 'center'
     for (const i in _nodes) _nodes[i].draw = ctx
+    for (const i in _nodes) _nodes[i].fill = ctx
   }
 
   get copy() {
@@ -57,6 +61,23 @@ module.exports = Solver => class Level {
     count, // Number
   ) {
     if (!this._header) return null
-    return new Solver.Fast(this,count)
+    try {
+      const timeA = Solver.Lib.time
+      this._solve = new Solver.Fast(this,count)
+      const timeB = Solver.Lib.time
+      log(timeB-timeA)
+      return this._solve
+    }
+    catch (e) {
+      return e
+    }
+  }
+  get toString() {
+    try { return this._solve.toString }
+    catch (e) { return '' }
+  }
+
+  pop() {
+    if (this._solve) this._solve.pop()
   }
 }
