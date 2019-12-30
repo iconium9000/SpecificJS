@@ -4,7 +4,8 @@ module.exports = (project, projects, super_require) => {
   const pi2 = Math.PI * 2
   const fs = require('fs')
   const shell = require('shelljs')
-  const file_name = __dirname + '/Solver.txt'
+  const file_name = __dirname + '/Solver.json'
+  const solve_file = __dirname + '/solve.json'
 
   const clients = {}
   let file = '{}'
@@ -16,6 +17,7 @@ module.exports = (project, projects, super_require) => {
       socket: socket,
       name: null,
       full_name: null,
+      solve: false,
     }
     clients[client.socket.id] = client
 
@@ -35,6 +37,17 @@ module.exports = (project, projects, super_require) => {
         catch (e) { log(e) }
       }
       else client.socket.emit('serial', file)
+    })
+    client.socket.on('get_solve', string => {
+
+      try {
+        string = fs.readFileSync(solve_file).toString('utf8')
+        client.socket.emit('solve', string)
+      }
+      catch (e) {
+        log(e)
+      }
+
     })
     client.socket.on('solve', string => {
       // DO NOT TRUST: string

@@ -57,13 +57,11 @@ module.exports = Solver => class Level {
     return this
   }
 
-  solve(
-    count, // Number
-  ) {
+  solve() {
     if (!this._header) return null
     try {
       const timeA = Solver.Lib.time
-      this._solve = new Solver.Fast(this,count)
+      this._solve = new Solver.Fast(this)
       const timeB = Solver.Lib.time
       log(timeB-timeA)
       return this._solve

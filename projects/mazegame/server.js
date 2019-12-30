@@ -3,7 +3,7 @@ module.exports = (project, projects, super_require) => {
   const log = (...msg) => console.log(project_name, ...msg)
   const pi2 = Math.PI * 2
   const fs = require('fs')
-  const file_name = __dirname + '/MazeGame.txt'
+  const file_name = __dirname + '/MazeGame.json'
 
   const clients = {}
   const MazeGame = {}

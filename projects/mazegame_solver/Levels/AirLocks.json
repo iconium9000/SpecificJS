@@ -1,0 +1,330 @@
+{
+ "Header1": {
+  "_constructor": "Header",
+  "_point": {
+   "sx": 246,
+   "sy": 543,
+   "scale": 1,
+   "_constructor": "Point"
+  }
+ },
+ "Room1": {
+  "_constructor": "Room",
+  "_point": {
+   "sx": 226,
+   "sy": 442,
+   "scale": 1,
+   "_constructor": "Point"
+  }
+ },
+ "Slot3": {
+  "_constructor": "Slot",
+  "_point": {
+   "sx": 225,
+   "sy": 491,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Header1",
+  "_room": "Room1"
+ },
+ "Slot1": {
+  "_constructor": "Slot",
+  "_point": {
+   "sx": 159,
+   "sy": 523,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Header1",
+  "_room": "Room1"
+ },
+ "Slot2": {
+  "_constructor": "Slot",
+  "_point": {
+   "sx": 291,
+   "sy": 483,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Header1",
+  "_room": "Room1"
+ },
+ "Jack1": {
+  "_constructor": "Jack",
+  "_point": {
+   "sx": 206,
+   "sy": 432,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Room1"
+ },
+ "Jack2": {
+  "_constructor": "Jack",
+  "_point": {
+   "sx": 240,
+   "sy": 425,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Room1"
+ },
+ "Door1": {
+  "_constructor": "Door",
+  "_point": {
+   "sx": 324,
+   "sy": 425,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_roomA": "Room1",
+  "_roomB": "Room2"
+ },
+ "Room2": {
+  "_constructor": "Room",
+  "_point": {
+   "sx": 421,
+   "sy": 369,
+   "scale": 1,
+   "_constructor": "Point"
+  }
+ },
+ "Door2": {
+  "_constructor": "Door",
+  "_point": {
+   "sx": 436,
+   "sy": 305,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_roomA": "Room2",
+  "_roomB": "Room3"
+ },
+ "Room3": {
+  "_constructor": "Room",
+  "_point": {
+   "sx": 346,
+   "sy": 219,
+   "scale": 1,
+   "_constructor": "Point"
+  }
+ },
+ "Door3": {
+  "_constructor": "Door",
+  "_point": {
+   "sx": 263,
+   "sy": 217,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_roomA": "Room3",
+  "_roomB": "Room4"
+ },
+ "Room4": {
+  "_constructor": "Room",
+  "_point": {
+   "sx": 145,
+   "sy": 218,
+   "scale": 1,
+   "_constructor": "Point"
+  }
+ },
+ "Door4": {
+  "_constructor": "Door",
+  "_point": {
+   "sx": 178,
+   "sy": 143,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_roomA": "Room4",
+  "_roomB": "Room5"
+ },
+ "Room5": {
+  "_constructor": "Room",
+  "_point": {
+   "sx": 261,
+   "sy": 85,
+   "scale": 1,
+   "_constructor": "Point"
+  }
+ },
+ "Door5": {
+  "_constructor": "Door",
+  "_point": {
+   "sx": 346,
+   "sy": 126,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_roomA": "Room5",
+  "_roomB": "Room6"
+ },
+ "Room6": {
+  "_constructor": "Room",
+  "_point": {
+   "sx": 399,
+   "sy": 134,
+   "scale": 1,
+   "_constructor": "Point"
+  }
+ },
+ "Room7": {
+  "_constructor": "Room",
+  "_point": {
+   "sx": 456,
+   "sy": 71,
+   "scale": 1,
+   "_constructor": "Point"
+  }
+ },
+ "Portal1": {
+  "_constructor": "Portal",
+  "_point": {
+   "sx": 477,
+   "sy": 121,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Room7"
+ },
+ "Lock1": {
+  "_constructor": "Lock",
+  "_point": {
+   "sx": 463,
+   "sy": 168,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Portal1",
+  "_room": "Room6"
+ },
+ "Lock2": {
+  "_constructor": "Lock",
+  "_point": {
+   "sx": 270,
+   "sy": 164,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Door3",
+  "_room": "Room6"
+ },
+ "Lock3": {
+  "_constructor": "Lock",
+  "_point": {
+   "sx": 344,
+   "sy": 62,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Door5",
+  "_room": "Room5"
+ },
+ "Lock4": {
+  "_constructor": "Lock",
+  "_point": {
+   "sx": 169,
+   "sy": 78,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Door4",
+  "_room": "Room5"
+ },
+ "Portal2": {
+  "_constructor": "Portal",
+  "_point": {
+   "sx": 195,
+   "sy": 307,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Room4"
+ },
+ "Lock5": {
+  "_constructor": "Lock",
+  "_point": {
+   "sx": 282,
+   "sy": 284,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Portal2",
+  "_room": "Room3"
+ },
+ "Portal3": {
+  "_constructor": "Portal",
+  "_point": {
+   "sx": 228,
+   "sy": 370,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Room1"
+ },
+ "Lock6": {
+  "_constructor": "Lock",
+  "_point": {
+   "sx": 306,
+   "sy": 348,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Portal3",
+  "_room": "Room3"
+ },
+ "Lock7": {
+  "_constructor": "Lock",
+  "_point": {
+   "sx": 358,
+   "sy": 334,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Door1",
+  "_room": "Room3"
+ },
+ "Lock8": {
+  "_constructor": "Lock",
+  "_point": {
+   "sx": 490,
+   "sy": 353,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Door2",
+  "_room": "Room2"
+ },
+ "Key1": {
+  "_constructor": "Key",
+  "_point": {
+   "sx": 372,
+   "sy": 319,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Lock7"
+ },
+ "Xey1": {
+  "_constructor": "Xey",
+  "_point": {
+   "sx": 469,
+   "sy": 82,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Room7"
+ },
+ "Key2": {
+  "_constructor": "Key",
+  "_point": {
+   "sx": 171,
+   "sy": 60,
+   "scale": 1,
+   "_constructor": "Point"
+  },
+  "_parent": "Lock4"
+ }
+}

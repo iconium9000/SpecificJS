@@ -7723,8 +7723,15 @@
     "_constructor": "Point"
    },
    "_length": 1,
+   "_root_long": "Door5_root_long",
    "_spot_long": "Door5_spot_long",
    "_spot_short": "Door5_spot_short"
+  },
+  "Door5_root_long": {
+   "_constructor": "Lock",
+   "_name": "_root_long",
+   "_length": 3,
+   "_parent": "Door5"
   },
   "Door5_spot_long": {
    "_constructor": "Lock",

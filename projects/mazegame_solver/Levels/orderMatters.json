@@ -309,8 +309,8 @@
  "Slot1": {
   "_constructor": "Slot",
   "_point": {
-   "sx": 152,
-   "sy": 132,
+   "sx": 160,
+   "sy": 131,
    "scale": 1,
    "_constructor": "Point"
   },

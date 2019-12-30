@@ -29,11 +29,23 @@ function Solver() {
 		log(serial)
 		try {
 			client.level = (new Level).read(JSON.parse(serial))
-			log(client.level.solve(solve))
-			client.socket.emit('solve', client.level.toString)
+			log(client.level.solve())
+			// client.level._solve.solve_queue(solve)
 		}
 		catch (e) { log(e) }
 		client.node = null
+	})
+	client.socket.on('solve', string => {
+		try {
+			const solve = JSON.parse(string), {_solve} = client.level._solve
+			log(solve)
+			if (client.level._solve) {
+				for (let i = solve.length; i > 0;) {
+					_solve.push({key_parents: solve[--i]})
+				}
+			}
+		}
+		catch (e) { log(e) }
 	})
 
   document.onkeydown = e => {
@@ -67,8 +79,11 @@ function Solver() {
 				catch (e) { error(e) }
 				return
 			case 'v':
-				try { log(level.solve(solve)) }
+				try { client.socket.emit('solve', client.level.toString) }
 				catch (e) { error(e) }
+				return
+			case 'u':
+				client.socket.emit('get_solve')
 				return
 			case 'r': mode = Room; break
 			case 'w': mode = Node; break

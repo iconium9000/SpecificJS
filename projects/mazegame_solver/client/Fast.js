@@ -5,7 +5,7 @@ module.exports = Solver => class Fast {
   _hash_array = []
   _wins = []
   _solve = []
-  _stack = []
+  _queue = []
   _lock_rooms = []
   _room_locks = []
   _lock_gates = []
@@ -58,8 +58,6 @@ module.exports = Solver => class Fast {
     for (const i in _lock_gates) txt += ` ${_lock_gates[i]}`
     txt += `\n  `
     for (const i in _gate_spec) txt += ` ${_gate_spec[i]}`
-    txt += `\n  `
-    for (const i in _gate_count) txt += ` ${_gate_count[i]}`
     txt += `\n `
     for (const i in _room_locks) {
       const iLocks = _room_locks[i]
@@ -77,14 +75,13 @@ module.exports = Solver => class Fast {
 
   constructor(
     level, // Level
-    count, // Number
   ) {
     this._level = level
     const {Jack,Key,Xey,Door,Room,Portal} = Solver
     const {_nodes,_rooms,_locks,_doors,_keys,_portals,_headers} = level
 
     const {
-      _hash,_stack,_wins,_solve,
+      _hash,_queue,_wins,_solve,
       _lock_rooms,_room_locks,_lock_gates,_room_doors,_portal_rooms,
       _key_parents,_gate_count,_gate_spec,links,_hash_array,
       _parent_map,_parent_array,_gate_map,_gate_array,
@@ -194,33 +191,22 @@ module.exports = Solver => class Fast {
     }
 
     log(this.toString)
-    const root = this.set_hash(_key_parents, _gate_count)
-    _stack.push(root)
-    let t = 0
-    let l = 0
-    while (count-- > 0 && _stack.length) {
-      if (++t > 1e4) {
-        t = 0
-        log(_stack.length, count)
-      }
-      this.solve(_stack.pop())
-    }
-    if (_stack.length) throw `stack overflow! ${_stack.length}`
+    const root = this.set_hash(_key_parents, _gate_count, 0)
+    _queue.push(root)
+  }
 
-    root.depth = 0
-    const hash_map = {}
-    const queue = [root]
-    for (let q = 0; q < queue.length; ++q) {
-      let {depth,links} = queue[q]
-      ++depth
-      for (const id in links) {
-        const hash = links[id]
-        if (hash.depth == Infinity) {
-          hash.depth = depth
-          queue.push(hash)
-        }
-      }
-    }
+  solve_queue(count) {
+    const {
+      _hash,_queue,_wins,_solve,
+      _lock_rooms,_room_locks,_lock_gates,_room_doors,_portal_rooms,
+      _key_parents,_gate_count,_gate_spec,links,_hash_array,
+      _parent_map,_parent_array,_gate_map,_gate_array,
+      _key_array,_key_map,
+    } = this
+
+    let i = 0
+    while (i < count && i < _queue.length) this.solve(_queue[i++])
+    if (i < _queue.length) throw `stack overflow! ${_queue.length - i}`
 
     let _win = null, _depth = Infinity
     for (const i in _wins) {
@@ -270,6 +256,7 @@ module.exports = Solver => class Fast {
   set_hash(
     key_parents, // TODO
     gate_count, // TODO
+    depth, // Number
   ) {
     let {_hash,_hash_array} = this
     for (const i in key_parents) {
@@ -280,7 +267,7 @@ module.exports = Solver => class Fast {
     _hash.key_parents = key_parents
     _hash.gate_count = gate_count
     _hash.links = {}
-    _hash.depth = Infinity
+    _hash.depth = depth
     _hash.id = _hash_array.length
     _hash_array.push(_hash)
     return _hash
@@ -336,8 +323,8 @@ module.exports = Solver => class Fast {
         }
       }
 
-      _hash = this.set_hash(_key_parents,_gate_count)
-      this._stack.push(_hash)
+      _hash = this.set_hash(_key_parents,_gate_count,hash.depth+1)
+      this._queue.push(_hash)
       if (_gate_count[_iDoor] == _gate_spec[_iDoor]) _wins.push(_hash)
     }
     links[_hash.id] = _hash
