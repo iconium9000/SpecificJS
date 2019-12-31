@@ -4,7 +4,7 @@ module.exports = MazeGame => class Type {
   static get stroke_color() { return 'white' }
   static get thin_stroke_color() { return '#505050' }
   static get line_width() { return 0.4 }
-  static get scale() { return 50 }
+  static get scale() { return 30 }
   static get font_scale() { return 2.6 }
   static get thin_line_width() { return this.line_width / 2 }
   static get speed() { return 5e1 } // dist / time = speed
@@ -19,6 +19,7 @@ module.exports = MazeGame => class Type {
   static intersect(
     lines, // Point[][]
     root,spot, // Point
+    radius, // Number
   ) {
     const {intersect} = MazeGame.Point
     for (const i in lines) {

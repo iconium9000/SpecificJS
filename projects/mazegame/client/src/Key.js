@@ -3,7 +3,7 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
   static get key_bind() { return 'k' }
   static get radius() { return 1.5 }
   static get center_radius() { return MazeGame.Lock.radius }
-  static get search_radius() { return this.radius * 2 }
+  static get search_radius() { return this.radius }
 
   static act_at(
     editor, // MazeGame.Editor
@@ -35,12 +35,10 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
   static get_closest(
     keys, // Key{}
     spot, // Point
-    flag, // Jack,Null
   ) {
     let min_dist = Infinity, return_key = null
     for (const label in keys) {
       const key = keys[label]
-      if (flag && key.is_parent(flag)) continue
 
       const {search_radius} = key.constructor
       const _dist = key.root.sub(spot).length

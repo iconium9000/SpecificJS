@@ -159,60 +159,26 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
   move(
     dt, // Number (milliseconds)
   ) {
+    if (!this._spot) return
     let {root,spot,long} = this
-    if (!spot) return
 
     const {src:level,nose,constructor} = this
     const {lines} = level, {speed,radius,intersect} = constructor
-    const [ lock, key ] = level.get_lock_key(spot,this)
-    const dist = dt * speed
-    this._spot = spot
+    const [ lock, key ] = level.get_lock_key(spot)
 
-    if (!intersect(lines,root,spot)) {
-      const shift = nose.key || key
-      const sub = spot.sub(shift ? nose.spot : root).unit
-
-      if (sub.scale < dist) {
-        const length = nose.length + radius
-        this.long = spot.sub(root)
-        this.root = shift ? spot.sub(sub.strip(length)) : spot
-        this._spot = null
-
-        if (nose.key && lock && !key) lock.key = nose.key
-        else if (key && !nose.key) nose.key = key
-        else if (lock && !nose.key && !key) {
-          this.lock = lock
-          this.editor = null
-        }
-        return
-      }
-    }
-    else if (level.portals_active) {
-      const [root_portal,spot_portal] = level.__active_portals
-      const root_center = root_portal.center
-      const spot_center = spot_portal.center
-      const temp = [ [root_center,spot_center], [spot_center,root_center], ]
-      for (const i in temp) {
-        const [root_center,spot_center] = temp[i]
-        if (
-          !intersect(lines,root,root_center) &&
-          !intersect(lines,spot_center,spot)
-        ) {
-          const sub = root_center.sub(root)
-          if (sub.length < dist) this.root = spot_center
-          else spot = root_center
-          break
-        }
-      }
+    if (intersect(lines,root,spot)) {
+      // try portals
     }
 
-    root = this.root
-    this.long = spot.sub(root)
-    long = this.long
-    if (intersect(lines,root,long.strip(radius+dist).sum(root))) {
-      this._spot = null
+    let head,tail,sub
+    if (key || nose.key) {
+      this.long = spot.sub(root)
+      root = nose.spot
+      sub = spot.sub(root)
+      if (this.long.dot(sub) < 0) { head = this.root; tail = root }
+      else { head = root; tail = this.root }
     }
-    else this.root = long.strip(dist).sum(root)
+
   }
 
   draw(

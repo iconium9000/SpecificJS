@@ -205,6 +205,7 @@ function MazeGame() {
 		}
 		else if (c == ' ') {
 			log(client.editor)
+			window.editor = client.editor
 			// client.game = MazeGame.Type.read(client.game.serialize())
 			// client.editor = client.game[editor.id]
 		}
