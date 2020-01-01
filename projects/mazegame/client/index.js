@@ -51,7 +51,8 @@ function MazeGame() {
 
 	function get_center_scale(canvas) {
 		const _center = MazeGame.Point.init(canvas.width, canvas.height, 0.5)
-		return [_center, _center.short.scale / MazeGame.Target.scale ]
+		const {scale} = client.editor.level || MazeGame.Target
+		return [_center, _center.short.scale / scale ]
 	}
 
 	client.socket.on('connect', () => {
@@ -121,7 +122,7 @@ function MazeGame() {
 
 	document.onkeydown = e => {
 		const code = e.which
-		var c = String.fromCharCode(code | 0x20)
+		var c = e.key // String.fromCharCode(code | 0x20)
 		const new_mode = this.key_bindings[c]
 		const {editor,game} = client
 
@@ -131,6 +132,13 @@ function MazeGame() {
 		if (new_mode) {
 			editor.mode = new_mode
 			// TODO UNDO
+		}
+		else if (c == 't') {
+			if (editor.level) {
+				editor.level.scale = parseInt(
+					prompt('enter level scale', editor.level.scale)
+				)
+			}
 		}
 		else if (c == 'r') {
 			client.socket.emit('serial')

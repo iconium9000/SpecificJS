@@ -17,6 +17,8 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
   )}
   static get lock_names() { return ['_lock_root','_lock_cent','_lock_spot',] }
 
+  get center() { return this.short.mul(3/4).sum(super.center) }
+
   get lines() {
     const {root,short,long,spot,is_open} = this
     if (is_open) {

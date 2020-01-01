@@ -5,7 +5,6 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   _walls = {}; _doors = {}; _headers = {}; _portals = {}
   _keys = {}; _jacks = {}
 
-
   get editors() { return this._editors }
   get targets() { return this._targets }
   get locks() { return this._locks }
@@ -17,6 +16,16 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   get portals() { return this._portals }
   get keys() { return this._keys }
   get jacks() { return this._jacks }
+
+  get scale() { return this._scale }
+  set scale(
+    scale, // Number
+  ) {
+    const {_scale,constructor} = this
+    if (scale > 0) this._scale = scale
+    else if (_scale > 0);
+    else this._scale = constructor.scale
+  }
 
   _root = MazeGame.Point.zero
   set root(
@@ -94,8 +103,9 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   ) {
     const _level = super.copy(src)
 
-    const {root,_prev_level,_next_level,constructor} = this
+    const {root,_prev_level,_next_level,_scale,constructor} = this
     _level.root = root
+    _level._scale = _scale > 0 ? _scale : constructor.scale
 
     if (src) {
       if (_prev_level) _level.prev_level = constructor.copy(_prev_level, src)
@@ -109,8 +119,9 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   ) {
     const _serialize = super.serialize(src)
 
-    const {root,_prev_level,_next_level,constructor} = this
+    const {root,_prev_level,_next_level,_scale,constructor} = this
     _serialize._root = root.serialize()
+    _serialize._scale = _scale
 
     if (src) {
       if (_prev_level) {
@@ -130,11 +141,12 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   ) {
     super.read(serialize, src, id)
 
-    const {_root} = serialize[id], {constructor} = this
+    const {_root,_scale} = serialize[id], {constructor} = this
     if (_root) this.root = constructor.read(_root)
+    this.scale = _scale
 
     if (src) {
-      const {_prev_level,_next_level} = serialize[id], {constructor} = this
+      const {_prev_level,_next_level} = serialize[id]
       this.prev_level = constructor.read(serialize, src, _prev_level)
       this.next_level = constructor.read(serialize, src, _next_level)
     }
@@ -148,6 +160,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   ) {
     const _level = super.init(src)
     _level._name = _level.id
+    _level._scale = this.scale
 
     if (src) {
       const {_root_level} = src

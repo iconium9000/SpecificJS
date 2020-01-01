@@ -26,6 +26,16 @@
    "_length": 1,
    "_root_long": "Door22_root_long23"
   },
+  "Key39": {
+   "_constructor": "Key",
+   "_is_open": true,
+   "_root": {
+    "sx": -8.547470702915266,
+    "sy": -1.1982394307380062,
+    "scale": 1,
+    "_constructor": "Point"
+   }
+  },
   "Header32_lock236": {
    "_constructor": "Slot",
    "_name": "_lock2",
@@ -124,23 +134,13 @@
     "_constructor": "Point"
    }
   },
-  "Key39": {
-   "_constructor": "Key",
-   "_is_open": true,
-   "_root": {
-    "sx": -50.5,
-    "sy": 1,
-    "scale": 0.12678288431061807,
-    "_constructor": "Point"
-   }
-  },
   "Jack1": {
    "_constructor": "Jack",
    "_is_open": true,
    "_root": {
-    "sx": 57.5,
-    "sy": 0,
-    "scale": 0.11507479861910243,
+    "sx": 6.992333004827371,
+    "sy": -1.4708675659615604,
+    "scale": 1,
     "_constructor": "Point"
    },
    "_long": {
@@ -158,11 +158,12 @@
    "_parent": "Jack1"
   },
   "_root": {
-   "sx": 0.656455142231951,
-   "sy": -4.595185995623626,
+   "sx": 0.5037833865067602,
+   "sy": -10.931063858218922,
    "scale": 1,
    "_constructor": "Point"
   },
+  "_scale": 25,
   "_next_level": "Level2"
  },
  "Level2": {
@@ -339,11 +340,12 @@
    "_parent": "Jack14"
   },
   "_root": {
-   "sx": 0,
-   "sy": 0,
-   "scale": 0,
+   "sx": 0.07633587786259588,
+   "sy": -5.725190839694642,
+   "scale": 1,
    "_constructor": "Point"
   },
+  "_scale": 25,
   "_prev_level": "Level1",
   "_next_level": "Level4"
  },
@@ -574,11 +576,12 @@
    }
   },
   "_root": {
-   "sx": 0,
-   "sy": 0,
-   "scale": 0,
+   "sx": 0.0654307524536533,
+   "sy": -5.365321701199567,
+   "scale": 1,
    "_constructor": "Point"
   },
+  "_scale": 30,
   "_prev_level": "Level2",
   "_next_level": "Level3"
  },
@@ -982,11 +985,12 @@
    "_parent": "Jack1"
   },
   "_root": {
-   "sx": 0,
-   "sy": 0,
-   "scale": 0,
+   "sx": -1.374045801526718,
+   "sy": -2.551799345692477,
+   "scale": 1,
    "_constructor": "Point"
   },
+  "_scale": 35,
   "_prev_level": "Level4",
   "_next_level": "Level5"
  },
@@ -1279,11 +1283,12 @@
    }
   },
   "_root": {
-   "sx": 0,
-   "sy": 0,
-   "scale": 0,
+   "sx": -1.1777535441657578,
+   "sy": 3.9912758996728486,
+   "scale": 1,
    "_constructor": "Point"
   },
+  "_scale": 30,
   "_prev_level": "Level3",
   "_next_level": "Level6"
  },
@@ -1529,13 +1534,7 @@
    "_constructor": "Slot",
    "_name": "_lock0",
    "_length": 3,
-   "_parent": "Header1",
-   "_key": "Key1"
-  },
-  "Key1": {
-   "_constructor": "Key",
-   "_is_open": true,
-   "_lock": "Header1_lock0"
+   "_parent": "Header1"
   },
   "Header1_lock2": {
    "_constructor": "Slot",
@@ -1547,20 +1546,35 @@
    "_constructor": "Slot",
    "_name": "_lock4",
    "_length": 3,
-   "_parent": "Header1",
-   "_key": "Key2"
+   "_parent": "Header1"
+  },
+  "Key1": {
+   "_constructor": "Key",
+   "_is_open": true,
+   "_root": {
+    "sx": -11.886586695746997,
+    "sy": -17.153762268266085,
+    "scale": 1,
+    "_constructor": "Point"
+   }
   },
   "Key2": {
    "_constructor": "Key",
    "_is_open": true,
-   "_lock": "Header1_lock4"
+   "_root": {
+    "sx": -3.9694656488549573,
+    "sy": -17.153762268266085,
+    "scale": 1,
+    "_constructor": "Point"
+   }
   },
   "_root": {
    "sx": -5.997818974918207,
-   "sy": 5.452562704471104,
+   "sy": 2.181025081788441,
    "scale": 1,
    "_constructor": "Point"
   },
+  "_scale": 30,
   "_prev_level": "Level5",
   "_next_level": "Level7"
  },
@@ -1988,11 +2002,12 @@
    "_parent": "Header101"
   },
   "_root": {
-   "sx": 0,
-   "sy": 0,
-   "scale": 0,
+   "sx": 4.100327153762271,
+   "sy": -6.194111232279174,
+   "scale": 1,
    "_constructor": "Point"
   },
+  "_scale": 40,
   "_prev_level": "Level6",
   "_next_level": "Level8"
  },
@@ -2028,19 +2043,23 @@
    "_constructor": "Slot",
    "_name": "_lock2",
    "_length": 3,
-   "_parent": "Header1",
-   "_key": "Key5"
-  },
-  "Key5": {
-   "_constructor": "Key",
-   "_is_open": true,
-   "_lock": "Header1_lock23"
+   "_parent": "Header1"
   },
   "Header1_lock466": {
    "_constructor": "Slot",
    "_name": "_lock4",
    "_length": 3,
    "_parent": "Header1"
+  },
+  "Key5": {
+   "_constructor": "Key",
+   "_is_open": true,
+   "_root": {
+    "sx": 16.161395856052348,
+    "sy": 24.8309705561614,
+    "scale": 1,
+    "_constructor": "Point"
+   }
   },
   "Portal6": {
    "_constructor": "Portal",
@@ -2166,18 +2185,21 @@
   "Key48": {
    "_constructor": "Key",
    "_is_open": true,
-   "_lock": "Portal52_lock_spot53"
+   "_root": {
+    "sx": -11.908396946564887,
+    "sy": 1.7993456924754656,
+    "scale": 1,
+    "_constructor": "Point"
+   }
   },
   "Portal52_lock_spot53": {
    "_constructor": "Lock",
    "_name": "_lock_spot",
    "_length": 3,
-   "_parent": "Portal52",
-   "_key": "Key48"
+   "_parent": "Portal52"
   },
   "Portal52": {
    "_constructor": "Portal",
-   "_is_open": true,
    "_root": {
     "sx": -1,
     "sy": -2,
@@ -2346,11 +2368,12 @@
    }
   },
   "_root": {
-   "sx": 0,
-   "sy": 0,
-   "scale": 0,
+   "sx": 2.0283533260632507,
+   "sy": 4.383860414394768,
+   "scale": 1,
    "_constructor": "Point"
   },
+  "_scale": 30,
   "_prev_level": "Level7",
   "_next_level": "Level9"
  },
@@ -2819,11 +2842,12 @@
    "_parent": "Jack2"
   },
   "_root": {
-   "sx": -5.234460196292253,
-   "sy": 11.668484187568174,
+   "sx": -7.581243184296588,
+   "sy": 10.3904034896401,
    "scale": 1,
    "_constructor": "Point"
   },
+  "_scale": 32,
   "_prev_level": "Level8",
   "_next_level": "Level10"
  },
@@ -3263,11 +3287,12 @@
    "_parent": "Door1"
   },
   "_root": {
-   "sx": 0,
-   "sy": 0,
-   "scale": 0,
+   "sx": -3.5768811341330453,
+   "sy": -4.242093784078529,
+   "scale": 1,
    "_constructor": "Point"
   },
+  "_scale": 35,
   "_prev_level": "Level9",
   "_next_level": "Level11"
  },
@@ -4046,11 +4071,12 @@
    }
   },
   "_root": {
-   "sx": -0.8724100327153763,
-   "sy": 4.7982551799345705,
+   "sx": -1.6902944383860419,
+   "sy": 3.914940021810256,
    "scale": 1,
    "_constructor": "Point"
   },
+  "_scale": 45,
   "_prev_level": "Level10",
   "_next_level": "Level12"
  },
@@ -4919,11 +4945,12 @@
    "_parent": "Jack1"
   },
   "_root": {
-   "sx": -12.649945474373016,
-   "sy": 6.870229007633606,
+   "sx": -12.126499454743836,
+   "sy": 5.365321701199591,
    "scale": 1,
    "_constructor": "Point"
   },
+  "_scale": 45,
   "_prev_level": "Level11",
   "_next_level": "Level14"
  },
@@ -5716,11 +5743,12 @@
    }
   },
   "_root": {
-   "sx": 7.6327433628318575,
-   "sy": 5.309734513274337,
+   "sx": 8.058043253780603,
+   "sy": 6.487488057440106,
    "scale": 1,
    "_constructor": "Point"
   },
+  "_scale": 45,
   "_prev_level": "Level12",
   "_next_level": "Level13"
  },
@@ -7122,11 +7150,12 @@
    }
   },
   "_root": {
-   "sx": 1.9629225736095974,
-   "sy": -1.9629225736095965,
+   "sx": 2.1592148309705577,
+   "sy": -1.8974918211559433,
    "scale": 1,
    "_constructor": "Point"
   },
+  "_scale": 51,
   "_prev_level": "Level14",
   "_next_level": "Level15"
  },
@@ -8120,11 +8149,12 @@
    "_parent": "Header1"
   },
   "_root": {
-   "sx": -1.9911504424778743,
-   "sy": 3.097345132743363,
+   "sx": -2.5015103116163706,
+   "sy": 1.8934192875961435,
    "scale": 1,
    "_constructor": "Point"
   },
+  "_scale": 48,
   "_prev_level": "Level13"
  },
  "_root_level": "Level1"

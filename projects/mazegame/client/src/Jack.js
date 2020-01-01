@@ -181,9 +181,64 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
           !intersect(lines,root,root_center) &&
           !intersect(lines,spot_center,spot)
         ) {
-          // log('bad')
+          if (key || nose.key) {
+            const lung = root_center.sub(root).unit
+            this.long = lung
+            const snot = nose.spot
+            if (intersect(lines,root,snot)) {
+              this.long = root.sub(root_center)
+              const sub = root_center.sub(root).unit
+              const move = sub.strip(dist).sum(root)
+
+              if (intersect(lines,root,move)) {
+                this._spot = null
+              }
+              else if (sub.scale < dist) {
+                this.root = spot_center
+                this.long = spot_center.sub(spot)
+              }
+              else {
+                this.root = sub.strip(dist).sum(root)
+              }
+            }
+
+            const sub = root_center.sub(snot).unit
+            const length = nose.length + radius * (key && nose.key ? 2 : 1)
+
+            if (
+              lung.scale < length ? // moving backwards
+              intersect(lines,snot,sub.strip(dist).sum(root)) :
+              intersect(lines,root,sub.strip(dist).sum(snot))
+            ) {
+              this._spot = null
+            }
+            else if (sub.scale < dist) {
+              this.root = spot_center
+              this.long = spot.sub(spot_center)
+            }
+            else {
+              this.root = sub.strip(dist).sum(root)
+            }
+          }
+          else {
+            this.long = root.sub(root_center)
+            const sub = root_center.sub(root).unit
+            const move = sub.strip(dist).sum(root)
+
+            if (intersect(lines,root,move)) {
+              this._spot = null
+            }
+            else if (sub.scale < dist) {
+              this.root = spot_center
+              this.long = spot_center.sub(spot)
+            }
+            else {
+              this.root = sub.strip(dist).sum(root)
+            }
+          }
+
+          return
         }
-        else log('good')
       }
     }
 
@@ -191,17 +246,18 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
       const lung = spot.sub(root).unit
       this.long = lung
       const snot = nose.spot
-      // if (intersect(lines,root,snot)) {
-      //   this._spot = null
-      //   this.long = long
-      //   return
-      // }
+      if (intersect(lines,root,snot)) {
+        this._spot = null
+        this.long = long
+        return
+      }
 
       const sub = spot.sub(snot).unit
       const length = nose.length + radius * (key && nose.key ? 2 : 1)
+      const back = lung.scale < length
 
       if (
-        lung.scale < length ? // moving backwards
+        back ? // moving backwards
         intersect(lines,snot,sub.strip(dist).sum(root)) :
         intersect(lines,root,sub.strip(dist).sum(snot))
       ) {
@@ -209,9 +265,13 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
       }
       else if (sub.scale < dist) {
         this._spot = null
-        this.root = spot.sub(sub.strip(length * (lung.scale < length ? -1 : 1)))
+        if (sub.scale != 0) {
+          this.root = spot.sub(sub.strip(length * (back ? -1 : 1)))
+        }
 
-        if (nose.key && lock && !key) lock.key = nose.key
+        if (nose.key && lock && !key && lock.is_slot == !nose.key.is_open) {
+          lock.key = nose.key
+        }
         else if (key && !nose.key) nose.key = key
       }
       else {

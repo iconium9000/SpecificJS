@@ -146,7 +146,7 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
     offset, // MazeGame.Point (in drawspace)
     scale, // Number
   ) {
-    const {root,is_open,constructor} = this, {pi2} = MazeGame.Lib
+    const {root,is_open,lock,constructor} = this, {pi2} = MazeGame.Lib
     const {
       stroke_color,fill_color,line_width,
       radius,center_radius,
@@ -186,6 +186,14 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
       ctx.lineTo(_root.x+_center_radius, _root.y-_center_radius)
       ctx.closePath()
       ctx.stroke()
+    }
+
+    if (lock) {
+      ctx.fillStyle = fill_color
+      ctx.beginPath()
+      ctx.arc(_root.x, _root.y, _center_radius/2, 0, pi2)
+      ctx.closePath()
+      ctx.fill()
     }
   }
 }

@@ -131,11 +131,11 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
     else {
       const {time} = MazeGame.Lib
       const {id,_time,_mode,constructor:{min_dt}} = this
-      const {scale} = MazeGame.Target
 
+      const _level = src.copy()
+      const {scale} = _level
       const _scale = center.short.scale / scale
       const _offset = center.sub(root)
-      const _level = src.copy()
       _mode.act_at(_level[id], mouse.sub(_offset).div(_scale))
       _level.draw(ctx,_offset,_scale)
 
