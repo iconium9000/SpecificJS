@@ -60,6 +60,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     root, // Point
   ) {
     super.root = root
+    const {_root} = this
     if (this._root == root) this.reroot_lock()
   }
 
@@ -164,21 +165,80 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
 
     const {src:level,nose,constructor} = this
     const {lines} = level, {speed,radius,intersect} = constructor
-    const [ lock, key ] = level.get_lock_key(spot)
+    let [ lock, key ] = level.get_lock_key(spot)
+    if (key == nose.key || (key && key.is_jack)) key = null
 
-    if (intersect(lines,root,spot)) {
-      // try portals
+    const dist = dt * speed
+    if (intersect(lines,root,spot) && level.portals_active) {
+      const [root_portal,spot_portal] = level.__active_portals
+
+      const root_center = root_portal.center
+      const spot_center = spot_portal.center
+      const temp = [ [root_center,spot_center], [spot_center,root_center], ]
+      for (const i in temp) {
+        const [root_center,spot_center] = temp[i]
+        if (
+          !intersect(lines,root,root_center) &&
+          !intersect(lines,spot_center,spot)
+        ) {
+          // log('bad')
+        }
+        else log('good')
+      }
     }
 
-    let head,tail,sub
     if (key || nose.key) {
-      this.long = spot.sub(root)
-      root = nose.spot
-      sub = spot.sub(root)
-      if (this.long.dot(sub) < 0) { head = this.root; tail = root }
-      else { head = root; tail = this.root }
-    }
+      const lung = spot.sub(root).unit
+      this.long = lung
+      const snot = nose.spot
+      // if (intersect(lines,root,snot)) {
+      //   this._spot = null
+      //   this.long = long
+      //   return
+      // }
 
+      const sub = spot.sub(snot).unit
+      const length = nose.length + radius * (key && nose.key ? 2 : 1)
+
+      if (
+        lung.scale < length ? // moving backwards
+        intersect(lines,snot,sub.strip(dist).sum(root)) :
+        intersect(lines,root,sub.strip(dist).sum(snot))
+      ) {
+        this._spot = null
+      }
+      else if (sub.scale < dist) {
+        this._spot = null
+        this.root = spot.sub(sub.strip(length * (lung.scale < length ? -1 : 1)))
+
+        if (nose.key && lock && !key) lock.key = nose.key
+        else if (key && !nose.key) nose.key = key
+      }
+      else {
+        this.root = sub.strip(dist).sum(root)
+      }
+    }
+    else {
+      this.long = root.sub(spot)
+      const sub = spot.sub(root).unit
+      const move = sub.strip(dist).sum(root)
+
+      if (intersect(lines,root,move)) {
+        this._spot = null
+      }
+      else if (sub.scale < dist) {
+        this._spot = null
+        this.root = spot
+
+        if (lock) {
+          this.lock = lock
+          this.editor = null
+        }
+      }
+      else {
+        this.root = sub.strip(dist).sum(root)
+      }
+    }
   }
 
   draw(

@@ -19,13 +19,12 @@ module.exports = MazeGame => class Type {
   static intersect(
     lines, // Point[][]
     root,spot, // Point
-    radius, // Number
   ) {
-    const {intersect} = MazeGame.Point
+    const {radius} = MazeGame.Key, {radius_intersect} = MazeGame.Point
     for (const i in lines) {
       const sub = lines[i]
       for (let j = 1; j < sub.length; ++j) {
-        if (intersect(root,spot,sub[j-1],sub[j])) return true
+        if (radius_intersect(radius,root,spot,sub[j-1],sub[j])) return true
       }
     }
     return false
