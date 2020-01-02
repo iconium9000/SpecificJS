@@ -152,7 +152,6 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     this._spot = spot
     if (spot) {
       const {root} = this
-      // this.long = spot.sub(root)
       this.lock = null
     }
   }
@@ -169,7 +168,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     if (key == nose.key || (key && key.is_jack)) key = null
 
     const dist = dt * speed
-    if (intersect(lines,root,spot) && level.portals_active) {
+    if (level.portals_active) {
       const [root_portal,spot_portal] = level.__active_portals
 
       const root_center = root_portal.center
@@ -177,6 +176,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
       const temp = [ [root_center,spot_center], [spot_center,root_center], ]
       for (const i in temp) {
         const [root_center,spot_center] = temp[i]
+
         if (
           !intersect(lines,root,root_center) &&
           !intersect(lines,spot_center,spot)
@@ -203,7 +203,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
             }
 
             const sub = root_center.sub(snot).unit
-            const length = nose.length + radius * (key && nose.key ? 2 : 1)
+            const length = nose.length + radius
 
             if (
               lung.scale < length ? // moving backwards
@@ -233,7 +233,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
               this.long = spot_center.sub(spot)
             }
             else {
-              this.root = sub.strip(dist).sum(root)
+              this.root = move
             }
           }
 
@@ -253,7 +253,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
       }
 
       const sub = spot.sub(snot).unit
-      const length = nose.length + radius * (key && nose.key ? 2 : 1)
+      const length = nose.length + radius
       const back = lung.scale < length
 
       if (
@@ -320,15 +320,39 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'
 
-    if (spot || mid) {
-      const _spot = (spot || mid).mul(scale).sum(offset)
+    if (spot) {
+
+      const {src:level,nose,constructor} = this
+      const {lines} = level, {intersect} = constructor
+
+      const _spot = spot.mul(scale).sum(offset)
       ctx.strokeStyle = thin_stroke_color
       ctx.lineWidth = thin_line_width * scale
 
+
       ctx.beginPath()
       _root.lineTo = ctx
+
+      if (level.portals_active) {
+        const [root_portal,spot_portal] = level.__active_portals
+
+        const root_center = root_portal.center
+        const spot_center = spot_portal.center
+        const temp = [ [root_center,spot_center], [spot_center,root_center], ]
+        for (const i in temp) {
+          const [root_center,spot_center] = temp[i]
+          if (
+            !intersect(lines,root,root_center) &&
+            !intersect(lines,spot_center,spot)
+          ) {
+            root_center.mul(scale).sum(offset).lineTo = ctx
+            spot_center.mul(scale).sum(offset).lineTo = ctx
+            break
+          }
+        }
+      }
+
       _spot.lineTo = ctx
-      ctx.closePath()
       ctx.stroke()
     }
 

@@ -144,7 +144,7 @@ module.exports = constructors => class Point {
       if (u2 > 1 || 0 > u2) return false
     }
     else {
-      const u = (v12*(k12 + v11*v23) + v22*(k22 + v12*v23)) / u1
+      const u = (v21*(k12 + v11*v23) + v22*(k22 + v12*v23)) / u1
       const w1 = u < 0 ? (1-u2)/u : -u2/u
       const w2 = u < 0 ? -u2/u : (1-u2)/u
 

@@ -17,15 +17,18 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
   )}
   static get lock_names() { return ['_lock_root','_lock_cent','_lock_spot',] }
 
-  get center() { return this.short.mul(3/4).sum(super.center) }
+  get center() { return this.short.div(4).sum(super.center) }
 
   get lines() {
-    const {root,short,long,spot,is_open} = this
-    if (is_open) {
-      const root_long = root.sum(long), root_short = root.sum(short)
-      return [[root_short,root,root_long,spot,root_long,root,root_short,],]
+    const {root,short,long,spot,is_open} = this, {sign} = spot.sub(root)
+    const root_long = root.sum(long), root_short = root.sum(short)
+    const long_short = long.strip(short.scale), spot_long = spot.sub(long_short)
+    const _lines = [[root_short,root,root_long,spot,root_long,root,root_short]]
+
+    if (!is_open) {
+      _lines.push(sign > 0 ? [spot_long,root_short] : [root_short,spot_long])
     }
-    else return super.lines
+    return _lines
   }
 
   reroot_lock(

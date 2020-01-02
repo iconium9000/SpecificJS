@@ -3460,6 +3460,16 @@
    "_length": 3,
    "_parent": "Portal3"
   },
+  "Key5": {
+   "_constructor": "Key",
+   "_is_open": true,
+   "_root": {
+    "sx": -34.17666303162487,
+    "sy": -2.513631406761174,
+    "scale": 1,
+    "_constructor": "Point"
+   }
+  },
   "Wall17": {
    "_constructor": "Wall",
    "_root": {
@@ -3631,11 +3641,18 @@
    },
    "_length": 1,
    "_root_short": "Door3_root_short",
+   "_root_long": "Door3_root_long",
    "_spot_short": "Door3_spot_short"
   },
   "Door3_root_short": {
    "_constructor": "Lock",
    "_name": "_root_short",
+   "_length": 3,
+   "_parent": "Door3"
+  },
+  "Door3_root_long": {
+   "_constructor": "Lock",
+   "_name": "_root_long",
    "_length": 3,
    "_parent": "Door3"
   },
@@ -3976,16 +3993,6 @@
    "_name": "_nose",
    "_length": 3,
    "_parent": "Jack3"
-  },
-  "Key4": {
-   "_constructor": "Key",
-   "_is_open": true,
-   "_root": {
-    "sx": -33.75136314067612,
-    "sy": -2.9989094874591045,
-    "scale": 1,
-    "_constructor": "Point"
-   }
   },
   "Jack1": {
    "_constructor": "Jack",
