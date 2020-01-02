@@ -3569,6 +3569,7 @@
    },
    "_length": 1,
    "_root_short": "Door7_root_short",
+   "_root_long": "Door7_root_long",
    "_spot_long": "Door7_spot_long",
    "_spot_short": "Door7_spot_short"
   },
@@ -3576,6 +3577,12 @@
    "_constructor": "Lock",
    "_name": "_root_short",
    "_length": 3,
+   "_parent": "Door7"
+  },
+  "Door7_root_long": {
+   "_constructor": "Laser",
+   "_name": "_root_long",
+   "_length": 27,
    "_parent": "Door7"
   },
   "Door7_spot_long": {
