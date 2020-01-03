@@ -12,7 +12,7 @@ module.exports = (project, projects, super_require) => {
   const MazeGame = {}
   const super_classes = ['Lib','Point']
   const classes = [
-    'Type','Target',
+    'Type','Target','Parse',
     'Lock','Laser','Slot','Button',
     'Wall','Door','Header','Portal',
     'Key','Jack',
@@ -29,13 +29,19 @@ module.exports = (project, projects, super_require) => {
   try {
     const serial = JSON.parse(fs.readFileSync(file_name).toString('utf8'))
     game = MazeGame.Game.read(serial)
-
-    string = MazeGame.Lib.stringify(serial)
-    fs.writeFile(__dirname + '/test.json', string, 'utf8', log)
   }
   catch (e) {
     console.log(e)
     game = MazeGame.Game.init()
+  }
+
+  try {
+    const string = fs.readFileSync(__dirname + '/test.json').toString('utf8')
+
+    console.log(new MazeGame.Parse(string))
+  }
+  catch (e) {
+    console.log(e)
   }
 
   project.socket.on('connection', (socket) => {

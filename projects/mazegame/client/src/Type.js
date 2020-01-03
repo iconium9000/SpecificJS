@@ -97,15 +97,7 @@ module.exports = MazeGame => class Type {
       }
     }
 
-    if (!src) {
-      const {__points} = this
-      let txt = ''
-      for (let i = 0; i < __points.length; ++i) {
-        txt += __points[i]
-        if (i < __points.length-1) txt += ','
-      }
-      _serialize._points = txt
-    }
+    if (!src) _serialize._points = this.__points
 
     return _serialize
   }
@@ -133,14 +125,15 @@ module.exports = MazeGame => class Type {
     const {_name,_points} = serialize, {constructor} = this
     if (!src && _points) {
       this.__points = []
-      const points = _points.split(',')
-      for (const i in points) {
-        let [sx,sy,scale] = points[i].split(' ')
+
+      for (const i in _points) {
+        let [sx,sy,scale] = _points[i].split(',')
         sx = parseFloat(sx); if (isNaN(sx)) sx = 0
         sy = parseFloat(sy); if (isNaN(sy)) sy = 0
         scale = parseFloat(scale); if (isNaN(scale)) scale = 1
         this.__points.push(MazeGame.Point.init(sx,sy,scale))
       }
+
     }
     if (_name) this._name = _name
     for (const id in serialize) constructor.read(serialize, this, id)

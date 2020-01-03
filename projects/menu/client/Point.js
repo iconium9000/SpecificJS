@@ -333,10 +333,10 @@ module.exports = constructors => class Point {
   ) {
     const {_sx,_sy,_scale,constructor:{name}} = this
     let txt = ``
-    if (_sx != 0) txt += _sx; txt += ' '
+    if (_sx != 0) txt += _sx; txt += ','
     if (_sy != 0) txt += _sy
     if (_scale != 1) {
-      txt += ' '
+      txt += ','
       txt += _scale
     }
 

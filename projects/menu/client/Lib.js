@@ -54,7 +54,7 @@ module.exports = (constructors) => class Lib {
   static safe_string(
     unsafe_string, // String
   ) {
-    const special = {'\\':1,'\n':1,' ':1,'@':1,'#':1,':':1,}
+    const special = JSON.parse(`{"\\":1,"\n":1," ":1,"@":1,"#":1,":":1,}`)
     let safe_string = ''
     for (const i in unsafe_string) {
       const c = unsafe_string[i]
@@ -119,14 +119,7 @@ module.exports = (constructors) => class Lib {
     else if (typeof object == 'object') {
       let txt = `@`
       for (const i in object) {
-        if (i == '_points') {
-          let _points = object[i].replace(/ /g, ':')
-          _points = _points.replace(/,/g, ' ').replace(/:/g, ',')
-          txt += depth + '_points# ' + _points
-        }
-        else {
-          txt += depth+this.safe_string(i)+':'+this.stringify(object[i], depth)
-        }
+        txt += depth+this.safe_string(i)+':'+this.stringify(object[i], depth)
       }
       return txt
     }
@@ -134,6 +127,13 @@ module.exports = (constructors) => class Lib {
       return this.safe_string(object)
     }
     else return object
+  }
+
+
+  static parse(
+    string, // String
+  ) {
+    const {log} = console
 
   }
 

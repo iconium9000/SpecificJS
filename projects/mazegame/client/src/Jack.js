@@ -60,8 +60,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     root, // Point
   ) {
     super.root = root
-    const {_root} = this
-    if (this._root == root) this.reroot_lock()
+    this.reroot_lock()
   }
 
   get src() { return super.src }
@@ -149,11 +148,12 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
   set spot(
     spot, // Point,Null
   ) {
-    this._spot = spot
     if (spot) {
+      this._spot = spot.round(this.constructor.round)
       const {root} = this
       this.lock = null
     }
+    else this._spot = null
   }
 
   move(

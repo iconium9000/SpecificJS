@@ -48,7 +48,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   set root(
     root, // Point
   ) {
-    this._root = root
+    this._root = root.round(0.5)
   }
   get root() { return this._root || MazeGame.Point.zero }
 
