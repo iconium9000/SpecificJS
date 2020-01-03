@@ -117,7 +117,7 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
   ) {
     const _wall = super.copy(src)
 
-    const {_length,constructor} = this
+    const {_length} = this
     _wall._length = _length
 
     return _wall
@@ -127,16 +127,8 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
   ) {
     const _serialize = super.serialize(src)
 
-    const {_length,constructor} = this
+    const {_length} = this
     _serialize._length = _length
-
-    const {lock_names} = constructor
-    for (const i in lock_names) {
-      const lock_name = lock_names[i]
-      if (this[lock_name]) {
-        _serialize[lock_name] = constructor.serialize(this[lock_name], src)
-      }
-    }
 
     return _serialize
   }
@@ -147,13 +139,8 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
   ) {
     super.read(serialize, src, id)
 
-    const {_length} = serialize[id], {constructor} = this
+    const {_length} = serialize[id]
     this._length = _length
-
-    const {lock_names} = constructor
-    for (const i in lock_names) {
-      constructor.read(serialize, src, serialize[id][lock_names[i]])
-    }
 
     return this
   }

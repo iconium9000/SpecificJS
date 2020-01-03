@@ -328,16 +328,28 @@ module.exports = constructors => class Point {
     this._x = sx * scale; this._y = sy * scale
     return this
   }
-  serialize() {
+  serialize(
+    points, // TODO "points"
+  ) {
     const {_sx,_sy,_scale,constructor:{name}} = this
+    let txt = ``
+    if (_sx != 0) txt += _sx; txt += ' '
+    if (_sy != 0) txt += _sy
+    if (_scale != 1) {
+      txt += ' '
+      txt += _scale
+    }
+
+    let idx = points[txt]
+    if (idx == null) idx = points.push(txt)-1
+    points[txt] = idx
+
     return {sx:_sx,sy:_sy,scale:_scale,_constructor:name}
   }
   read(
     serialize, // Object
-    src, // Object,Null
-    id, // String,Null
   ) {
-    const {sx,sy,scale} = src ? serialize[id] : serialize
+    const {sx,sy,scale} = serialize
     this._sx = sx; this._sy = sy; this._scale = scale
     this._x = sx*scale; this._y = sy*scale
     return this

@@ -8,6 +8,11 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
   ) {
     const level = editor.src
 
+    const closest_buttton = MazeGame.Button.get_closest(level.buttons, spot)
+    if (closest_buttton) {
+      closest_buttton.press(editor)
+      return true
+    }
     const [closest_lock, closest_key] = level.get_lock_key(spot)
 
     if (closest_key && closest_key.is_jack) {
@@ -47,6 +52,7 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
     this._root_level = root_level
   }
 
+
   copy(
     src, // Null
   ) {
@@ -68,6 +74,8 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
       _serialize._root_level = constructor.serialize(_root_level, _serialize)
     }
 
+    console.log(this.__points)
+
     return _serialize
   }
   read(
@@ -78,12 +86,35 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
     super.read(serialize, src, id)
 
     const {_root_level} = serialize, {constructor} = this
+
     if (_root_level) {
       this.root_level = constructor.read(serialize, this, _root_level)
     }
 
     return this
   }
+
+  remove_editors() {
+    const map = {}, stack = [], {_editors,_root_level} = this
+    for (const id in _editors) _editors[id].remove()
+    if (_root_level) {
+      map[_root_level.id] = _root_level
+      stack.push(_root_level)
+    }
+    while (stack.length) {
+      const level = stack.pop(), {prev_level,next_level} = level
+      level.remove_editors()
+      if (prev_level && !map[prev_level.id]) {
+        map[prev_level.id] = prev_level
+        stack.push(prev_level)
+      }
+      if (next_level && !map[next_level.id]) {
+        map[next_level.id] = next_level
+        stack.push(next_level)
+      }
+    }
+  }
+
 
   static init() {
     const _game = super.init()

@@ -1,15 +1,32 @@
 module.exports = MazeGame => class Level extends MazeGame.Type {
 
   _targets = {}; _editors = {}
-  _locks = {}; _lasers = {}; _slots = {}
+  _locks = {}; _lasers = {}; _slots = {}; _buttons = {}
   _walls = {}; _doors = {}; _headers = {}; _portals = {}
   _keys = {}; _jacks = {}
+
+  _is_locked = true
+  get is_locked() { return this._is_locked }
+  set is_locked(
+    is_locked, // Boolean
+  ) {
+    this._is_locked = !!is_locked
+  }
+
+  get header() {
+    const {_headers} = this
+    for (const i in _headers) {
+      return _headers[i]
+    }
+    return null
+  }
 
   get editors() { return this._editors }
   get targets() { return this._targets }
   get locks() { return this._locks }
   get lasers() { return this._lasers }
   get slots() { return this._slots }
+  get buttons() { return this._buttons }
   get walls() { return this._walls }
   get doors() { return this._doors }
   get headers() { return this._headers }
@@ -71,7 +88,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   set prev_level(
     prev_level, // Level,Null
   ) {
-    if (prev_level == this._prev_level) return
+    if (prev_level == this._prev_level || typeof prev_level != 'object') return
     this._prev_level = prev_level
     if (prev_level) {
       prev_level.next_level = this
@@ -82,7 +99,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   set next_level(
     next_level, // Level,Null
   ) {
-    if (next_level == this._next_level) return
+    if (next_level == this._next_level || typeof next_level != 'object') return
     this._next_level = next_level
     if (next_level) {
       next_level.prev_level = this
@@ -103,13 +120,18 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   ) {
     const _level = super.copy(src)
 
-    const {root,_prev_level,_next_level,_scale,constructor} = this
+    const {root,_is_locked,_prev_level,_next_level,_scale,constructor} = this
     _level.root = root
+    _level.is_locked = _is_locked
     _level._scale = _scale > 0 ? _scale : constructor.scale
 
     if (src) {
       if (_prev_level) _level.prev_level = constructor.copy(_prev_level, src)
       if (_next_level) _level.next_level = constructor.copy(_next_level, src)
+    }
+    else {
+      _level._prev_level = !!_prev_level
+      _level._next_level = !!_next_level
     }
 
     return _level
@@ -119,8 +141,8 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   ) {
     const _serialize = super.serialize(src)
 
-    const {root,_prev_level,_next_level,_scale,constructor} = this
-    _serialize._root = root.serialize()
+    const {root,_prev_level,_next_level,__points,_scale,constructor} = this
+    _serialize._root = root.serialize(__points)
     _serialize._scale = _scale
 
     if (src) {
@@ -131,6 +153,10 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
         _serialize._next_level = constructor.serialize(_next_level, src)
       }
     }
+    else {
+      _serialize._prev_level = !!_prev_level
+      _serialize._next_level = !!_next_level
+    }
 
     return _serialize
   }
@@ -139,17 +165,26 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     src, // Game,Null
     id, // String,Null
   ) {
+    if (src && src.__points) this.__points = src.__points
+
     super.read(serialize, src, id)
 
     const {_root,_scale} = serialize[id], {constructor} = this
     if (_root) this.root = constructor.read(_root)
     this.scale = _scale
 
+
+    const {_prev_level,_next_level} = serialize[id]
     if (src) {
-      const {_prev_level,_next_level} = serialize[id]
       this.prev_level = constructor.read(serialize, src, _prev_level)
       this.next_level = constructor.read(serialize, src, _next_level)
     }
+    else {
+      _serialize._prev_level = _prev_level
+      _serialize._next_level = _next_level
+    }
+
+    this.__backup = this.copy()
 
     return this
   }
@@ -183,6 +218,11 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     super.remove()
   }
 
+  remove_editors() {
+    const {_editors} = this
+    for (const id in _editors) _editors[id].remove()
+  }
+
   move(
     dt, // Number (milliseconds)
   ) {
@@ -197,11 +237,12 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     offset, // MazeGame.Point (in drawspace)
     scale, // Number
   ) {
-    const {_locks,_keys,_walls,name,constructor} = this
+    const {_locks,_keys,_walls,_buttons,name,constructor} = this
 
     for (const id in _locks) _locks[id].draw(ctx,offset,scale)
     for (const id in _keys) _keys[id].draw(ctx,offset,scale)
     for (const id in _walls) _walls[id].draw(ctx,offset,scale)
+    for (const id in _buttons) _buttons[id].draw(ctx,offset,scale)
 
     // const {thin_line_width,thin_stroke_color} = MazeGame.Target
     // ctx.lineWidth = thin_line_width * scale

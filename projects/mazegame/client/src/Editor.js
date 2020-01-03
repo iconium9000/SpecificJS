@@ -28,6 +28,43 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
     if (_level) _level.root = root
   }
 
+  prev_level() {
+    const {_parent,_level} = this
+    if (_parent) return _parent.prev_level()
+
+    if (_level && _level.prev_level && _level.prev_level != true) {
+      this.level = _level.prev_level
+    }
+  }
+  next_level() {
+    const {_parent,_level} = this
+    if (_parent) return _parent.next_level()
+
+    if (
+      _level && _level.next_level
+      && _level.next_level != true
+      && !_level.is_locked
+    ) {
+      this.level = _level.next_level
+    }
+  }
+  reset_level() {
+    const {_parent,_level} = this
+    if (_parent) return _parent.reset_level()
+    
+    if (_level && _level.__backup) {
+      const {src,prev_level,next_level,is_locked,__backup} = _level
+      const level = __backup.copy(src)
+      level.prev_level = prev_level
+      level.next_level = next_level
+      level.is_locked = is_locked
+      this.level = level
+      src.root_level = level
+    }
+  }
+
+  get parent() { return this._parent }
+
   get editor() { return this._editor }
   get level() { return this._level }
   set level(
@@ -41,6 +78,7 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
       this._editor = null
     }
     this._editor = level && constructor.init(level, id, name)
+    if (this._editor) this._editor._parent = this
   }
 
   get target() { return this._target }
@@ -142,6 +180,8 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
       const dt = time - _time
       src.move(0 < dt && dt < min_dt ? dt : min_dt)
       this._time = time
+
+      if (src.header && src.header.is_open) src.is_locked = false
     }
   }
 }

@@ -34,19 +34,12 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
   reroot_lock(
     name, // String
   ) {
-    const {[name]:_lock,_root,_spot,_long,_short} = this
+    const {[name]:_lock,_root,_spot,_long,_short,constructor} = this
     if (!_lock) return
-    const {length} = _lock
+    const {length} = _lock, {lock_names} = constructor
     _lock._long = _short.strip(-length).unit
-    switch (name) {
-      case '_lock_root':
-        return _lock.root = _root.sum(_long.div(4))
-      case '_lock_cent':
-        return _lock.root = _root.sum(_long.div(2))
-      case '_lock_spot':
-        return _lock.root = _root.sum(_long.mul(3/4))
-      default: return
-    }
+    const i = (lock_names.indexOf(name) + 1) / (lock_names.length + 1)
+    return _lock.root = _root.sum(_long.mul(i))
   }
 
   set is_open(

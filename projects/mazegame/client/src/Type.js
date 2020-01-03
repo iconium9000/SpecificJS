@@ -9,6 +9,7 @@ module.exports = MazeGame => class Type {
   static get thin_line_width() { return this.line_width / 2 }
   static get speed() { return 5e1 } // dist / time = speed
   static get min_dt() { return 1/0x80 }
+  get is_type() { return true }
 
   static act_at(
     editor, // Editor
@@ -47,7 +48,8 @@ module.exports = MazeGame => class Type {
     type, // Type
     src, // Type,Null
   ) {
-    return src && src[type.id] ? src[type.id] : type.copy(src)
+    if (typeof type != 'object') return type
+    else return src && src[type.id] ? src[type.id] : type.copy(src)
   }
 
   copy(
@@ -72,14 +74,19 @@ module.exports = MazeGame => class Type {
     type, // Type
     src, // Object,Null
   ) {
+    if (type.constructor == MazeGame.Button) {
+      if (type.parent[type.name] == type) return
+    }
     if (!src || !src[type.id]) type.serialize(src)
     return type.id
   }
   serialize(
     src, // Object,Null
   ) {
-    const {_id,_name,constructor} = this
+    const {_id,_name,constructor,_src} = this
     const _serialize = {_constructor:constructor.name}
+    if (src) this.__points = _src.__points
+    else this.__points = []
 
     if (_name) _serialize._name = _name
     if (src) src[_id] = _serialize
@@ -111,8 +118,19 @@ module.exports = MazeGame => class Type {
       serialize = serialize[id]
       this._id = id
       this.src = src
+      this.__points = src.__points
     }
-    const {_name} = serialize, {constructor} = this
+    const {_name,_points} = serialize, {constructor} = this
+    if (!src && _points) {
+      this.__points = []
+      const points = _points.split(',')
+      for (const i in points) {
+        let [sx,sy,s] = points[i].split(' ')
+        sx = parseFloat(sx); sy = parseFloat(sy); s = parseFloat(s)
+        if (isNaN(s)) s = 1
+        this.__points.push(MazeGame.Point.init(sx,sy,s))
+      }
+    }
     if (_name) this._name = _name
     for (const id in serialize) constructor.read(serialize, this, id)
     return this

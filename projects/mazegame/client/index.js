@@ -17,10 +17,10 @@ function MazeGame() {
 	const log = (...msg) => console.log(project_name, ...msg)
 	const err = console.error
 
-	this.key_bindings = {}
+	const key_bindings = {}
 	for (const type_name in MazeGame) {
 		const type = MazeGame[type_name]
-		if (type != null) this.key_bindings[type.key_bind] = type
+		if (type != null) key_bindings[type.key_bind] = type
 	}
 
 	const effect_stack = []
@@ -31,7 +31,7 @@ function MazeGame() {
 		right_down: false, left_down: false,
 		get id() { return client.socket.id }
 	}
-	MazeGame.client = client
+	// MazeGame.client = client
 	client.name = client.id
 	setup_game()
 
@@ -55,75 +55,12 @@ function MazeGame() {
 		return [_center, _center.short.scale / scale ]
 	}
 
-	client.socket.on('connect', () => {
-		client.name = null
-	  if (typeof document.cookie == 'string') {
-	    client.name = Lib.get_cookie('name')
-	  }
-
-	  // if no name is found in cookies, get one from the user
-	  while (!client.name || client.name == 'null') {
-	    client.name = prompt('Choose a name:', client.name)
-	    document.cookie = `name=${client.name}`
-	  }
-		const {name,id} = client
-
-		client.full_name = `'${name}' (${id})`
-
-	  // reply to server with name
-	  client.socket.emit('client name', {name: name})
-		client.socket.emit('serial')
-
-	  log(client.full_name, 'connected to server')
-
-	  tick()
-	})
-	client.socket.on('serial', serial => {
-		const {id,name} = client
-		try {
-			setup_game(MazeGame.Game.read(serial))
-		}
-		catch (e) {
-			log(e)
-		}
-	})
-
-	$(document).mousemove(e => {
-		const {right_down,mouse,editor} = client
-		const _mouse = MazeGame.Point.init(e.offsetX,e.offsetY,1)
-		const [_center,_scale] = get_center_scale(e.target)
-
-		if (right_down) {
-			editor.root = mouse.sub(_mouse).div(_scale).sum(editor.root)
-		}
-
-		client.mouse = _mouse
-	})
-
-	$(document).mousedown(e => {
-		client.mouse = MazeGame.Point.init(e.offsetX,e.offsetY,1)
-		client[e.button == 2 ? 'right_down' : 'left_down'] = true
-	})
-
-	$(document).mouseup(e => {
-		const {time} = Lib, {target} = e
-		target.width = window.innerWidth - 20
-		target.height = window.innerHeight - 20
-		const [_center, _scale] = get_center_scale(target)
-		const _mouse = MazeGame.Point.init(e.offsetX,e.offsetY,1)
-		client[e.button == 2 ? 'right_down' : 'left_down'] = false
-
-		const {editor} = client
-		const {_editor,root} = editor, {_mode} = _editor
-    _mode.act_at(_editor, _mouse.sub(_center).div(_scale).sum(root))
-
-		client.mouse = _mouse
-	})
-
 	document.onkeydown = e => {
+		if (!client.enable_editor) return
+
 		const code = e.which
 		var c = e.key // String.fromCharCode(code | 0x20)
-		const new_mode = this.key_bindings[c]
+		const new_mode = key_bindings[c]
 		const {editor,game} = client
 
 		const {time} = MazeGame.Lib
@@ -218,6 +155,77 @@ function MazeGame() {
 			// client.editor = client.game[editor.id]
 		}
 	}
+
+	client.socket.on('connect', () => {
+		client.name = null
+	  if (typeof document.cookie == 'string') {
+	    client.name = Lib.get_cookie('name')
+	  }
+
+	  // if no name is found in cookies, get one from the user
+	  while (!client.name || client.name == 'null') {
+	    client.name = prompt('Choose a name:', client.name)
+	    document.cookie = `name=${client.name}`
+	  }
+		const {name,id} = client
+
+		client.full_name = `'${name}' (${id})`
+
+	  // reply to server with name
+	  client.socket.emit('client name', {name: name})
+		client.socket.emit('serial')
+
+	  log(client.full_name, 'connected to server')
+
+	  tick()
+	})
+	client.socket.on(
+		'enable_editor', enable_editor => client.enable_editor = enable_editor
+	)
+	client.socket.on('serial', serial => {
+		const {id,name} = client
+		try {
+			setup_game(MazeGame.Game.read(serial))
+		}
+		catch (e) {
+			log(e)
+		}
+	})
+
+	$(document).mousemove(e => {
+		const {right_down,mouse,editor} = client
+		const _mouse = MazeGame.Point.init(e.offsetX,e.offsetY,1)
+		const [_center,_scale] = get_center_scale(e.target)
+
+		if (right_down) {
+			editor.root = mouse.sub(_mouse).div(_scale).sum(editor.root)
+		}
+
+		client.mouse = _mouse
+	})
+
+	$(document).mousedown(e => {
+		client.mouse = MazeGame.Point.init(e.offsetX,e.offsetY,1)
+		client[e.button == 2 ? 'right_down' : 'left_down'] = true
+	})
+
+	$(document).mouseup(e => {
+		const {time} = Lib, {target} = e
+		target.width = window.innerWidth - 20
+		target.height = window.innerHeight - 20
+		const [_center, _scale] = get_center_scale(target)
+		const _mouse = MazeGame.Point.init(e.offsetX,e.offsetY,1)
+		client[e.button == 2 ? 'right_down' : 'left_down'] = false
+
+		const {editor} = client
+		const {_editor,root} = editor, {_mode} = _editor
+		editor.log = log
+    _mode.act_at(_editor, _mouse.sub(_center).div(_scale).sum(root))
+
+		client.mouse = _mouse
+	})
+
+
 
 	function tick() {
 

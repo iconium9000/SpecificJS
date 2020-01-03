@@ -102,10 +102,10 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
   ) {
     const _serialize = super.serialize(src)
 
-    const {_root,_lock,constructor} = this
+    const {_root,_lock,__points,constructor} = this
 
     if (_lock) _serialize._lock = constructor.serialize(_lock, src)
-    else _serialize._root = _root.serialize()
+    else _serialize._root = _root.serialize(__points)
 
     return _serialize
   }

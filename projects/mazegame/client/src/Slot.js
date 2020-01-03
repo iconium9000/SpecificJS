@@ -1,11 +1,14 @@
 module.exports = MazeGame => class Slot extends MazeGame.Lock {
 
+  static get long_min() { return 2 }
+  static get long_max() { return 2 }
+
   static get key_bind() { return 's' }
   get is_slot() { return true }
 
   get is_open() {
     const {_key} = this
-    return _key ? _key.is_jack || _key.is_open : false
+    return _key ? _key.is_jack || !_key.is_open : false
   }
   set is_open(
     is_open, // Boolean

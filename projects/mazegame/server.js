@@ -5,12 +5,15 @@ module.exports = (project, projects, super_require) => {
   const fs = require('fs')
   const file_name = __dirname + '/MazeGame.json'
 
+  const enable_editor = true
+  // const enable_editor = false
+
   const clients = {}
   const MazeGame = {}
   const super_classes = ['Lib','Point']
   const classes = [
     'Type','Target',
-    'Lock','Laser','Slot',
+    'Lock','Laser','Slot','Button',
     'Wall','Door','Header','Portal',
     'Key','Jack',
     'Editor','Level','Game'
@@ -27,7 +30,8 @@ module.exports = (project, projects, super_require) => {
     const serial = JSON.parse(fs.readFileSync(file_name).toString('utf8'))
     game = MazeGame.Game.read(serial)
   }
-  catch {
+  catch (e) {
+    console.log(e)
     game = MazeGame.Game.init()
   }
 
@@ -39,12 +43,10 @@ module.exports = (project, projects, super_require) => {
       full_name: null,
     }
     client.socket.on('serial', (serial) => {
-      if (serial) {
+      if (serial && enable_editor) {
         try {
           game = MazeGame.Type.read(serial)
-          const {editors} = game
-          for (const id in editors) editors[id].remove()
-
+          game.remove_editors()
           serial = game.serialize()
           project.socket.emit('serial', serial)
 
@@ -61,6 +63,7 @@ module.exports = (project, projects, super_require) => {
     })
 
     client.socket.emit('connect')
+    client.socket.emit('enable_editor', enable_editor)
 
     client.socket.on('client name', ({name}) => {
 
@@ -68,10 +71,6 @@ module.exports = (project, projects, super_require) => {
 
       client.name = name
       client.full_name = `'${name}' (${client.socket.id})`
-
-      // MazeGame.get_editor(game, client)
-      // const game_export = MazeGame.export_game(game = MazeGame.copy_game(game))
-      // project.socket.emit('update', game_export, 'client name')
     })
 
     client.socket.on(`disconnect`, () => {

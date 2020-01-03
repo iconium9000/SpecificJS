@@ -142,9 +142,9 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
   ) {
     const _serialize = super.serialize(src)
 
-    const {_root,_long,_short,constructor} = this
-    _serialize._root = _root.serialize()
-    _serialize._long = _long.sum(_short).serialize()
+    const {_root,_long,_short,__points,constructor} = this
+    _serialize._root = _root.serialize(__points)
+    _serialize._long = _long.sum(_short).serialize(__points)
 
     return _serialize
   }
