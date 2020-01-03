@@ -51,6 +51,92 @@ module.exports = (constructors) => class Lib {
     ), '$1')
   }
 
+  static safe_string(
+    unsafe_string, // String
+  ) {
+    const special = {'\\':1,'\n':1,' ':1,'@':1,'#':1,':':1,}
+    let safe_string = ''
+    for (const i in unsafe_string) {
+      const c = unsafe_string[i]
+      if (special[c]) safe_string += '\\'
+      safe_string += c
+    }
+    return safe_string
+  }
+
+  static unsafe_string(
+    safe_string, // String
+  ) {
+    let unsafe_string = ''
+    let prev = null
+    for (const i in safe_string) {
+      const c = safe_string[i]
+      if (c != '\\' || prev == '\\') {
+        unsafe_string += c
+        prev = c
+      }
+    }
+    return unsafe_string
+  }
+
+  static depth(
+    object, // Object,Null
+  ) {
+    if (object == null) return 0
+    else if (Array.isArray(object)) {
+      let depth = ''
+      for (let i = 0; i < object.length; ++i) {
+        const _depth = this.depth(object[i])
+        if (_depth > depth) depth = _depth
+      }
+      return depth + 1
+    }
+    else if (typeof object == 'object') {
+      let depth = 0
+      for (const i in object) {
+        const _depth = this.depth(object[i])
+        if (_depth > depth) depth = _depth
+      }
+      return depth + 1
+    }
+    else return 0
+  }
+  static stringify(
+    object, // Object,Null
+    depth, // String,Null
+  ) {
+    depth = depth || ''
+    if (this.depth(object) > 1) depth += depth ? '  ' : '\n  '
+    else depth = ' '
+
+    if (Array.isArray(object)) {
+      let txt = `#`
+      for (let i = 0; i < object.length; ++i) {
+        txt += depth + this.stringify(object[i], depth)
+      }
+      return txt
+    }
+    else if (typeof object == 'object') {
+      let txt = `@`
+      for (const i in object) {
+        if (i == '_points') {
+          let _points = object[i].replace(/ /g, ':')
+          _points = _points.replace(/,/g, ' ').replace(/:/g, ',')
+          txt += depth + '_points# ' + _points
+        }
+        else {
+          txt += depth+this.safe_string(i)+':'+this.stringify(object[i], depth)
+        }
+      }
+      return txt
+    }
+    else if (typeof object == 'string') {
+      return this.safe_string(object)
+    }
+    else return object
+
+  }
+
   // for -pi < angle < pi
   static inverse_angle(angle) {
     return angle + pi > pi ? angle - pi : angle + pi

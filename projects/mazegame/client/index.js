@@ -225,8 +225,6 @@ function MazeGame() {
 		client.mouse = _mouse
 	})
 
-
-
 	function tick() {
 
 		const canvas = document.getElementById('canvas')

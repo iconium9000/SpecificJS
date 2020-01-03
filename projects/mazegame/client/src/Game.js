@@ -74,8 +74,6 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
       _serialize._root_level = constructor.serialize(_root_level, _serialize)
     }
 
-    console.log(this.__points)
-
     return _serialize
   }
   read(

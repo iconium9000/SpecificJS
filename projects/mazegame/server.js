@@ -29,6 +29,9 @@ module.exports = (project, projects, super_require) => {
   try {
     const serial = JSON.parse(fs.readFileSync(file_name).toString('utf8'))
     game = MazeGame.Game.read(serial)
+
+    string = MazeGame.Lib.stringify(serial)
+    fs.writeFile(__dirname + '/test.json', string, 'utf8', log)
   }
   catch (e) {
     console.log(e)
@@ -50,8 +53,12 @@ module.exports = (project, projects, super_require) => {
           serial = game.serialize()
           project.socket.emit('serial', serial)
 
-          const string = JSON.stringify(serial,null,' ')
+          let string = JSON.stringify(serial,null,' ')
           fs.writeFile(file_name, string, 'utf8', log)
+
+          string = MazeGame.Lib.stringify(serial)
+          fs.writeFile(__dirname + 'test.txt', string, 'utf8', log)
+
         }
         catch (e) {
           log(e)
