@@ -3,9 +3,12 @@ module.exports = (project, projects, super_require) => {
   const log = (...msg) => console.log(project_name, ...msg)
   const pi2 = Math.PI * 2
   const fs = require('fs')
-  const shell = require('shelljs')
   const file_name = __dirname + '/Solver.json'
   const solve_file = __dirname + '/solve.json'
+
+  let shell = null
+  try { shell = require('shelljs') }
+  catch (e) {}
 
   const clients = {}
   let file = '{}'
