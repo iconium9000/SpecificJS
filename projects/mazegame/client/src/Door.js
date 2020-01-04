@@ -118,7 +118,7 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     const _wall = super.copy(src)
 
     const {_length} = this
-    _wall._length = _length
+    _wall.length = _length
 
     return _wall
   }
@@ -140,7 +140,8 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     super.read(serialize, src, id)
 
     const {_length} = serialize[id]
-    this._length = _length
+    // console.log(serialize[id])
+    this.length = _length
 
     return this
   }

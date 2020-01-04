@@ -114,29 +114,6 @@ module.exports = MazeGame => class Button extends MazeGame.Target {
     const _root = root.mul(scale).sum(offset)
     const _font_scale = font_scale * scale
 
-    {
-      const {root,is_open,lock,constructor} = this, {pi2} = MazeGame.Lib
-      const {
-        stroke_color,fill_color,line_width,
-        radius,center_radius,
-      } = constructor
-      const _root = root.mul(scale).sum(offset)
-      const _radius = radius * scale
-      const _center_radius = center_radius * scale
-
-      ctx.lineJoin = 'round'
-      ctx.lineCap = 'round'
-      ctx.strokeStyle = stroke_color
-      ctx.fillStyle = fill_color
-      ctx.lineWidth = line_width * scale
-
-      ctx.beginPath()
-      ctx.arc(_root.x, _root.y, _radius, 0, pi2)
-      ctx.closePath()
-      ctx.fill()
-      ctx.stroke()
-    }
-
     ctx.font = `${_font_scale}px Arial`
     ctx.textAlign = 'center'
     ctx.fillStyle = stroke_color

@@ -119,9 +119,9 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     super.read(serialize, src, id)
 
     const {_long,_spot,_nose} = serialize[id], {constructor,__points} = this
-    this._long = __points[_long]
+    this._long = MazeGame.Point.read(_long,__points)
     if (_nose) this.set_lock(constructor.read(serialize, src, _nose))
-    if (_spot) this.spot = __points[_spot]
+    if (_spot) this.spot = MazeGame.Point.read(_spot,__points)
 
     return this
   }
@@ -149,7 +149,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     spot, // Point,Null
   ) {
     if (spot) {
-      this._spot = spot.round(this.constructor.round)
+      this._spot = spot//.round(this.constructor.round)
       const {root} = this
       this.lock = null
     }

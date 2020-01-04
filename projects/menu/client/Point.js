@@ -340,17 +340,25 @@ module.exports = constructors => class Point {
       txt += _scale
     }
 
-    let idx = points[txt]
-    if (idx == null) idx = points.push(txt)-1
-    points[txt] = idx
-
-    return idx // {sx:_sx,sy:_sy,scale:_scale,_constructor:name}
+    if (points) {
+      let idx = points[txt]
+      if (idx == null) idx = points.push(txt)-1
+      points[txt] = idx
+      return idx
+    }
+    else return txt
   }
   read() {}
   static read(
-    serialize, // Object
+    serial, // Object
     points, // TODO "points"
   ) {
-    return points[serialize]
+    if (points) return points[serial]
+
+    let [sx,sy,scale] = serial.split(',')
+    sx = parseFloat(sx); if (isNaN(sx)) sx = 0
+    sy = parseFloat(sy); if (isNaN(sy)) sy = 0
+    scale = parseFloat(scale); if (isNaN(scale)) scale = 1
+    return this.init(sx,sy,scale)
   }
 }

@@ -54,8 +54,15 @@ module.exports = (constructors) => class Lib {
   static safe_string(
     unsafe_string, // String
   ) {
-    const special = JSON.parse(`{"\\":1,"\n":1," ":1,"@":1,"#":1,":":1,}`)
+    const special = {'\\':1,' ':1,'\n':1,'@':1,'#':1,':':1,';':1,'Ǝ':1,'!':1}
+
+    if (!unsafe_string) return 'Ǝ'
+    if (unsafe_string == 'true') return '!true'
+    else if (unsafe_string == 'false') return '!false'
+
     let safe_string = ''
+    if (!isNaN(parseFloat(unsafe_string))) safe_string += '!'
+
     for (const i in unsafe_string) {
       const c = unsafe_string[i]
       if (special[c]) safe_string += '\\'
@@ -67,6 +74,8 @@ module.exports = (constructors) => class Lib {
   static unsafe_string(
     safe_string, // String
   ) {
+    if (safe_string == 'Ǝ') return ''
+
     let unsafe_string = ''
     let prev = null
     for (const i in safe_string) {
@@ -101,40 +110,162 @@ module.exports = (constructors) => class Lib {
     }
     else return 0
   }
+
   static stringify(
-    object, // Object,Null
+    value, // Object,Array,Number,Boolean,Null
     depth, // String,Null
+    map,
   ) {
-    depth = depth || ''
-    if (this.depth(object) > 1) depth += depth ? '  ' : '\n  '
-    else depth = ' '
+    const _type = typeof value
+    let string = ''
+    if (_type == undefined) string = 'undefined'
+    else if (_type == 'number' || _type == 'boolean') string = value
+    else if (_type == 'string') {
+      if (value == '') string = 'Ǝ'
+      else if (value == 'true') string = '!true'
+      else if (value == 'false') string = '!false'
+      else if (value == 'NaN') string = '!NaN'
+      else if (value == 'undefined') string = '!undefined'
+      else if (value == 'null') string = '!null'
 
-    if (Array.isArray(object)) {
-      let txt = `#`
-      for (let i = 0; i < object.length; ++i) {
-        txt += depth + this.stringify(object[i], depth)
+      if (string == '') {
+        if (parseFloat(value).toString() == value) string += '!'
+
+        for (const i in value) {
+          const char = value[i]
+          if (
+            char == '\n' || char == ' ' ||
+            char == ';' || char == '!' || char == 'Ǝ'
+          ) string += '\\'
+          string += char
+        }
       }
-      return txt
     }
-    else if (typeof object == 'object') {
-      let txt = `@`
-      for (const i in object) {
-        txt += depth+this.safe_string(i)+':'+this.stringify(object[i], depth)
+    else if (_type == 'object') {
+
+      let _depth = depth || ''
+      if (this.depth(value) > 1) _depth += depth ? '  ' : '\n  '
+      else _depth = ' '
+
+      if (Array.isArray(value)) {
+        string += '#'
+        for (let i = 0; i < value.length; ++i) {
+          string += _depth + this.stringify(value[i],_depth,map)
+        }
+        string += ';'
       }
-      return txt
+      else {
+        string += '@'
+        for (const label in value) {
+
+          let _label = _depth
+          for (const i in label) {
+            const char = label[i]
+
+            if (
+              char == ':' || char == ';' || char == 'Ǝ' ||
+              char == '@' || char == '#' || char == '$' ||
+              char == ' ' || char == '\n'
+            ) _label += '\\'
+            _label += char
+          }
+
+          string += _label + ':' + this.stringify(value[label],_depth,map)
+        }
+        string += ';'
+      }
     }
-    else if (typeof object == 'string') {
-      return this.safe_string(object)
-    }
-    else return object
+    return string
   }
-
 
   static parse(
     string, // String
   ) {
-    const {log} = console
+    let idx = 0
+    let state = { return: 'END' }
 
+    const TOP = (...chars) => {
+      const _char = string[idx]
+      for (const i in chars) if (chars[i] == _char) return true;
+      return false;
+    }
+
+    const POP = _tok => {
+      tok = _tok
+      if (string[idx] == '\\') ++idx; ++idx
+      return string[idx-1]
+    }
+    const TOK = _tok => tok = _tok
+
+    let tok = 'START', parent
+    while (tok != 'END' && idx <= string.length) switch (tok) {
+    case 'START':
+      if (TOP('#')) POP('ARY', state.ary = [])
+      else if (TOP('@')) POP('OBJ', state.obj = {})
+      else if (TOP('Ǝ')) POP(state.return, state.value = '')
+      else if (TOP('!')) POP('!TXT', state.txt = '')
+      else TOK('TXT', state.txt = '')
+      break
+
+    case '!TXT':
+      if (TOP(';',' ','\n')) TOK(state.return, state.value = state.txt)
+      else state.txt += POP('!TXT')
+      break
+
+    case 'TXT':
+      if (TOP(';',' ','\n')) {
+        let {txt} = state
+        if (txt == 'true') txt = true
+        else if (txt == 'false') txt = false
+        else if (txt == 'NaN') txt = NaN
+        else if (txt == 'undefined') txt = undefined
+        else if (txt == 'null') txt = null
+        else if (parseFloat(txt).toString() == txt) txt = parseFloat(txt)
+        TOK(state.return, state.value = txt)
+      }
+      else state.txt += POP('TXT')
+      break
+
+    case 'ARY':
+      if (TOP(' ','\n')) POP('ARY')
+      else if (TOP(';')) POP(state.return)
+      else TOK('START', state = { parent: state, return: 'ARY_NEXT', })
+      break
+
+    case 'ARY_NEXT':
+      state.parent.ary.push(state.value)
+      state = state.parent
+
+      if (TOP(';')) POP(state.return, state.value = state.ary)
+      else tok = 'ARY'
+      break
+
+    case 'OBJ':
+      if (TOP(' ','\n')) POP('OBJ')
+      else if (TOP(';')) POP(state.return)
+      else TOK('OBJ_LABEL', state.label = '')
+      break
+
+    case 'OBJ_LABEL':
+      if (TOP(':')) POP('START', state = { parent: state, return: 'OBJ_NEXT' })
+      else state.label += POP('OBJ_LABEL')
+      break
+
+    case 'OBJ_NEXT':
+      parent = state.parent
+      parent.obj[parent.label] = state.value
+      if (parent.label == '_length') {
+        parent.obj.flag = 'FLAG'
+      }
+      state = parent
+
+      if (TOP(' ','\n')) POP('OBJ')
+      else if (TOP(';')) POP(state.return, state.value = state.obj)
+      else TOK('OBJ_LABEL', state.label = '')
+      break
+    }
+
+    return state.value
   }
 
   // for -pi < angle < pi

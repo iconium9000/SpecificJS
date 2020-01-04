@@ -170,7 +170,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     super.read(serialize, src, id)
 
     const {_root,_scale} = serialize[id], {constructor,__points} = this
-    if (_root) this.root = __points[_root]
+    if (_root) this.root = MazeGame.Point.read(_root,__points)
     this.scale = _scale
 
 

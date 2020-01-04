@@ -182,9 +182,10 @@ function MazeGame() {
 	client.socket.on(
 		'enable_editor', enable_editor => client.enable_editor = enable_editor
 	)
-	client.socket.on('serial', serial => {
+	client.socket.on('serial', string => {
 		const {id,name} = client
 		try {
+			const serial = MazeGame.Lib.parse(string)
 			setup_game(MazeGame.Game.read(serial))
 		}
 		catch (e) {

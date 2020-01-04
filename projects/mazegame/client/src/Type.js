@@ -85,8 +85,7 @@ module.exports = MazeGame => class Type {
   ) {
     const {_id,_name,constructor,_src} = this
     const _serialize = {_constructor:constructor.name}
-    if (src) this.__points = _src.__points
-    else this.__points = []
+    delete this.__points
 
     if (_name) _serialize._name = _name
     if (src) src[_id] = _serialize
@@ -96,8 +95,6 @@ module.exports = MazeGame => class Type {
         constructor.serialize(this[id], _serialize)
       }
     }
-
-    if (!src) _serialize._points = this.__points
 
     return _serialize
   }

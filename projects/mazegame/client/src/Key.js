@@ -24,11 +24,11 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
       if (closest_lock && !closest_lock.is_parent(key)){
          closest_lock.key = key
       }
-      else key.root = spot
+      else key.root = spot.round(this.round)
       return true
     }
     else {
-      const _key = this.init(level, closest_lock, spot)
+      const _key = this.init(level, closest_lock, spot.round(this.round))
       return true
     }
   }
@@ -71,7 +71,7 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
   set root(
     root, // Point
   ) {
-    super.root = this._lock ? root : root.round(this.constructor.round)
+    super.root = root // this._lock ? root : root.round(this.constructor.round)
   }
 
   get lock() { return this._lock }
@@ -126,7 +126,7 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
 
     const {_root,_lock} = serialize[id], {constructor,__points} = this
     if (_lock) this.lock = constructor.read(serialize, src, _lock)
-    else this.root = __points[_root]
+    else this.root = MazeGame.Point.read(_root,__points)
 
     return this
   }

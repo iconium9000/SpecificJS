@@ -156,8 +156,8 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
     super.read(serialize, src, id)
 
     const {_root,_long} = serialize[id], {constructor,__points} = this
-    this._root = __points[_root]
-    this.long = __points[_long]
+    this._root = MazeGame.Point.read(_root,__points)
+    this.long = MazeGame.Point.read(_long,__points)
 
     return this
   }
