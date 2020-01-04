@@ -255,7 +255,7 @@ function MazeGame() {
 			ctx.arc(_center.x,_center.y,2,0,pi2)
 			ctx.fill()
 
-			editor.draw(ctx,_center,root,mouse)
+			editor.draw(ctx,_center,root,mouse,is_mobile)
 		}
 		catch(e) { log(e) }
 	}
