@@ -355,6 +355,14 @@ module.exports = constructors => class Point {
   ) {
     if (points) return points[serial]
 
+    if (typeof serial == 'object') {
+      const {sx,sy,scale} = serial
+      const _this = new this
+      _this._sx = sx; _this._sy = sy; _this._scale = scale
+      _this._x = sx*scale; _this._y = sy*scale
+      return _this
+    }
+
     let [sx,sy,scale] = serial.split(',')
     sx = parseFloat(sx); if (isNaN(sx)) sx = 0
     sy = parseFloat(sy); if (isNaN(sy)) sy = 0

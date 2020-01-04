@@ -99,7 +99,7 @@ module.exports = Solver => class Node {
     const {_nodes} = level, {read} = this.constructor
     this._level = level
     this._id = id
-    this._point = read(sLevel[id], level, '_point')
+    this._point = Solver.Point.read(sLevel[id]._point)
     this._move = sLevel[id]._move != false
     _nodes[id] = this
     return this

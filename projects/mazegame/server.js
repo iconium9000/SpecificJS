@@ -5,8 +5,8 @@ module.exports = (project, projects, super_require) => {
   const fs = require('fs')
   const file_name = __dirname + '/MazeGame.txt'
 
-  const enable_editor = true
-  // const enable_editor = false
+  // const enable_editor = true
+  const enable_editor = false
 
   const clients = {}
   const MazeGame = {}
@@ -48,7 +48,7 @@ module.exports = (project, projects, super_require) => {
           game = MazeGame.Type.read(serial)
           game.remove_editors()
           serial = game.serialize()
-          
+
           let string = MazeGame.Lib.stringify(serial)
           project.socket.emit('serial', string)
 
