@@ -11,14 +11,14 @@ module.exports = MazeGame => class Slot extends MazeGame.Lock {
     return _key ? _key.is_jack || !_key.is_open : false
   }
   set is_open(
-    is_open, // Boolean
+    is_open // Boolean
   ) {
     super.is_open = is_open
   }
 
   get src() { return super.src }
   set src(
-    src, // Level
+    src // Level
   ) {
     const {id} = this
     super.src = src

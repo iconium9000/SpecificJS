@@ -16,8 +16,8 @@
 */
 
 module.exports = (constructors) => class Lib {
-  static pi = Math.PI
-  static pi2 = this.pi * 2
+  static get pi() { return Math.PI }
+  static get pi2() { return this.pi * 2 }
 
   static get time() {
     return (new Date()).getTime()

@@ -1,7 +1,7 @@
 const {log,error} = console
 const module = {
 	set exports(
-		get_constructor, // (Function{Function.name}) => Function
+		get_constructor // (Function{Function.name}) => Function
 	) {
 		const constructor = get_constructor(Solver)
 		Solver[constructor.name] = constructor

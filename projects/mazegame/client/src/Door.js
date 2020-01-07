@@ -14,7 +14,7 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
 
   get is_open() { return super.is_open }
   set is_open(
-    is_open, // Boolean
+    is_open // Boolean
   ) {
     if (!is_open) return super.is_open = false
     const {lock_names} = this.constructor
@@ -27,7 +27,7 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
 
   get length() { return this._length }
   set length(
-    length, // Number
+    length // Number
   ) {
     const {_length} = this
     length = length < 0 ? 0 : length > 1 ? 1 : length
@@ -105,7 +105,7 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
 
   get src() { return super.src }
   set src(
-    src, // Level
+    src // Level
   ) {
     const {id} = this
     super.src = src

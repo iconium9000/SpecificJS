@@ -108,7 +108,7 @@ module.exports = Solver => class Lock extends Solver.Node {
   }
 
   set draw(
-    ctx, // CanvasRenderingContext2D
+    ctx // CanvasRenderingContext2D
   ) {
     const {_point,_parent,_room,color,lineWidth} = this
     super.draw = ctx

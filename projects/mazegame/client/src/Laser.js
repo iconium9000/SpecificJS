@@ -6,7 +6,7 @@ module.exports = MazeGame => class Laser extends MazeGame.Lock {
 
   get src() { return super.src }
   set src(
-    src, // Level
+    src // Level
   ) {
     const {id} = this
     super.src = src

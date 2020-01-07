@@ -66,7 +66,7 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
 
   get parent() { return this._parent }
   set parent(
-    parent, // Door,Jack,Null
+    parent // Door,Jack,Null
   ) {
     const {_parent,name} = this
     if (_parent == parent) return
@@ -82,7 +82,7 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
 
   get length() { return this._length }
   set length(
-    length, // Number
+    length // Number
   ) {
     const {_id,state,_long,_length,constructor} = this
     const {long_min,long_max,long_round} = constructor
@@ -98,7 +98,7 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
 
   get root() { return this._root }
   set root(
-    root, // Point
+    root // Point
   ) {
     super.root = root
 
@@ -109,7 +109,7 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
 
   get long() { return this._long }
   set long(
-    long, // Point
+    long // Point
   ) {
     const {id,_long} = this
     const {_id,state,_root,_length,_key} = this
@@ -130,7 +130,7 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
 
   get key() { return this._key }
   set key(
-    key, // Key,Null
+    key // Key,Null
   ) {
     const {_key} = this
     if (_key == key) return
@@ -141,7 +141,7 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
 
   get src() { return super.src }
   set src(
-    src, // Level
+    src // Level
   ) {
     const {id} = this
     super.src = src

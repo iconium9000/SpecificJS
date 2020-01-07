@@ -28,7 +28,7 @@ module.exports = MazeGame => class Button extends MazeGame.Target {
 
   get src() { return super.src }
   set src(
-    src, // Level
+    src // Level
   ) {
     const {id} = this
     super.src = src
@@ -37,7 +37,7 @@ module.exports = MazeGame => class Button extends MazeGame.Target {
 
   get parent() { return this._parent }
   set parent(
-    parent, // Header
+    parent // Header
   ) {
     const {name} = this
     this._parent = parent

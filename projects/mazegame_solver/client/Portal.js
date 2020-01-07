@@ -78,7 +78,7 @@ module.exports = Solver => class Portal extends Solver.Node {
   }
 
   set draw(
-    ctx, // CanvasRenderingContext2D
+    ctx // CanvasRenderingContext2D
   ) {
     const {_parent,_point} = this
     super.draw = ctx

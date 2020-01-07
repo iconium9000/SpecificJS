@@ -1,14 +1,19 @@
 module.exports = MazeGame => class Level extends MazeGame.Type {
 
-  _targets = {}; _editors = {}
-  _locks = {}; _lasers = {}; _slots = {}; _buttons = {}
-  _walls = {}; _doors = {}; _headers = {}; _portals = {}
-  _keys = {}; _jacks = {}
+  get draw_lines() { return false }
 
-  _is_locked = true
+  constructor() {
+    super()
+    this._is_locked = true; this._root = MazeGame.Point.zero
+    this._targets = {}; this._editors = {}
+    this._locks = {}; this._lasers = {}; this._slots = {}; this._buttons = {}
+    this._walls = {}; this._doors = {}; this._headers = {}; this._portals = {}
+    this._keys = {}; this._jacks = {}
+  }
+
   get is_locked() { return this._is_locked }
   set is_locked(
-    is_locked, // Boolean
+    is_locked // Boolean
   ) {
     this._is_locked = !!is_locked
   }
@@ -36,7 +41,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
 
   get scale() { return this._scale }
   set scale(
-    scale, // Number
+    scale // Number
   ) {
     const {_scale,constructor} = this
     if (scale > 0) this._scale = scale
@@ -44,9 +49,8 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     else this._scale = constructor.scale
   }
 
-  _root = MazeGame.Point.zero
   set root(
-    root, // Point
+    root // Point
   ) {
     this._root = root.round(0.5)
   }
@@ -54,7 +58,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
 
   get name() { return this._name }
   set name(
-    name, // String
+    name // String
   ) {
     this._name = name
   }
@@ -86,7 +90,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
 
   get prev_level() { return this._prev_level }
   set prev_level(
-    prev_level, // Level,Null
+    prev_level // Level,Null
   ) {
     if (prev_level == this._prev_level || typeof prev_level != 'object') return
     this._prev_level = prev_level
@@ -97,7 +101,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
 
   get next_level() { return this._next_level }
   set next_level(
-    next_level, // Level,Null
+    next_level // Level,Null
   ) {
     if (next_level == this._next_level || typeof next_level != 'object') return
     this._next_level = next_level
@@ -108,7 +112,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
 
   get src() { return super.src }
   set src(
-    src, // Game,Null
+    src // Game,Null
   ) {
     const {id} = this
     super.src = src
@@ -237,23 +241,25 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     offset, // MazeGame.Point (in drawspace)
     scale, // Number
   ) {
-    const {_locks,_keys,_walls,_buttons,name,constructor} = this
+    const {lines,_locks,_keys,_walls,_buttons,name,draw_lines} = this
 
     for (const id in _locks) _locks[id].draw(ctx,offset,scale)
     for (const id in _keys) _keys[id].draw(ctx,offset,scale)
     for (const id in _walls) _walls[id].draw(ctx,offset,scale)
     for (const id in _buttons) _buttons[id].draw(ctx,offset,scale)
 
-    // const {thin_line_width,thin_stroke_color} = MazeGame.Target
-    // ctx.lineWidth = thin_line_width * scale
-    // ctx.strokeStyle = thin_stroke_color
-    //
-    // for (const i in lines) {
-    //   const sub = lines[i]
-    //   ctx.beginPath()
-    //   for (const j in sub) sub[j].mul(scale).sum(offset).lineTo = ctx
-    //   ctx.closePath()
-    //   ctx.stroke()
-    // }
+    if (draw_lines) {
+      const {thin_line_width,thin_stroke_color} = MazeGame.Target
+      ctx.lineWidth = thin_line_width * scale
+      ctx.strokeStyle = thin_stroke_color
+
+      for (const i in lines) {
+        const sub = lines[i]
+        ctx.beginPath()
+        for (const j in sub) sub[j].mul(scale).sum(offset).lineTo = ctx
+        ctx.closePath()
+        ctx.stroke()
+      }
+    }
   }
 }

@@ -54,7 +54,7 @@ module.exports = Solver => class Header extends Solver.Node {
   }
 
   set draw(
-    ctx, // CanvasRenderingContext2D
+    ctx // CanvasRenderingContext2D
   ) {
     super.draw = ctx
   }

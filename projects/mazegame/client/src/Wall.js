@@ -84,7 +84,7 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
   get short() { return this._short }
   get long() { return this._long }
   set long(
-    long, // Point
+    long // Point
   ) {
     const {_root,_length,constructor} = this
     const {
@@ -102,7 +102,7 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
 
   get root() { return this._root }
   set root(
-    root, // Point
+    root // Point
   ) {
     const {short_sign,root_round} = this.constructor
     super.root = root = root.round(this.constructor.root_round)
@@ -117,7 +117,7 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
 
   get src() { return super.src }
   set src(
-    src, // Level
+    src // Level
   ) {
     const {id} = this
     super.src = src

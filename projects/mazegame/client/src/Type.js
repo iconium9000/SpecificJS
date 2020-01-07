@@ -37,7 +37,7 @@ module.exports = MazeGame => class Type {
 
   get src() { return this._src }
   set src(
-    src, // Type,Null
+    src // Type,Null
   ) {
     const {_id,_src} = this
     if (_src || !src) return

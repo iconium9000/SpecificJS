@@ -28,7 +28,7 @@ module.exports = Solver => class Level {
   }
 
   set draw(
-    ctx, // CanvasRenderingContext2D
+    ctx // CanvasRenderingContext2D
   ) {
     const {_nodes} = this
     ctx.lineJoin = 'round'

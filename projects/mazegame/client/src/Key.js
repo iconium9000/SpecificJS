@@ -60,7 +60,7 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
 
   get is_open () { return super.is_open }
   set is_open(
-    is_open, // Boolean
+    is_open // Boolean
   ) {
     super.is_open = is_open
     const {_lock} = this
@@ -69,14 +69,14 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
 
   get root() { return this._root }
   set root(
-    root, // Point
+    root // Point
   ) {
     super.root = root // this._lock ? root : root.round(this.constructor.round)
   }
 
   get lock() { return this._lock }
   set lock(
-    lock, // Lock,Null
+    lock // Lock,Null
   ) {
     const {_lock} = this
     if (_lock == lock) return
@@ -86,7 +86,7 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
 
   get src() { return super.src }
   set src(
-    src, // Level
+    src // Level
   ) {
     const {id} = this
     super.src = src

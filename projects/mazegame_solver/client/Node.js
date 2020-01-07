@@ -106,7 +106,7 @@ module.exports = Solver => class Node {
   }
 
   set draw(
-    ctx, // CanvasRenderingContext2D
+    ctx // CanvasRenderingContext2D
   ) {
     const {color,lineWidth} = this
     ctx.strokeStyle = color
@@ -115,7 +115,7 @@ module.exports = Solver => class Node {
 
   _txt = ''
   set fill(
-    ctx, // CanvasRenderingContext2D
+    ctx // CanvasRenderingContext2D
   ) {
     const {_txt,_point,color,lineWidth,radius} = this
     const {x,y} = _point, {pi2} = Solver.Lib

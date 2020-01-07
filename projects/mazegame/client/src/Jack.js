@@ -32,7 +32,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
 
   get lock() { return super.lock }
   set lock(
-    lock, // Lock,Null
+    lock // Lock,Null
   ) {
     super.lock = lock
     if (this.lock) this.long = this.lock.long
@@ -48,7 +48,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
 
   get long() { return this._long }
   set long(
-    long, // Point
+    long // Point
   ) {
     if (long.length == 0) return
     this._long = long.unit.strip(this.constructor.radius)
@@ -57,7 +57,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
 
   get root() { return this._root }
   set root(
-    root, // Point
+    root // Point
   ) {
     super.root = root
     this.reroot_lock()
@@ -65,7 +65,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
 
   get src() { return super.src }
   set src(
-    src, // Level
+    src // Level
   ) {
     const {id} = this
     super.src = src
@@ -74,7 +74,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
 
   get editor() { return super.editor }
   set editor(
-    editor, // Editor,Null
+    editor // Editor,Null
   ) {
     super.editor = editor
     super.is_open = !editor
@@ -147,7 +147,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
 
   get spot() { return this._spot }
   set spot(
-    spot, // Point,Null
+    spot // Point,Null
   ) {
     if (spot) {
       this._spot = spot//.round(this.constructor.round)

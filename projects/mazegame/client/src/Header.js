@@ -62,7 +62,7 @@ module.exports = MazeGame => class Header extends MazeGame.Door {
 
   get src() { return super.src }
   set src(
-    src, // Level
+    src // Level
   ) {
     const {id} = this
     super.src = src

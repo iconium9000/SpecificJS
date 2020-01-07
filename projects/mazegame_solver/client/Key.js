@@ -80,7 +80,7 @@ module.exports = Solver => class Key extends Solver.Node {
   }
 
   set draw(
-    ctx, // CanvasRenderingContext2D
+    ctx // CanvasRenderingContext2D
   ) {
     const {color,lineWidth,_point,_parent} = this
     super.draw = ctx

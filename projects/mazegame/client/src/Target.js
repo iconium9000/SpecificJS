@@ -27,7 +27,7 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
 
   get is_open() { return this._is_open }
   set is_open(
-    is_open, // Boolean
+    is_open // Boolean
   ) {
     const {_is_open} = this
     if (_is_open == is_open) return
@@ -36,7 +36,7 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
 
   get root() { return this._root }
   set root(
-    root, // Point
+    root // Point
   ) {
     const {_root} = this
     if (_root && _root.equals(root)) return
@@ -45,7 +45,7 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
 
   get editor() { return this._editor }
   set editor(
-    editor, // Editor,Null
+    editor // Editor,Null
   ) {
     const {_editor} = this
     if (_editor == editor) return
@@ -55,7 +55,7 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
 
   get src() { return super.src }
   set src(
-    src, // Level
+    src // Level
   ) {
     const {id} = this
     super.src = src

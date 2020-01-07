@@ -1,16 +1,14 @@
 const {log} = console
 const module = {
 	set exports(
-		get_constructor, // (Function{Function.name}) => Function
+		get_constructor // (Function{Function.name}) => Function
 	) {
 		const constructor = get_constructor(MazeGame)
 		MazeGame[constructor.name] = constructor
-		// console.log(constructor.name)
 	}
 }
 
 function MazeGame() {
-	const is_mobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent)
 	const max_deltaT = 0.1
 	const {Lib} = MazeGame, {pi,pi2} = Lib
 	const project_name = 'MazeGame:'
@@ -251,14 +249,15 @@ function MazeGame() {
 				ctx.rect(x - scale, y - scale, 2*scale, 2*scale)
 				ctx.closePath()
 				ctx.stroke()
+
+				ctx.fillStyle = 'white'
+				ctx.beginPath()
+				ctx.arc(_center.x,_center.y,2,0,pi2)
+				ctx.fill()
 			}
 
-			ctx.fillStyle = 'white'
-			ctx.beginPath()
-			ctx.arc(_center.x,_center.y,2,0,pi2)
-			ctx.fill()
-
-			editor.draw(ctx,_center,root,mouse,is_mobile)
+			editor.draw(ctx,_center,root,mouse)
+			editor.move()
 		}
 		catch(e) { log(e) }
 	}

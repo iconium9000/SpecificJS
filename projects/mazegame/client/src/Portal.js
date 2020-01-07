@@ -26,7 +26,7 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
     const _lines = [[root_short,root,root_long,spot,root_long,root,root_short]]
 
     if (!is_open) {
-      _lines.push(sign > 0 ? [spot_long,root_short] : [root_short,spot_long])
+      _lines.push(sign > 0 ? [spot,root_short] : [root_short,spot])
     }
     return _lines
   }
@@ -43,7 +43,7 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
   }
 
   set is_open(
-    is_open, // Boolean
+    is_open // Boolean
   ) {
     super.is_open = is_open
   }
@@ -53,7 +53,7 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
 
   get src() { return super.src }
   set src(
-    src, // Level
+    src // Level
   ) {
     const {id} = this
     super.src = src

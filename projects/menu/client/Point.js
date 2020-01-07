@@ -9,12 +9,12 @@ module.exports = constructors => class Point {
   get abs_y () { return Math.abs(this._y) }
 
   set moveTo(
-    ctx, // CanvasRenderingContext2D
+    ctx // CanvasRenderingContext2D
   ) {
     ctx.moveTo(this._x, this._y)
   }
   set lineTo(
-    ctx, // CanvasRenderingContext2D
+    ctx // CanvasRenderingContext2D
   ) {
     ctx.lineTo(this._x, this._y)
   }

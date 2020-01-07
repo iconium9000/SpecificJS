@@ -2,10 +2,14 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
 
   static get tally_id() { return false }
 
-  _mode = MazeGame.Game
+  constructor() {
+    super()
+    this._mode = MazeGame.Game
+  }
+
   get mode() { return this._mode }
   set mode(
-    mode, // Function
+    mode // Function
   ) {
     const {_mode,_level,_target,id} = this
     if (!MazeGame[mode.name]) return
@@ -22,7 +26,7 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
     return _level ? _level.root : MazeGame.Point.zero
   }
   set root(
-    root, // Point
+    root // Point
   ) {
     const {_level} = this
     if (_level) _level.root = root
@@ -70,7 +74,7 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
   get editor() { return this._editor }
   get level() { return this._level }
   set level(
-    level, // Level,Null
+    level // Level,Null
   ) {
     const {id,name,_level,_editor,constructor} = this
     if (_level == level) return
@@ -85,7 +89,7 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
 
   get target() { return this._target }
   set target(
-    target, // Target,Null
+    target // Target,Null
   ) {
     const {_target} = this
     if (_target == target) return
@@ -95,7 +99,7 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
 
   get src() { return super.src }
   set src(
-    src, // Game,Level
+    src // Game,Level
   ) {
     const {id} = this
     super.src = src
@@ -162,29 +166,27 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
   draw(
     ctx, // CanvasRenderingContext2D
     center,root,mouse, // Point (in drawspace)
-    is_mobile, // Boolean
   ) {
     const {id,level,target,src,mode} = this
 
-    if (level) {
-      level[id].draw(ctx,center,root,mouse,is_mobile)
-    }
+    if (level) level[id].draw(ctx,center,root,mouse)
     else {
-      const {time} = MazeGame.Lib
-      const {id,_time,_mode,} = this
-
-      const _level = is_mobile ? src : src.copy()
-      const {scale} = _level
-      const _scale = center.short.scale / scale
+      const {id,_mode,} = this
+      const _scale = center.short.scale / src.scale
       const _offset = center.sub(root)
-      if (!is_mobile) _mode.act_at(_level[id], mouse.sub(_offset).div(_scale))
-      _level.draw(ctx,_offset,_scale)
+      src.draw(ctx,_offset,_scale)
+    }
+  }
 
+  move() {
+    const {level,_time} = this, {time} = MazeGame.Lib
+    if (level) {
       const dt = time - _time
-      src.move(0 < dt && dt < Infinity ? dt : 0)
+      level.move(0 < dt && dt < Infinity ? dt : 0)
       this._time = time
-
-      if (src.header && src.header.is_open) src.is_locked = false
+      if (level.header && level.header.is_open) {
+        level.is_locked = false
+      }
     }
   }
 }
