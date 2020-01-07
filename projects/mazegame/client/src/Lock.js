@@ -5,7 +5,6 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
   static get long_max() { return 3 }
   static get long_round() { return 1 }
   static get radius() { return 0.5 }
-  static get search_radius() { return 3 * this.radius }
 
   static act_at(
     editor, // Editor

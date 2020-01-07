@@ -5,8 +5,8 @@ module.exports = (project, projects, super_require) => {
   const fs = require('fs')
   const file_name = __dirname + '/MazeGame.txt'
 
-  // const enable_editor = true
-  const enable_editor = false
+  const devmode = true
+  // const devmode = false
 
   const clients = {}
   const MazeGame = {}
@@ -43,7 +43,7 @@ module.exports = (project, projects, super_require) => {
       full_name: null,
     }
     client.socket.on('serial', (serial) => {
-      if (serial && enable_editor) {
+      if (serial && devmode) {
         try {
           game = MazeGame.Type.read(serial)
           game.remove_editors()
@@ -66,7 +66,7 @@ module.exports = (project, projects, super_require) => {
     })
 
     client.socket.emit('connect')
-    client.socket.emit('enable_editor', enable_editor)
+    client.socket.emit('devmode', devmode)
 
     client.socket.on('client name', ({name}) => {
 

@@ -2,9 +2,9 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
 
   static get round() { return 0.5 }
   static get key_bind() { return 'k' }
-  static get radius() { return 1.5 }
+  static get radius() { return 1.3 }
+  static get hit_radius() { return 1.1}
   static get center_radius() { return MazeGame.Lock.radius }
-  static get search_radius() { return this.radius }
 
   static act_at(
     editor, // MazeGame.Editor

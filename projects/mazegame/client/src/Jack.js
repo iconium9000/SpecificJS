@@ -1,7 +1,7 @@
 module.exports = MazeGame => class Jack extends MazeGame.Key {
 
   static get key_bind() { return 'j' }
-  static get leg_radius() { return 2 }
+  static get leg_radius() { return this.radius * 1.2 }
   get is_jack() { return true }
 
   static get lock_names() {
@@ -82,7 +82,8 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
 
   get is_open() {
     const {editor, lock} = this
-    return !(editor || (lock && lock.is_slot))
+    const is_open = !(editor || (lock && lock.is_slot))
+    return is_open
   }
   set is_open(_) { super.is_open = this.is_open }
 
@@ -320,41 +321,41 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'
 
-    if (spot) {
-
-      const {src:level,nose,constructor} = this
-      const {lines} = level, {intersect} = constructor
-
-      const _spot = spot.mul(scale).sum(offset)
-      ctx.strokeStyle = thin_stroke_color
-      ctx.lineWidth = thin_line_width * scale
-
-
-      ctx.beginPath()
-      _root.lineTo = ctx
-
-      if (level.portals_active) {
-        const [root_portal,spot_portal] = level.__active_portals
-
-        const root_center = root_portal.center
-        const spot_center = spot_portal.center
-        const temp = [ [root_center,spot_center], [spot_center,root_center], ]
-        for (const i in temp) {
-          const [root_center,spot_center] = temp[i]
-          if (
-            !intersect(lines,root,root_center) &&
-            !intersect(lines,spot_center,spot)
-          ) {
-            root_center.mul(scale).sum(offset).lineTo = ctx
-            spot_center.mul(scale).sum(offset).lineTo = ctx
-            break
-          }
-        }
-      }
-
-      _spot.lineTo = ctx
-      ctx.stroke()
-    }
+    // if (spot) {
+    //
+    //   const {src:level,nose,constructor} = this
+    //   const {lines} = level, {intersect} = constructor
+    //
+    //   const _spot = spot.mul(scale).sum(offset)
+    //   ctx.strokeStyle = thin_stroke_color
+    //   ctx.lineWidth = thin_line_width * scale
+    //
+    //
+    //   ctx.beginPath()
+    //   _root.lineTo = ctx
+    //
+    //   if (level.portals_active) {
+    //     const [root_portal,spot_portal] = level.__active_portals
+    //
+    //     const root_center = root_portal.center
+    //     const spot_center = spot_portal.center
+    //     const temp = [ [root_center,spot_center], [spot_center,root_center], ]
+    //     for (const i in temp) {
+    //       const [root_center,spot_center] = temp[i]
+    //       if (
+    //         !intersect(lines,root,root_center) &&
+    //         !intersect(lines,spot_center,spot)
+    //       ) {
+    //         root_center.mul(scale).sum(offset).lineTo = ctx
+    //         spot_center.mul(scale).sum(offset).lineTo = ctx
+    //         break
+    //       }
+    //     }
+    //   }
+    //
+    //   _spot.lineTo = ctx
+    //   ctx.stroke()
+    // }
 
     ctx.strokeStyle = stroke_color
     ctx.lineWidth = line_width * scale

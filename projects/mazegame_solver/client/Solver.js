@@ -28,9 +28,8 @@ function Solver() {
 	client.socket.on('serial', serial => {
 		log(serial)
 		try {
-			client.level = (new Level).read(JSON.parse(serial))
+			client.level = (new Level).read(Lib.parse(serial))
 			log(client.level.solve())
-			// client.level._solve.solve_queue(solve)
 		}
 		catch (e) { log(e) }
 		client.node = null
@@ -71,7 +70,9 @@ function Solver() {
 				level.pop()
 				return
 			case 'q':
-				try { socket.emit('serial', JSON.stringify(level.serialize,null,' ')) }
+				try {
+					socket.emit('serial', Lib.stringify(level.serialize,null,' '))
+				}
 				catch (e) { error(e) }
 				return
 			case 'e':

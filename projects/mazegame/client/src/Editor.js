@@ -49,6 +49,7 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
     }
   }
   reset_level() {
+
     const {_parent,_level} = this
     if (_parent) return _parent.reset_level()
 
@@ -60,6 +61,7 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
       level.is_locked = is_locked
       this.level = level
       src.root_level = level
+      level.__backup = __backup
     }
   }
 
@@ -165,11 +167,11 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
     const {id,level,target,src,mode} = this
 
     if (level) {
-      level[id].draw(ctx,center,root,mouse)
+      level[id].draw(ctx,center,root,mouse,is_mobile)
     }
     else {
       const {time} = MazeGame.Lib
-      const {id,_time,_mode,constructor:{min_dt}} = this
+      const {id,_time,_mode,} = this
 
       const _level = is_mobile ? src : src.copy()
       const {scale} = _level
@@ -179,7 +181,7 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
       _level.draw(ctx,_offset,_scale)
 
       const dt = time - _time
-      src.move(0 < dt && dt < min_dt ? dt : min_dt)
+      src.move(0 < dt && dt < Infinity ? dt : 0)
       this._time = time
 
       if (src.header && src.header.is_open) src.is_locked = false

@@ -50,7 +50,6 @@
     Key21:@ _constructor:Key _is_open:true _lock:Portal10_lock_cent19;
     Portal11:@ _constructor:Portal _root:,,4 _long:12,-3 _length:1;
     Portal11_lock_cent20:@ _constructor:Lock _name:_lock_cent _length:3 _parent:Portal11;
-    Wall18:@ _constructor:Wall _root:12,-12 _long:2,20;
     Wall22:@ _constructor:Wall _root:-6,8,2 _long:32,2;
     Wall23:@ _constructor:Wall _root:-6,-6,2 _long:2,28;
     Wall24:@ _constructor:Wall _root:6,4,2 _long:8,2;
@@ -61,6 +60,7 @@
     Door32:@ _constructor:Door _root:-3,-4,4 _long:24,4 _length:1;
     Door32_spot_long33:@ _constructor:Lock _name:_spot_long _length:3 _parent:Door32;
     Key34:@ _constructor:Key _root:31,23,0.5;
+    Wall1:@ _constructor:Wall _root:12,-12 _long:2,20;
     _root:,-11,0.5
     _scale:30
     _prev_level:Level2
@@ -559,7 +559,7 @@
     _root:19,14,0.5
     _scale:45
     _prev_level:Level12
-    _next_level:Level15;
+    _next_level:Level13;
   Level15:@
     _constructor:Level
     _name:Impossible?
@@ -649,8 +649,7 @@
     Header1_lock4:@ _constructor:Slot _name:_lock4 _length:2 _parent:Header1;
     _root:-7,12,0.5
     _scale:48
-    _prev_level:Level14
-    _next_level:Level13;
+    _prev_level:Level13;
   Level13:@
     _constructor:Level
     _name:Too\ Many\ Rooms?
@@ -776,6 +775,6 @@
     Wall19:@ _constructor:Wall _root:-20,-40 _long:2,-12;
     _root:4,-4,0.5
     _scale:51
-    _prev_level:Level15
+    _prev_level:Level14
     _next_level:Level15;
   _root_level:Level1;

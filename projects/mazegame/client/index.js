@@ -29,7 +29,9 @@ function MazeGame() {
 		full_name: null,
 		root: MazeGame.Point.zero, mouse: MazeGame.Point.zero,
 		right_down: false, left_down: false,
-		get id() { return client.socket.id }
+		free: true,
+		// rect: true,
+		get id() { return client.socket.id },
 	}
 	// MazeGame.client = client
 	client.name = client.id
@@ -56,7 +58,7 @@ function MazeGame() {
 	}
 
 	document.onkeydown = e => {
-		if (!client.enable_editor) return
+		if (!client.devmode) return
 
 		const code = e.which
 		var c = e.key // String.fromCharCode(code | 0x20)
@@ -173,20 +175,21 @@ function MazeGame() {
 
 	  // reply to server with name
 	  client.socket.emit('client name', {name: name})
-		client.socket.emit('serial')
+		if (client.free) client.socket.emit('serial')
 
 	  log(client.full_name, 'connected to server')
 
 	  tick()
 	})
 	client.socket.on(
-		'enable_editor', enable_editor => client.enable_editor = enable_editor
+		'devmode', devmode => client.devmode = devmode
 	)
 	client.socket.on('serial', string => {
 		const {id,name} = client
 		try {
 			const serial = MazeGame.Lib.parse(string)
 			setup_game(MazeGame.Game.read(serial))
+			client.free = false
 		}
 		catch (e) {
 			log(e)
@@ -240,7 +243,7 @@ function MazeGame() {
 		const root = editor.root.mul(_scale)
 		try {
 
-			{
+			if (client.rect) {
 				ctx.strokeStyle = 'white'
 				const {scale} = _center.short, {x,y} = _center
 

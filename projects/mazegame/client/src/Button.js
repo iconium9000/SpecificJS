@@ -2,7 +2,6 @@ module.exports = MazeGame => class Button extends MazeGame.Target {
 
   get length() { return 5.5 }
   static get radius() { return 1.5 }
-  static get search_radius() { return 1.5 }
 
   press(editor) {
     const {parent,name} = this
