@@ -5,8 +5,8 @@ module.exports = (project, projects, super_require) => {
   const fs = require('fs')
   const file_name = __dirname + '/MazeGame.txt'
 
-  const devmode = true
-  // const devmode = false
+  // const devmode = true
+  const devmode = false
 
   const clients = {}
   const MazeGame = {}
