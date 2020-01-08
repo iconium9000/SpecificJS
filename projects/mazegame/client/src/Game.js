@@ -54,8 +54,8 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
     const {_root_level} = this
     if (root_level == _root_level) return
     this._root_level = root_level
+    if (root_level) root_level.set_nodes()
   }
-
 
   copy(
     src, // Null

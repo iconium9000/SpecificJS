@@ -11,6 +11,20 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
   static get short_sign() { return false }
   static get is_portal() { return false }
 
+  get depth() { return MazeGame.Key.radius / this.node_round }
+  get nodes() { return this._nodes }
+  constructor() {
+    super()
+    this._nodes = {}
+  }
+
+  get is_open() { return false }
+  set is_open(
+    is_open // Boolean
+  ) {
+    super.is_open = false
+  }
+
   static act_at(
     editor, // Editor
     spot, // Point
@@ -22,7 +36,7 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
       const wall = editor.target
       editor.target = null
       wall.long = spot.sub(wall.root)
-      wall.reroot_locks()
+      wall.reroot()
       return true
     }
     else if (closest_wall) {
@@ -33,7 +47,7 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
         closest_wall._spot = _root
         closest_wall._long = _long.mul(-1).long
         closest_wall._short = _short.mul(-1).long
-        closest_wall.reroot_locks()
+        closest_wall.reroot()
       }
 
       editor.target = closest_wall
@@ -76,7 +90,27 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
     return [ [root,spot,root], ]
   }
 
-  reroot_locks() {}
+  reroot() {}
+  set_nodes() {
+    let {_id,root,long,node_round,src,depth} = this
+    const _long = long.strip(node_round), {scale} = long
+
+    for (let {scale} = long; scale >= 0; scale -= node_round) {
+      this.set_node(root,depth,false)
+      root = root.sum(_long)
+    }
+  }
+  set_node(
+    point, // Point
+    depth, // Number
+    is_door, // Boolean
+  ) {
+    const id = point.serialize(), {_id,src,_nodes} = this, node = src._nodes[id]
+    if (node) {
+      _nodes[id] = node
+      node.set_wall(_id,this,depth,is_door)
+    }
+  }
 
   get spot() { return this._spot }
   get center() { return this._root.sum(this._spot).div(2) }
@@ -134,6 +168,7 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
     _wall._long = _long
     _wall._short = _short
     _wall._spot = _spot
+    _wall.reroot()
 
     return _wall
   }
@@ -158,6 +193,7 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
     const {_root,_long} = serialize[id], {constructor,__points} = this
     this._root = MazeGame.Point.read(_root,__points)
     this.long = MazeGame.Point.read(_long,__points)
+    this.reroot()
 
     return this
   }
@@ -187,8 +223,8 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
   ) {
     const {line_width,stroke_color,} = this.constructor
     const {root,spot} = this
-    const _root = root.mul(scale).sum(offset)
-    const _spot = spot.mul(scale).sum(offset)
+    const _root = root.vec(scale,offset)
+    const _spot = spot.vec(scale,offset)
 
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'

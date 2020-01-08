@@ -1,6 +1,6 @@
 module.exports = MazeGame => class Key extends MazeGame.Target {
 
-  static get round() { return 0.5 }
+  static get round() { return 1 }
   static get key_bind() { return 'k' }
   static get radius() { return 1.3 }
   static get hit_radius() { return 1.1}
@@ -126,7 +126,7 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
 
     const {_root,_lock} = serialize[id], {constructor,__points} = this
     if (_lock) this.lock = constructor.read(serialize, src, _lock)
-    else this.root = MazeGame.Point.read(_root,__points)
+    else this.root = MazeGame.Point.read(_root,__points).round(1)
 
     return this
   }
@@ -159,7 +159,7 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
       stroke_color,fill_color,line_width,
       radius,center_radius,
     } = constructor
-    const _root = root.mul(scale).sum(offset)
+    const _root = root.vec(scale,offset)
     const _radius = radius * scale
     const _center_radius = center_radius * scale
 

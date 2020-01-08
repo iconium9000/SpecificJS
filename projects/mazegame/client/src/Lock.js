@@ -223,8 +223,8 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
       stroke_color,fill_color,line_width,
       radius,
     } = constructor
-    const _root = root.mul(scale).sum(offset)
-    const _spot = spot.mul(scale).sum(offset)
+    const _root = root.vec(scale,offset)
+    const _spot = spot.vec(scale,offset)
     const _radius = radius * scale
 
     ctx.lineJoin = 'round'

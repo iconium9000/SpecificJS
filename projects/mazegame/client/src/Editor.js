@@ -50,6 +50,7 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
       && !_level.is_locked
     ) {
       this.level = _level.next_level
+
     }
   }
   reset_level() {
@@ -76,9 +77,11 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
   set level(
     level // Level,Null
   ) {
-    const {id,name,_level,_editor,constructor} = this
+    const {id,name,_level,_editor,src,constructor} = this
     if (_level == level) return
     this._level = level
+    if (level) level.set_nodes()
+
     if (_editor) {
       _editor.remove()
       this._editor = null
@@ -173,8 +176,8 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
     else {
       const {id,_mode,} = this
       const _scale = center.short.scale / src.scale
-      const _offset = center.sub(root)
-      src.draw(ctx,_offset,_scale)
+      const _offset = center.sub(root.mul(_scale))
+      src.draw(ctx,_offset,_scale,center)
     }
   }
 

@@ -4,11 +4,12 @@ module.exports = MazeGame => class Type {
   static get stroke_color() { return 'white' }
   static get thin_stroke_color() { return '#505050' }
   static get line_width() { return 0.4 }
-  static get scale() { return 60 }
+  static get scale() { return 25 }
   static get font_scale() { return 2.6 }
   static get thin_line_width() { return this.line_width / 2 }
   static get speed() { return 5e-2 } // dist / time = speed
   get is_type() { return true }
+  get node_round() { return 1 }
 
   static get search_radius() { return 2 }
 
@@ -71,6 +72,7 @@ module.exports = MazeGame => class Type {
 
     return _type
   }
+
   static serialize(
     type, // Type
     src, // Object,Null

@@ -5,7 +5,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   constructor() {
     super()
     this._is_locked = true; this._root = MazeGame.Point.zero
-    this._targets = {}; this._editors = {}
+    this._targets = {}; this._editors = {}; this._nodes = false
     this._locks = {}; this._lasers = {}; this._slots = {}; this._buttons = {}
     this._walls = {}; this._doors = {}; this._headers = {}; this._portals = {}
     this._keys = {}; this._jacks = {}
@@ -27,6 +27,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   }
 
   get editors() { return this._editors }
+  get nodes() { return this._nodes }
   get targets() { return this._targets }
   get locks() { return this._locks }
   get lasers() { return this._lasers }
@@ -52,7 +53,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   set root(
     root // Point
   ) {
-    this._root = root.round(0.5)
+    this._root = root
   }
   get root() { return this._root || MazeGame.Point.zero }
 
@@ -119,13 +120,27 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     if (src) src.levels[id] = this
   }
 
+  set_nodes() {
+    if (this._nodes) return
+
+    this._nodes = {}
+    const {Node,Point} = MazeGame, {node_round,_root,_scale,_walls} = this
+    for (let i = -_scale; i <= _scale; i += node_round) {
+      for (let j = -_scale; j <= _scale; j += node_round) {
+        Node.init(this, Point.init(i,j,1).sum(_root))
+      }
+    }
+
+    for (const id in _walls) _walls[id].set_nodes()
+  }
+
   copy(
     src, // Game,Null
   ) {
     const _level = super.copy(src)
 
-    const {root,_is_locked,_prev_level,_next_level,_scale,constructor} = this
-    _level.root = root
+    const {_root,_is_locked,_prev_level,_next_level,_scale,constructor} = this
+    _level.root = _root
     _level.is_locked = _is_locked
     _level._scale = _scale > 0 ? _scale : constructor.scale
 
@@ -146,7 +161,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     const _serialize = super.serialize(src)
 
     const {root,_prev_level,_next_level,__points,_scale,constructor} = this
-    _serialize._root = root.serialize(__points)
+    _serialize._root = root.round(1).serialize(__points)
     _serialize._scale = _scale
 
     if (src) {
@@ -169,14 +184,12 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     src, // Game,Null
     id, // String,Null
   ) {
-    if (src && src.__points) this.__points = src.__points
-
     super.read(serialize, src, id)
 
+    if (src && src.__points) this.__points = src.__points
     const {_root,_scale} = serialize[id], {constructor,__points} = this
     if (_root) this.root = MazeGame.Point.read(_root,__points)
     this.scale = _scale
-
 
     const {_prev_level,_next_level} = serialize[id]
     if (src) {
@@ -192,7 +205,6 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
 
     return this
   }
-
 
   static init(
     src, // Game,Null
@@ -240,6 +252,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     ctx, // CanvasRenderingContext2D
     offset, // MazeGame.Point (in drawspace)
     scale, // Number
+    center, // Point (in drawspace)
   ) {
     const {lines,_locks,_keys,_walls,_buttons,name,draw_lines} = this
 
@@ -248,18 +261,33 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     for (const id in _walls) _walls[id].draw(ctx,offset,scale)
     for (const id in _buttons) _buttons[id].draw(ctx,offset,scale)
 
-    if (draw_lines) {
+    if (!draw_lines) {
       const {thin_line_width,thin_stroke_color} = MazeGame.Target
       ctx.lineWidth = thin_line_width * scale
       ctx.strokeStyle = thin_stroke_color
 
-      for (const i in lines) {
-        const sub = lines[i]
-        ctx.beginPath()
-        for (const j in sub) sub[j].mul(scale).sum(offset).lineTo = ctx
-        ctx.closePath()
-        ctx.stroke()
+      // for (const i in lines) {
+      //   const sub = lines[i]
+      //   ctx.beginPath()
+      //   for (const j in sub) sub[j].vec(scale,offset).lineTo = ctx
+      //   ctx.closePath()
+      //   ctx.stroke()
+      // }
+
+      ctx.fillStyle = thin_stroke_color
+      const {pi2} = MazeGame.Lib, {nodes} = this
+
+      for (const id in nodes) {
+        const {root,is_open} = nodes[id]
+        if (is_open) {
+          const _point = root.vec(scale,offset)
+          ctx.beginPath()
+          ctx.arc( _point.x, _point.y, 2, 0, pi2)
+          ctx.closePath()
+          ctx.fill()
+        }
       }
     }
+
   }
 }

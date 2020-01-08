@@ -31,7 +31,9 @@ function MazeGame() {
 		// rect: true,
 		get id() { return client.socket.id },
 	}
-	// MazeGame.client = client
+	MazeGame.client = client
+
+
 	client.name = client.id
 	setup_game()
 
@@ -238,7 +240,8 @@ function MazeGame() {
 		const [_center, _scale] = get_center_scale(canvas)
 
 		const {time,pi2} = Lib, {editor,mouse} = client
-		const root = editor.root.mul(_scale)
+		// const root = editor.root.mul(_scale)
+		const {root} = editor
 		try {
 
 			if (client.rect) {

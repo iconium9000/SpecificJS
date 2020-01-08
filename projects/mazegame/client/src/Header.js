@@ -29,8 +29,9 @@ module.exports = MazeGame => class Header extends MazeGame.Door {
     else editor.reset_level()
   }
 
-  reroot_locks() {
-    super.reroot_locks()
+  set_nodes() {}
+  reroot() {
+    super.reroot()
     const {button_names} = this.constructor
     for (const i in button_names) this.reroot_button(button_names[i])
   }
@@ -113,7 +114,7 @@ module.exports = MazeGame => class Header extends MazeGame.Door {
     const {short,center,src:level,constructor,is_open} = this
     const {stroke_color,font_scale} = constructor
 
-    let _center = center.mul(scale).sum(offset)
+    let _center = center.vec(scale,offset)
     const _font_scale = font_scale * scale
     if (short.y < 0) _center = _center.sub(short.strip(_font_scale/2))
 

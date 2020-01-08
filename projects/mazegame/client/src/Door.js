@@ -12,17 +12,17 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     return ['_root_short','_root_long','_spot_long','_spot_short',]
   }
 
-  get is_open() { return super.is_open }
+  get is_open() { return this._is_open }
   set is_open(
     is_open // Boolean
   ) {
-    if (!is_open) return super.is_open = false
+    if (!is_open) return this._is_open = false
     const {lock_names} = this.constructor
     for (const i in lock_names) {
       const lock = this[lock_names[i]]
-      if (lock && !lock.is_open) return super.is_open = false
+      if (lock && !lock.is_open) return this._is_open = false
     }
-    super.is_open = true
+    this._is_open = true
   }
 
   get length() { return this._length }
@@ -72,9 +72,40 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     return _lines
   }
 
-  reroot_locks() {
+  set_nodes() {
+    let {_id,root,spot,long,short,node_round,src,depth} = this, {nodes} = src
+    const _long = long.strip(node_round), _short = short.strip(node_round)
+
+    const {scale} = short, _scale = long.scale - scale
+    for (let i = scale, root_i = root.simple; i >= 0; i -= node_round) {
+      for (let j = i, root_j = root_i; j >= 0; j -= node_round) {
+        this.set_node(root_j,depth,false)
+        root_j = root_j.sum(_short)
+      }
+      root_i = root_i.sum(_long)
+    }
+
+    for (let i = scale, root_i = spot; i >= 0; i -= node_round) {
+      for (let j = i, root_j = root_i; j >= 0; j -= node_round) {
+        this.set_node(root_j,depth,false)
+        root_j = root_j.sub(_short)
+      }
+      root_i = root_i.sub(_long)
+    }
+
+    for (let i = scale, root_i = root.sum(short); i >= 0; i -= node_round) {
+      for (let j = _scale, root_j = root_i; j >= 0; j -= node_round) {
+        this.set_node(root_j,depth,true)
+        root_j = root_j.sum(_long)
+      }
+      root_i = root_i.sub(_short).sum(_long)
+    }
+  }
+
+  reroot() {
     const {lock_names} = this.constructor
     for (const i in lock_names) this.reroot_lock(lock_names[i])
+    super.reroot()
   }
   reroot_lock(
     name, // String
@@ -185,8 +216,8 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     } = this.constructor
     const {root,spot,long,short,length} = this
 
-    const _root = root.mul(scale).sum(offset)
-    const _spot = spot.mul(scale).sum(offset)
+    const _root = root.vec(scale,offset)
+    const _spot = spot.vec(scale,offset)
     const _long = long.mul(scale)
     const _short = short.mul(scale)
 
