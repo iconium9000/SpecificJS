@@ -13,6 +13,10 @@ module.exports = MazeGame => class Type {
 
   static get search_radius() { return 2 }
 
+  get depth() { return MazeGame.Key.radius / this.node_round }
+
+  set_nodes() {}
+
   static act_at(
     editor, // Editor
     spot, // Point

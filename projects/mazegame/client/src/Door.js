@@ -79,7 +79,7 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     const {scale} = short, _scale = long.scale - scale
     for (let i = scale, root_i = root.simple; i >= 0; i -= node_round) {
       for (let j = i, root_j = root_i; j >= 0; j -= node_round) {
-        this.set_node(root_j,depth,false)
+        this.set_node(root_j,depth,'Wall')
         root_j = root_j.sum(_short)
       }
       root_i = root_i.sum(_long)
@@ -87,7 +87,7 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
 
     for (let i = scale, root_i = spot; i >= 0; i -= node_round) {
       for (let j = i, root_j = root_i; j >= 0; j -= node_round) {
-        this.set_node(root_j,depth,false)
+        this.set_node(root_j,depth,'Wall')
         root_j = root_j.sub(_short)
       }
       root_i = root_i.sub(_long)
@@ -95,7 +95,7 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
 
     for (let i = scale, root_i = root.sum(short); i >= 0; i -= node_round) {
       for (let j = _scale, root_j = root_i; j >= 0; j -= node_round) {
-        this.set_node(root_j,depth,true)
+        this.set_node(root_j,depth,'Door')
         root_j = root_j.sum(_long)
       }
       root_i = root_i.sub(_short).sum(_long)

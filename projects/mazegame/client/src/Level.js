@@ -124,14 +124,15 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     if (this._nodes) return
 
     this._nodes = {}
-    const {Node,Point} = MazeGame, {node_round,_root,_scale,_walls} = this
+    const {Node,Point} = MazeGame
+    const {node_round,_root,_scale,_targets} = this
     for (let i = -_scale; i <= _scale; i += node_round) {
       for (let j = -_scale; j <= _scale; j += node_round) {
         Node.init(this, Point.init(i,j,1).sum(_root))
       }
     }
 
-    for (const id in _walls) _walls[id].set_nodes()
+    for (const id in _targets) _targets[id].set_nodes()
   }
 
   copy(
@@ -274,19 +275,9 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
       //   ctx.stroke()
       // }
 
-      ctx.fillStyle = thin_stroke_color
       const {pi2} = MazeGame.Lib, {nodes} = this
 
-      for (const id in nodes) {
-        const {root,is_open} = nodes[id]
-        if (is_open) {
-          const _point = root.vec(scale,offset)
-          ctx.beginPath()
-          ctx.arc( _point.x, _point.y, 2, 0, pi2)
-          ctx.closePath()
-          ctx.fill()
-        }
-      }
+      for (const id in nodes) nodes[id].draw(ctx,offset,scale)
     }
 
   }

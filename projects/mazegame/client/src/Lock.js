@@ -62,6 +62,13 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
     return return_lock
   }
 
+  get depth() { return 0 }
+  set_nodes() {
+    const {spot,src,depth,parent} = this, {_nodes} = src
+    const node = _nodes[spot.serialize()]
+    if (node) node.set_target(this,depth,'Lock')
+  }
+
   get is_slot() { return false }
 
   get parent() { return this._parent }

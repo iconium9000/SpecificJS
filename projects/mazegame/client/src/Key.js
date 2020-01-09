@@ -51,6 +51,13 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
     return return_key
   }
 
+  get depth() { return 0 }
+  set_nodes() {
+    const {root,src,depth,constructor} = this, {_nodes} = src
+    const node = _nodes[root.serialize()]
+    if (node) node.set_target(this,depth,constructor.name)
+  }
+
   is_parent(
     target, // Target
   ) {

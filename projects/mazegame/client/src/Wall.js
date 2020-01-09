@@ -11,13 +11,6 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
   static get short_sign() { return false }
   static get is_portal() { return false }
 
-  get depth() { return MazeGame.Key.radius / this.node_round }
-  get nodes() { return this._nodes }
-  constructor() {
-    super()
-    this._nodes = {}
-  }
-
   get is_open() { return false }
   set is_open(
     is_open // Boolean
@@ -96,20 +89,17 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
     const _long = long.strip(node_round), {scale} = long
 
     for (let {scale} = long; scale >= 0; scale -= node_round) {
-      this.set_node(root,depth,false)
+      this.set_node(root,depth,'Wall')
       root = root.sum(_long)
     }
   }
   set_node(
     point, // Point
     depth, // Number
-    is_door, // Boolean
+    type, // String
   ) {
-    const id = point.serialize(), {_id,src,_nodes} = this, node = src._nodes[id]
-    if (node) {
-      _nodes[id] = node
-      node.set_wall(_id,this,depth,is_door)
-    }
+    const {src,_nodes} = this, node = src._nodes[point.serialize()]
+    if (node) node.set_target(this,depth,type)
   }
 
   get spot() { return this._spot }

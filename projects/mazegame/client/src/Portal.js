@@ -38,19 +38,15 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
     const {scale} = short, _scale = long.scale
 
     for (let i = scale, root_i = root, root_j = spot; i >= 0; i-=node_round) {
-      this.set_node(root_i, depth, false)
-      this.set_node(root_j, depth, false)
+      this.set_node(root_i,depth,'Wall')
+      this.set_node(root_j,depth,'Wall')
       root_i = root_i.sum(_short)
       root_j = root_j.sub(_short)
     }
 
-    for (let i = _scale, root_i = root; i >= 0; i -= node_round) {
-      this.set_node(root_i,depth,false)
-
-      for (let j = scale, root_j = root_i; j >= 0; j -= node_round) {
-        this.set_node(root_j,depth,true)
-        root_j = root_j.sum(_short)
-      }
+    for (let i = _scale, root_i = root; i >= 0; i-=node_round) {
+      this.set_node(root_i,depth,'Wall')
+      this.set_node(root_i.sum(_short),depth,'Portal')
       root_i = root_i.sum(_long)
     }
   }
