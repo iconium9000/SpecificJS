@@ -31,8 +31,8 @@ module.exports = MazeGame => class Laser extends MazeGame.Lock {
       radius,
     } = constructor
 
-    const _root = root.mul(scale).sum(offset)
-    const _spot = spot.mul(scale).sum(offset)
+    const _root = root.vec(scale,offset)
+    const _spot = spot.vec(scale,offset)
     const _radius = radius * scale
     const _long = long.strip(MazeGame.Lock.long_min * scale)
     const _spot_long = _spot.sub(_long)

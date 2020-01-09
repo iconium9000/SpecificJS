@@ -9,7 +9,6 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
     const level = editor.src
     const closest_key = MazeGame.Key.get_closest(level.keys, spot)
 
-
     if (closest_key && !closest_key.is_jack) {
       closest_key.is_open = !closest_key.is_open
       return true
@@ -18,6 +17,7 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
   }
 
   get is_jack() { return false }
+  get is_node() { return false }
 
   is_parent(
     target, // Target
@@ -42,6 +42,7 @@ module.exports = MazeGame => class Target extends MazeGame.Type {
     if (_root && _root.equals(root)) return
     this._root = root
   }
+  get center() { return this._root }
 
   get editor() { return this._editor }
   set editor(

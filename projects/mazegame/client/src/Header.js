@@ -111,11 +111,13 @@ module.exports = MazeGame => class Header extends MazeGame.Door {
     scale, // Number
   ) {
     const {short,center,src:level,constructor,is_open} = this
-    const {stroke_color,font_scale} = constructor
+    const {stroke_color,font_scale,button_names} = constructor
 
-    let _center = center.mul(scale).sum(offset)
+    let _center = center.vec(scale,offset)
     const _font_scale = font_scale * scale
     if (short.y < 0) _center = _center.sub(short.strip(_font_scale/2))
+
+    for (const i in button_names) this[button_names[i]].draw(ctx,offset,scale)
 
     ctx.font = `${_font_scale}px Arial`
     ctx.textAlign = 'center'

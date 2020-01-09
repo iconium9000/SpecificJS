@@ -77,8 +77,8 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
       stroke_color,fill_color,thin_stroke_color,
       center_short, center_long, radius,
     } = constructor
-    const _root = root.mul(scale).sum(offset)
-    const _spot = spot.mul(scale).sum(offset)
+    const _root = root.vec(scale,offset)
+    const _spot = spot.vec(scale,offset)
     const _long = long.mul(scale)
     const _short = short.mul(scale)
 

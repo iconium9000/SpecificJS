@@ -5,8 +5,8 @@ module.exports = (project, projects, super_require) => {
   const fs = require('fs')
   const file_name = __dirname + '/MazeGame.txt'
 
-  // const devmode = true
-  const devmode = false
+  const devmode = true
+  // const devmode = false
 
   const clients = {}
   const MazeGame = {}
@@ -15,7 +15,7 @@ module.exports = (project, projects, super_require) => {
     'Type','Target',
     'Lock','Laser','Slot','Button',
     'Wall','Door','Header','Portal',
-    'Key','Jack',
+    'Key','Jack','Node',
     'Editor','Level','Game'
   ]
   super_classes.forEach(name => MazeGame[name] = super_require(

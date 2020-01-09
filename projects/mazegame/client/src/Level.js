@@ -8,7 +8,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     this._targets = {}; this._editors = {}
     this._locks = {}; this._lasers = {}; this._slots = {}; this._buttons = {}
     this._walls = {}; this._doors = {}; this._headers = {}; this._portals = {}
-    this._keys = {}; this._jacks = {}
+    this._keys = {}; this._jacks = {}; this._nodes = {}
   }
 
   get is_locked() { return this._is_locked }
@@ -38,6 +38,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   get portals() { return this._portals }
   get keys() { return this._keys }
   get jacks() { return this._jacks }
+  get nodes() { return this._nodes }
 
   get scale() { return this._scale }
   set scale(
@@ -241,12 +242,40 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     offset, // MazeGame.Point (in drawspace)
     scale, // Number
   ) {
-    const {lines,_locks,_keys,_walls,_buttons,name,draw_lines} = this
+    const {lines,_nodes,_locks,_keys,_walls,name,draw_lines} = this
 
+    const _targets = []
+    for (const id in this) {
+      if (this[id] && this[id].is_node) _targets.push(this[id])
+    }
+    {
+      const {thin_line_width,thin_stroke_color} = this.constructor
+      ctx.lineWidth = thin_line_width * scale
+      ctx.strokeStyle = thin_stroke_color
+
+      const {length} = _targets
+      for (let i = 0; i < length; ++i) {
+        const root_i = _targets[i].center
+        const _root_i = root_i.vec(scale,offset)
+        for (let j = i+1; j < length; ++j) {
+          const root_j = _targets[j].center
+
+          if (!this.constructor.intersect(lines,root_i,root_j)) {
+            const _root_j = root_j.vec(scale,offset)
+            ctx.beginPath()
+            _root_i.lineTo = ctx
+            _root_j.lineTo = ctx
+            ctx.stroke()
+          }
+        }
+      }
+
+    }
+
+    for (const id in _nodes) _nodes[id].draw(ctx,offset,scale)
     for (const id in _locks) _locks[id].draw(ctx,offset,scale)
     for (const id in _keys) _keys[id].draw(ctx,offset,scale)
     for (const id in _walls) _walls[id].draw(ctx,offset,scale)
-    for (const id in _buttons) _buttons[id].draw(ctx,offset,scale)
 
     if (draw_lines) {
       const {thin_line_width,thin_stroke_color} = MazeGame.Target
@@ -256,7 +285,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
       for (const i in lines) {
         const sub = lines[i]
         ctx.beginPath()
-        for (const j in sub) sub[j].mul(scale).sum(offset).lineTo = ctx
+        for (const j in sub) sub[j].vec(scale,offset).lineTo = ctx
         ctx.closePath()
         ctx.stroke()
       }

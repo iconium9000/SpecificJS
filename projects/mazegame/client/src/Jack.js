@@ -312,7 +312,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
       stroke_color,line_width,thin_stroke_color,thin_line_width,
       leg_radius,
     } = constructor
-    const _root = root.mul(scale).sum(offset)
+    const _root = root.vec(scale,offset)
     const _long = long.mul(scale)
     const _radius = leg_radius * scale
     const _i_long = _long.strip(_radius).invert
@@ -326,7 +326,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     //   const {src:level,nose,constructor} = this
     //   const {lines} = level, {intersect} = constructor
     //
-    //   const _spot = spot.mul(scale).sum(offset)
+    //   const _spot = spot.vec(scale,offset)
     //   ctx.strokeStyle = thin_stroke_color
     //   ctx.lineWidth = thin_line_width * scale
     //
@@ -346,8 +346,8 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     //         !intersect(lines,root,root_center) &&
     //         !intersect(lines,spot_center,spot)
     //       ) {
-    //         root_center.mul(scale).sum(offset).lineTo = ctx
-    //         spot_center.mul(scale).sum(offset).lineTo = ctx
+    //         root_center.vec(scale,offset).lineTo = ctx
+    //         spot_center.vec(scale,offset).lineTo = ctx
     //         break
     //       }
     //     }

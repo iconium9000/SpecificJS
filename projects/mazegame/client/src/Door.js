@@ -12,6 +12,8 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     return ['_root_short','_root_long','_spot_long','_spot_short',]
   }
 
+  get is_node() { return true } //super.is_open }
+
   get is_open() { return super.is_open }
   set is_open(
     is_open // Boolean
@@ -185,8 +187,8 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     } = this.constructor
     const {root,spot,long,short,length} = this
 
-    const _root = root.mul(scale).sum(offset)
-    const _spot = spot.mul(scale).sum(offset)
+    const _root = root.vec(scale,offset)
+    const _spot = spot.vec(scale,offset)
     const _long = long.mul(scale)
     const _short = short.mul(scale)
 

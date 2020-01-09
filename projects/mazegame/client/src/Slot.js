@@ -44,7 +44,7 @@ module.exports = MazeGame => class Slot extends MazeGame.Lock {
       radius,center_radius,
     } = MazeGame.Key
 
-    const {x,y} = spot.mul(scale).sum(offset)
+    const {x,y} = spot.vec(scale,offset)
     const _radius = radius * scale
     const _center_radius = center_radius * scale
 

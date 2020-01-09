@@ -187,8 +187,8 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
   ) {
     const {line_width,stroke_color,} = this.constructor
     const {root,spot} = this
-    const _root = root.mul(scale).sum(offset)
-    const _spot = spot.mul(scale).sum(offset)
+    const _root = root.vec(scale,offset)
+    const _spot = spot.vec(scale,offset)
 
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'

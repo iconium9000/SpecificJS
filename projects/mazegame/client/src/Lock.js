@@ -62,6 +62,7 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
     return return_lock
   }
 
+  get is_node() { return true }
   get is_slot() { return false }
 
   get parent() { return this._parent }
@@ -118,6 +119,7 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
   }
 
   get spot() { return this._root.sum(this._long) }
+  get center() { return this.spot }
 
   get is_open() {
     const {_key} = this
@@ -223,8 +225,8 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
       stroke_color,fill_color,line_width,
       radius,
     } = constructor
-    const _root = root.mul(scale).sum(offset)
-    const _spot = spot.mul(scale).sum(offset)
+    const _root = root.vec(scale,offset)
+    const _spot = spot.vec(scale,offset)
     const _radius = radius * scale
 
     ctx.lineJoin = 'round'

@@ -276,7 +276,17 @@ module.exports = constructors => class Point {
     const {_sx,_sy,_scale} = this
     return Point.init(_sx,_sy,_scale / div)
   }
-
+  vec(
+    mul, // Number
+    {x,y}, // Point
+  ) {
+    const {_x,_y} = this
+    const _point = new Point
+    _point._sx = _point._x = _x * mul + x
+    _point._sy = _point._y = _y * mul + y
+    _point._scale = 1
+    return _point
+  }
   round(
     round, // Number,Null
   ) {
@@ -327,6 +337,21 @@ module.exports = constructors => class Point {
     this._sx = sx; this._sy = sy; this._scale = scale
     this._x = sx * scale; this._y = sy * scale
     return this
+  }
+  get copy() {
+    const {_sx,_sy,_scale,_x,_y} = this
+    const _point = new Point
+    _point._sx = _sx; _point._sy = _sy; _point._scale = _scale
+    _point._x = _x; _point._y = _y
+    return _point
+  }
+  get simple() {
+    const {_x,_y} = this
+    const _point = new Point
+    _point._sx = _point._x = _x
+    _point._sy = _point._y = _y
+    _point._scale = 1
+    return _point
   }
   serialize(
     points, // TODO "points"

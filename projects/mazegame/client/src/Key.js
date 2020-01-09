@@ -58,6 +58,8 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
     return super.is_parent(target) || (lock && lock.is_parent(target))
   }
 
+  get is_node() { return true }
+
   get is_open () { return super.is_open }
   set is_open(
     is_open // Boolean
@@ -159,7 +161,7 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
       stroke_color,fill_color,line_width,
       radius,center_radius,
     } = constructor
-    const _root = root.mul(scale).sum(offset)
+    const _root = root.vec(scale,offset)
     const _radius = radius * scale
     const _center_radius = center_radius * scale
 

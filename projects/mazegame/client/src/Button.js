@@ -110,7 +110,7 @@ module.exports = MazeGame => class Button extends MazeGame.Target {
 
     const { stroke_color, font_scale, } = constructor
 
-    const _root = root.mul(scale).sum(offset)
+    const _root = root.vec(scale,offset)
     const _font_scale = font_scale * scale
 
     ctx.font = `${_font_scale}px Arial`
