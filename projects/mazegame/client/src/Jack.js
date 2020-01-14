@@ -13,6 +13,8 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     return (key ? key.constructor.radius : 0) + length + radius
   }
 
+  get is_node() { return false }
+
   get nose() { return this._nose }
   set_lock(
     nose, // Lock,Null
@@ -247,7 +249,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
       const lung = spot.sub(root).unit
       this.long = lung
       const snot = nose.spot
-      if (intersect(lines,root,snot)) {
+      if (intersect(lines,root,snot,key)) {
         this._spot = null
         this.long = long
         return
@@ -259,8 +261,8 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
 
       if (
         back ? // moving backwards
-        intersect(lines,snot,sub.strip(dist).sum(root)) :
-        intersect(lines,root,sub.strip(dist).sum(snot))
+        intersect(lines,snot,sub.strip(dist).sum(root),key) :
+        intersect(lines,root,sub.strip(dist).sum(snot),key)
       ) {
         this._spot = null
       }

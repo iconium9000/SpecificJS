@@ -35,7 +35,13 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
       closest_lock ? closest_lock.spot : spot.round(this.round)
     )
 
-    if (closest_key && jack.nose.key && jack.nose.key != closest_key) {
+    // if (closest_key == jack.nose.key) {
+    //   jack.spot = null
+    //   log('plbp')
+    //   return true
+    // }
+    // else
+    if (closest_key && jack.nose.key) {
       jack.nose.key = null
     }
     jack.spot = _spot

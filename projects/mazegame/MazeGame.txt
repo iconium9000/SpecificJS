@@ -20,9 +20,9 @@
     Node3:@ _constructor:Node _root:12,-9;
     Node4:@ _constructor:Node _root:-21,-21;
     Node5:@ _constructor:Node _root:22,-21;
-    Node6:@ _constructor:Node _root:23,15;
-    Node7:@ _constructor:Node _root:-21,16;
-    _root:1,-22,0.5
+    Node6:@ _constructor:Node _root:21,13;
+    Node7:@ _constructor:Node _root:-21,13;
+    _root:,-11
     _scale:25
     _next_level:Level2;
   Level2:@
@@ -48,7 +48,7 @@
     Node4:@ _constructor:Node _root:23,-20;
     Node5:@ _constructor:Node _root:22,17;
     Node6:@ _constructor:Node _root:-21,16;
-    _root:2,-17,0.5
+    _root:1,-8
     _scale:25
     _prev_level:Level1
     _next_level:Level4;
@@ -74,7 +74,13 @@
     Door32_spot_long33:@ _constructor:Lock _name:_spot_long _length:3 _parent:Door32;
     Key34:@ _constructor:Key _root:31,23,0.5;
     Wall1:@ _constructor:Wall _root:12,-12 _long:2,20;
-    _root:,-11,0.5
+    Node1:@ _constructor:Node _root:-5,-9;
+    Node2:@ _constructor:Node _root:7,12;
+    Node3:@ _constructor:Node _root:-18,-17;
+    Node4:@ _constructor:Node _root:23,-17;
+    Node5:@ _constructor:Node _root:29,19;
+    Node6:@ _constructor:Node _root:-19,20;
+    _root:,-5
     _scale:30
     _prev_level:Level2
     _next_level:Level3;
@@ -113,7 +119,17 @@
     Wall1:@ _constructor:Wall _root:-12,4 _long:2,12;
     Jack1:@ _constructor:Jack _is_open:true _root:,,0.5 _long:1,,1.5 _nose:Jack1_nose;
     Jack1_nose:@ _constructor:Lock _name:_nose _length:3 _parent:Jack1;
-    _root:-3,-5,0.5
+    Node1:@ _constructor:Node _root:-25,-4;
+    Node2:@ _constructor:Node _root:,-18;
+    Node3:@ _constructor:Node _root:-37,-16;
+    Node4:@ _constructor:Node _root:36,-13;
+    Node5:@ _constructor:Node _root:32,25;
+    Node6:@ _constructor:Node _root:-27,27;
+    Node7:@ _constructor:Node _root:6,23;
+    Node8:@ _constructor:Node _root:5,7;
+    Node9:@ _constructor:Node _root:22,6;
+    Node10:@ _constructor:Node _root:-7,-2;
+    _root:-1,-2
     _scale:35
     _prev_level:Level4
     _next_level:Level5;
@@ -144,7 +160,16 @@
     Header40_lock156:@ _constructor:Slot _name:_lock1 _length:2 _parent:Header40;
     Header40_lock355:@ _constructor:Slot _name:_lock3 _length:2 _parent:Header40;
     Wall46:@ _constructor:Wall _root:-28,-12 _long:54,2;
-    _root:-2,8,0.5
+    Node1:@ _constructor:Node _root:,-4;
+    Node2:@ _constructor:Node _root:-21,-8;
+    Node3:@ _constructor:Node _root:-19,4;
+    Node4:@ _constructor:Node _root:21,-6;
+    Node5:@ _constructor:Node _root:-2,15;
+    Node6:@ _constructor:Node _root:-33,18;
+    Node7:@ _constructor:Node _root:31,18;
+    Node8:@ _constructor:Node _root:31,-18;
+    Node9:@ _constructor:Node _root:-33,-18;
+    _root:-1,4
     _scale:30
     _prev_level:Level3
     _next_level:Level6;
@@ -175,7 +200,7 @@
     Header1_lock4:@ _constructor:Slot _name:_lock4 _length:2 _parent:Header1;
     Key1:@ _constructor:Key _is_open:true _root:-24,-36,0.5;
     Key2:@ _constructor:Key _is_open:true _root:-8,-36,0.5;
-    _root:-12,2,0.5
+    _root:-6,1
     _scale:30
     _prev_level:Level5
     _next_level:Level7;
@@ -219,7 +244,7 @@
     Header101_lock3103:@ _constructor:Slot _name:_lock3 _length:2 _parent:Header101;
     Door67_spot_short:@ _constructor:Lock _name:_spot_short _length:3 _parent:Door67;
     Door67_spot_long:@ _constructor:Lock _name:_spot_long _length:3 _parent:Door67;
-    _root:8,-12,0.5
+    _root:4,-6
     _scale:40
     _prev_level:Level6
     _next_level:Level8;
@@ -255,7 +280,7 @@
     Wall60:@ _constructor:Wall _root:12,-8 _long:10,2;
     Wall61:@ _constructor:Wall _root:22,-8 _long:2,20;
     Wall62:@ _constructor:Wall _root:22,12 _long:-10,2;
-    _root:4,14,0.5
+    _root:2,7
     _scale:30
     _prev_level:Level7
     _next_level:Level9;
@@ -300,7 +325,7 @@
     Jack1_nose:@ _constructor:Lock _name:_nose _length:3 _parent:Jack1;
     Jack2:@ _constructor:Jack _is_open:true _root:-5,67,0.5 _long:1,,1.5 _nose:Jack2_nose;
     Jack2_nose:@ _constructor:Lock _name:_nose _length:3 _parent:Jack2;
-    _root:-15,21,0.5
+    _root:-7,11
     _scale:32
     _prev_level:Level8
     _next_level:Level10;
@@ -344,7 +369,7 @@
     Key218:@ _constructor:Key _is_open:true _lock:Door216_root_short217;
     Door1:@ _constructor:Door _root:,-7,4 _long:16,4 _length:1;
     Door1_root_short:@ _constructor:Lock _name:_root_short _length:3 _parent:Door1;
-    _root:-8,-4,0.5
+    _root:-4,-2
     _scale:35
     _prev_level:Level9
     _next_level:Level11;
@@ -416,7 +441,7 @@
     Header2_lock2:@ _constructor:Slot _name:_lock2 _length:2 _parent:Header2;
     Header2_lock0:@ _constructor:Slot _name:_lock0 _length:2 _parent:Header2;
     Header2_lock4:@ _constructor:Slot _name:_lock4 _length:2 _parent:Header2;
-    _root:-3,8,0.5
+    _root:-1,4
     _scale:45
     _prev_level:Level10
     _next_level:Level12;
@@ -495,7 +520,7 @@
     Jack2_nose:@ _constructor:Lock _name:_nose _length:3 _parent:Jack2;
     Jack1:@ _constructor:Jack _is_open:true _root:-75,-46,0.5 _long:1,,1.5 _nose:Jack1_nose;
     Jack1_nose:@ _constructor:Lock _name:_nose _length:3 _parent:Jack1;
-    _root:-27,16,0.5
+    _root:-13,8
     _scale:45
     _prev_level:Level11
     _next_level:Level14;
@@ -571,7 +596,7 @@
     Wall11:@ _constructor:Wall _root:48,-22 _long:2,62;
     Header1_lock1:@ _constructor:Slot _name:_lock1 _length:2 _parent:Header1;
     Header1_lock3:@ _constructor:Slot _name:_lock3 _length:2 _parent:Header1;
-    _root:19,14,0.5
+    _root:10,7
     _scale:45
     _prev_level:Level12
     _next_level:Level13;
@@ -698,7 +723,7 @@
     Door21_spot_short:@ _constructor:Lock _name:_spot_short _length:3 _parent:Door21;
     Wall22:@ _constructor:Wall _root:36,8 _long:2,8;
     Wall19:@ _constructor:Wall _root:-20,-40 _long:2,-12;
-    _root:4,-4,0.5
+    _root:2,-2
     _scale:51
     _prev_level:Level14
     _next_level:Level15;
@@ -789,7 +814,7 @@
     Header1_lock1:@ _constructor:Slot _name:_lock1 _length:2 _parent:Header1;
     Header1_lock3:@ _constructor:Slot _name:_lock3 _length:2 _parent:Header1;
     Header1_lock4:@ _constructor:Slot _name:_lock4 _length:2 _parent:Header1;
-    _root:-7,12,0.5
+    _root:-3,6
     _scale:48
     _prev_level:Level13;
   _root_level:Level1;

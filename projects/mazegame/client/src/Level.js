@@ -1,9 +1,16 @@
 module.exports = MazeGame => class Level extends MazeGame.Type {
 
   get draw_lines() { return false }
+  get draw_nodes() { return this._draw_nodes }
+  set draw_nodes(
+    draw_nodes // Boolean
+  ) {
+    this._draw_nodes = draw_nodes
+  }
 
   constructor() {
     super()
+    this._draw_nodes = false
     this._is_locked = true; this._root = MazeGame.Point.zero
     this._targets = {}; this._editors = {}
     this._locks = {}; this._lasers = {}; this._slots = {}; this._buttons = {}
@@ -53,7 +60,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   set root(
     root // Point
   ) {
-    this._root = root.round(0.5)
+    this._root = root
   }
   get root() { return this._root || MazeGame.Point.zero }
 
@@ -147,7 +154,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     const _serialize = super.serialize(src)
 
     const {root,_prev_level,_next_level,__points,_scale,constructor} = this
-    _serialize._root = root.serialize(__points)
+    _serialize._root = root.round(1).serialize(__points)
     _serialize._scale = _scale
 
     if (src) {
@@ -242,13 +249,14 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     offset, // MazeGame.Point (in drawspace)
     scale, // Number
   ) {
-    const {lines,_nodes,_locks,_keys,_walls,name,draw_lines} = this
+    const {lines,_nodes,_locks,_keys,_walls,name,draw_lines,draw_nodes} = this
 
-    const _targets = []
-    for (const id in this) {
-      if (this[id] && this[id].is_node) _targets.push(this[id])
-    }
-    {
+    if (draw_nodes) {
+      const _targets = []
+      for (const id in this) {
+        if (this[id] && this[id].is_node) _targets.push(this[id])
+      }
+      const {__path} = this
       const {thin_line_width,thin_stroke_color} = this.constructor
       ctx.lineWidth = thin_line_width * scale
       ctx.strokeStyle = thin_stroke_color
@@ -270,9 +278,13 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
         }
       }
 
+      for (const id in _nodes) _nodes[id].draw(ctx,offset,scale)
+
+      ctx.beginPath()
+      for (const i in __path) __path[i].lineTo = ctx
+      ctx.stroke()
     }
 
-    for (const id in _nodes) _nodes[id].draw(ctx,offset,scale)
     for (const id in _locks) _locks[id].draw(ctx,offset,scale)
     for (const id in _keys) _keys[id].draw(ctx,offset,scale)
     for (const id in _walls) _walls[id].draw(ctx,offset,scale)

@@ -58,7 +58,7 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
     return super.is_parent(target) || (lock && lock.is_parent(target))
   }
 
-  get is_node() { return true }
+  get is_node() { return !this._lock }
 
   get is_open () { return super.is_open }
   set is_open(

@@ -9,6 +9,7 @@ module.exports = MazeGame => class Header extends MazeGame.Door {
   static get button_names() {
     return ['⇐','⟳','⇒',]
   }
+  get is_node() { return false }
 
   show_button(
     name, // String
