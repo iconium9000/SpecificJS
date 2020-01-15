@@ -23,7 +23,7 @@ function MazeGame() {
 
 	const effect_stack = []
 	const client = {
-	  socket: io('/mazegame'),
+	  socket: io('/mazegame_new'),
 		full_name: null,
 		root: MazeGame.Point.zero, mouse: MazeGame.Point.zero,
 		right_down: false, left_down: false,

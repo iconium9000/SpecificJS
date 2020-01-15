@@ -1,7 +1,6 @@
 module.exports = (project, projects, super_require) => {
-  const project_name = 'MazeGame:'
+  const project_name = 'MazeGame New:'
   const log = (...msg) => console.log(project_name, ...msg)
-  const pi2 = Math.PI * 2
   const fs = require('fs')
   const file_name = __dirname + '/MazeGame.txt'
 

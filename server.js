@@ -18,17 +18,27 @@ const projects = [
     title: 'Knifeline',
   },
   {
-    name: 'mazegame',
-    path: 'mazegame',
-    title: 'MazeGame',
-  },
-  {
     name: '2048',
     path: '2048',
     title: '2048',
   },
   {
-    name: 'mazegame_solver',
+    name: 'mazegame/old',
+    path: 'mazegame_old',
+    title: 'MazeGame Old',
+  },
+  {
+    name: 'mazegame/grid',
+    path: 'mazegame_grid',
+    title: 'MazeGame Grid',
+  },
+  {
+    name: 'mazegame/new',
+    path: 'mazegame_new',
+    title: 'MazeGame New',
+  },
+  {
+    name: 'mazegame/solver',
     path: 'mazegame_solver',
     title: 'MazeGame Solver',
   },
