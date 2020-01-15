@@ -136,6 +136,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     _level.root = root
     _level.is_locked = _is_locked
     _level._scale = _scale > 0 ? _scale : constructor.scale
+    _level.__path = this.__path && this.__path.slice()
 
     if (src) {
       if (_prev_level) _level.prev_level = constructor.copy(_prev_level, src)
@@ -250,17 +251,16 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     scale, // Number
   ) {
     const {lines,_nodes,_locks,_keys,_walls,name,draw_lines,draw_nodes} = this
+    const {thin_line_width,thin_stroke_color} = this.constructor
 
     if (draw_nodes) {
       const _targets = []
       for (const id in this) {
         if (this[id] && this[id].is_node) _targets.push(this[id])
       }
-      const {__path} = this
-      const {thin_line_width,thin_stroke_color} = this.constructor
+
       ctx.lineWidth = thin_line_width * scale
       ctx.strokeStyle = thin_stroke_color
-
       const {length} = _targets
       for (let i = 0; i < length; ++i) {
         const root_i = _targets[i].center
@@ -278,12 +278,16 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
         }
       }
 
-      for (const id in _nodes) _nodes[id].draw(ctx,offset,scale)
 
-      ctx.beginPath()
-      for (const i in __path) __path[i].lineTo = ctx
-      ctx.stroke()
+      for (const id in _nodes) _nodes[id].draw(ctx,offset,scale)
     }
+
+    ctx.lineWidth = thin_line_width * scale
+    ctx.strokeStyle = 'black'
+    const {__path} = this
+    ctx.beginPath()
+    for (const i in __path) __path[i].vec(scale,offset).lineTo = ctx
+    ctx.stroke()
 
     for (const id in _locks) _locks[id].draw(ctx,offset,scale)
     for (const id in _keys) _keys[id].draw(ctx,offset,scale)

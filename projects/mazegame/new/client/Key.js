@@ -2,7 +2,7 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
 
   static get round() { return 0.5 }
   static get key_bind() { return 'k' }
-  static get radius() { return 1.3 }
+  static get radius() { return 1.2 }
   static get hit_radius() { return 1.1}
   static get center_radius() { return MazeGame.Lock.radius }
 
@@ -57,8 +57,6 @@ module.exports = MazeGame => class Key extends MazeGame.Target {
     const {lock} = this
     return super.is_parent(target) || (lock && lock.is_parent(target))
   }
-
-  get is_node() { return !this._lock }
 
   get is_open () { return super.is_open }
   set is_open(

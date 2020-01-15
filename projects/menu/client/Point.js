@@ -222,6 +222,12 @@ module.exports = constructors => class Point {
       Point.init(0, _y < -1 ? -1 : 1, abs_y)
     )
   }
+  dist(
+    {x,y}, // Point
+  ) {
+    const {_x,_y} = this; x -= _x; y -= _y
+    return Math.sqrt(x*x + y*y)
+  }
   set(
     scale, // Number
   ) {
@@ -286,6 +292,13 @@ module.exports = constructors => class Point {
     _point._sy = _point._y = _y * mul + y
     _point._scale = 1
     return _point
+  }
+  ivec(
+    div, // Number
+    {x,y}, // Point
+  ) {
+    const {_x,_y} = this
+    return Point.init(_x - x, _y - y, 1 / div)
   }
   round(
     round, // Number,Null

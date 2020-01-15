@@ -1,6 +1,5 @@
 module.exports = MazeGame => class Type {
 
-  static get key_bind() { return 'o' }
   static get fill_color() { return 'black' }
   static get stroke_color() { return 'white' }
   static get thin_stroke_color() { return '#505050' }
@@ -12,13 +11,6 @@ module.exports = MazeGame => class Type {
   get is_type() { return true }
 
   static get search_radius() { return 2 }
-
-  static act_at(
-    editor, // Editor
-    spot, // Point
-  ) {
-    log('sup?')
-  }
 
   get lines() { return [] }
   static intersect(

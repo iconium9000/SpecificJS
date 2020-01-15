@@ -1,6 +1,7 @@
 module.exports = MazeGame => class Editor extends MazeGame.Type {
 
   static get tally_id() { return false }
+  get draw_preview() { return true }
 
   constructor() {
     super()
@@ -172,14 +173,16 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
     if (level) level[id].draw(ctx,center,root,mouse)
     else {
 
-      {
-        
-      }
-      const {id,_mode,} = this
+      const {id,_mode,draw_preview} = this
+      let _level = src
       const _scale = center.short.scale / src.scale
       const _offset = center.sub(root)
-      src.draw_nodes = mode == MazeGame.Node || mode == MazeGame.Type
-      src.draw(ctx,_offset,_scale)
+      if (draw_preview) {
+        _level = _level.copy()
+        _mode.act_at(_level[id], mouse.ivec(_scale,_offset))
+      }
+      _level.draw_nodes = mode == MazeGame.Node// || mode == MazeGame.Game
+      _level.draw(ctx,_offset,_scale)
     }
   }
 

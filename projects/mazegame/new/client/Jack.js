@@ -13,8 +13,6 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     return (key ? key.constructor.radius : 0) + length + radius
   }
 
-  get is_node() { return false }
-
   get nose() { return this._nose }
   set_lock(
     nose, // Lock,Null
@@ -138,6 +136,62 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     _jack._long = MazeGame.Point.init(1,0,this.radius)
     MazeGame.Lock.init(_jack, '_nose')
     return _jack
+  }
+
+  path_to(
+    spot, // Point
+    key, // Key,Null
+  ) {
+    const {src,nose,center,constructor} = this, {speed,radius} = constructor
+    const {lines,__active_portals} = src, queue = [[this,center,0]], path = []
+    const [root_portal,spot_portal] = __active_portals || [null,null]
+    const [nidx,ridx,didx,pidx,pdepth,map,nodes,wins] = [0,1,2,3,1e-8,{},[],[]]
+
+    for (const id in src) if (src[id] && src[id].is_node) nodes.push(src[id])
+    for (let i = 0; i < queue.length; ++i) {
+      const [node,root,depth,prev] = queue[i]
+
+      if (!constructor.intersect(lines,root,spot,key)) {
+        wins.push([null,spot,depth+root.dist(spot),queue[i]])
+      }
+
+      for (const j in nodes) {
+        const target = nodes[j], {id,center} = target
+        const _depth = depth+root.dist(center)
+        if (map[id] && map[id][didx] <= _depth) continue
+        else if (!constructor.intersect(lines,root,center,key)) {
+          queue.push(map[id] = [target,center,_depth,queue[i]])
+        }
+      }
+
+      if (node == root_portal) {
+        const {id,center} = spot_portal
+        const _depth = depth+pdepth
+        if (!map[id] || map[id] > _depth) {
+          queue.push(map[id] = [spot_portal,center,_depth,queue[i]])
+        }
+      }
+      else if (node == spot_portal) {
+        const {id,center} = root_portal
+        const _depth = depth+pdepth
+        if (!map[id] || map[id] > _depth) {
+          queue.push(map[id] = [root_portal,center,_depth,queue[i]])
+        }
+      }
+    }
+
+    let min = null
+    for (const i in wins) if (!min || wins[i][didx] < min[didx]) min = wins[i]
+    for (let pan = min; pan; pan = pan[pidx]) path.push(pan[ridx])
+
+    if (path.length) return path
+
+    let dist = Infinity
+    for (const id in map) {
+      
+    }
+
+    return path
   }
 
   remove() {

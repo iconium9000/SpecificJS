@@ -1,8 +1,8 @@
 module.exports = MazeGame => class Lock extends MazeGame.Target {
 
   static get key_bind() { return 'l' }
-  static get long_min() { return 3 }
-  static get long_max() { return 3 }
+  static get long_min() { return 2 }
+  static get long_max() { return 2 }
   static get long_round() { return 1 }
   static get radius() { return 0.5 }
 
@@ -62,10 +62,6 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
     return return_lock
   }
 
-  get is_node() {
-    const {_parent} = this
-    return _parent && !_parent.is_jack
-  }
   get is_slot() { return false }
 
   get parent() { return this._parent }
