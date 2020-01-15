@@ -171,8 +171,10 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
 
     if (level) level[id].draw(ctx,center,root,mouse)
     else {
-      
 
+      {
+        
+      }
       const {id,_mode,} = this
       const _scale = center.short.scale / src.scale
       const _offset = center.sub(root)

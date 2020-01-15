@@ -110,7 +110,7 @@ function Blockade() {
   document.addEventListener('touchstart', e => { mouse_down = true }, false)
   document.addEventListener('touchend', e => { mouse_down = false }, false)
   $(document).keypress(e => {
-    e.which == 32 && (mouse_down = true)
+    if (e.which == 32) mouse_down = true
     if (e.which == msg_key) {
       const msg = prompt('msg for group')
       if (msg) {
@@ -118,7 +118,7 @@ function Blockade() {
       }
     }
   })
-  $(document).keyup(e => { e.which == 32 && (mouse_down = false)})
+  $(document).keyup(e => { if (e.which == 32) mouse_down = false })
 
   // -----------------------------------------------------------------------------
   // Blockade

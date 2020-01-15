@@ -26,7 +26,7 @@ module.exports = (project, projects, super_require) => {
 
   		app.set.reset('server')
 
-  		console.log('Server Active')
+  		// console.log('Server Active')
   	},
 
   	// Set (send)
@@ -98,11 +98,11 @@ module.exports = (project, projects, super_require) => {
 
 
   		msg: (id, msg) => {
-  			console.log(msg = `server: '${msg}'`)
+  			// console.log(msg = `server: '${msg}'`)
   			app.set.emit('msg', msg)
   		},
   		print: (id, msg) => {
-  			eval(`console.log(${msg})`)
+  			// eval(`console.log(${msg})`)
   		},
   		save: (id, msg) => {
   			app.set.msg('server', msg || 'Saving Game...')
@@ -156,7 +156,7 @@ module.exports = (project, projects, super_require) => {
 
   		msg: (socket, msg) => {
   			msg = `${socket.name}: '${msg}'`
-  			console.log(msg)
+  			// console.log(msg)
   			app.set.emit('msg', msg)
   		},
 

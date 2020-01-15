@@ -17,7 +17,7 @@ module.exports = MazeGame => class Type {
     editor, // Editor
     spot, // Point
   ) {
-    
+    log('sup?')
   }
 
   get lines() { return [] }

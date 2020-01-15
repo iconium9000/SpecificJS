@@ -26,9 +26,19 @@ module.exports = g => {
           f(i)
         }
 
-        idx.socket.emit(
-          'handShake', prompt('What is you name?', 'Johnny Appleseed')
-        )
+        let name = null
+
+        if (typeof document.cookie == 'string') {
+    	    name = g.Lib.get_cookie('name')
+    	  }
+
+    	  // if no name is found in cookies, get one from the user
+    	  while (!name || name == 'null') {
+    	    name = prompt('Choose a name:', name)
+    	    document.cookie = `name=${name}`
+    	  }
+
+        idx.socket.emit( 'handShake', name )
       },
 
       status: s => {

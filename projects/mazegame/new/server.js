@@ -21,7 +21,7 @@ module.exports = (project, projects, super_require) => {
     `./projects/menu/client/${name}.js`
   )(MazeGame))
   classes.forEach(name => MazeGame[name] = require(
-    `./client/src/${name}.js`
+    `./client/${name}.js`
   )(MazeGame))
 
   let game = null, serial
