@@ -43,10 +43,12 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
     // }
     // else
     if (closest_key && jack.nose.key) {
-      jack.nose.key = null
+      if (!this.intersect(level.lines,jack.root,jack.nose.spot)) {
+        jack.nose.key = null
+      }
     }
     jack.spot = _spot
-    
+
     delete level.__path
     level.__path = jack.path_to(level.lines,_spot)
 

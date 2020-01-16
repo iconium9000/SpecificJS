@@ -218,6 +218,10 @@ module.exports = constructors => class Point {
     const {_x,_y} = this
     return Math.sqrt(_x*_x + _y*_y)
   }
+  get square() {
+    const {_x,_y} = this
+    return _x*_x + _y*_y
+  }
   get unit() {
     const {_x,_y,length} = this
     return (
@@ -257,6 +261,12 @@ module.exports = constructors => class Point {
   ) {
     const {_x, _y} = this
     return Point.init(_x,_y,scale)
+  }
+  ustrip(
+    scale, // Number
+  ) {
+    const {_x,_y,length} = this
+    return Point.init(_x/length,_y/length,scale)
   }
   strip(
     scale, // Number

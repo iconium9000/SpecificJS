@@ -224,11 +224,18 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     else this._spot = null
   }
 
+  flip(lock,key) {
+    const _key = this.nose.key
+    if (key == _key || (key && key.is_jack)) key = null
+    return key || (_key && (!lock || !lock.is_slot != !_key.is_open))
+  }
+
   get center() {
     const {root,spot,nose,src} = this
     if (!spot) return root
-    const key = MazeGame.Key.get_closest(src.keys,spot)
-    return (key && !key.is_jack) || nose.key ? root : nose.spot
+    const [lock,key] = src.get_lock_key(spot)
+    // return (key && !key.is_jack) || nose.key ? nose.spot : root
+    return this.flip(lock,key) ? nose.spot : root
   }
   move(
     dt, // Number (milliseconds)
@@ -236,264 +243,131 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     let {root,spot,long} = this
     if (!spot) return
 
-    const {src,node,nose,constructor} = this, {lines} = src
-    let [lock,key] = src.get_lock_key(spot)
+    const {src,nose,constructor} = this, {lines} = src
+    let snot = nose.spot, [lock,key] = src.get_lock_key(spot)
     if (key == nose.key || (key && key.is_jack)) key = null
     const {speed,radius,radius_intersect} = constructor
     const intersect = (root,spot) => constructor.intersect(lines,root,spot,key)
-    const flip = key || nose.key
+    const flip = this.flip(lock,key)
 
     const path = this.path_to(lines,spot,key)
     if (path.length < 2) return this.spot = null
 
     const dist = speed * dt, _radius = radius + nose.length
-    if (!flip) root = nose.spot
+    if (flip) {
+      root = snot
+      snot = this.root
+    }
 
     path.pop()
     const [target,_dist] = path.pop()
 
-    if (path.length == 0) {
-      if (
-        _dist == _radius ||
-        (_dist > _radius ?_radius + dist >= _dist : _radius - dist <= dist)
-      ) {
-        if (
-          _dist > _radius ?
-          intersect(root,spot) :
-          intersect(spot,root.sub(spot).mul(_radius/_dist).sum(spot))
-        ) {
-          return this.spot = null
-        }
-
-        if (flip) {
-          this.long = spot.sub(root)
-          this.root = spot.sub(this.long.strip(_radius))
-        }
-        else this.long = root.sub(this.root = spot)
-
-        if (nose.key && lock && !key && lock.is_slot == !nose.key.is_open) {
-          lock.key = nose.key
-        }
-        else if (key && !nose.key) nose.key = key
-        else if (lock) {
-          this.lock = lock
-          this.editor = null
-        }
-        this.spot = null
-        return
-      }
-      else if (_dist > _radius) {
-        long = spot.sub(root).mul((_radius + dist)/_dist).sum(root)
-
-        if (intersect(root,long)) {
-          return this.spot = null
-        }
-
-        if (flip) {
-          this.long = spot.sub(root)
-          this.root = this.long.strip(dist).sum(root)
-        }
-        else this.long = root.sub(this.root = long)
-      }
-      else {
-        long = spot.sub(root).mul(_radius/_dist).sum(root)
-        root = root.sub(spot).mul(dist/_dist).sum(root)
-
-        if (intersect(long,root)) {
-          return this.spot = null
-        }
-
-        if (flip) this.long = long.sub(this.root = root)
-        else {
-          this.long = root.sub(spot)
-          this.root = this.long.strip(dist).sum(long)
-        }
-      }
+    const path_length = path.length == 0
+    if (dist < _dist) {
+      long = target.sub(root).unit.strip(dist).sum(root)
     }
+    else if (path_length) long = target
     else {
       const [next,__dist] = path.pop()
-
-      if (_dist <= dist) {
-        if (_dist == __dist) {
-          if (path.length) {
-            const [more,___dist] = path.pop()
-            if (flip) this.long = more.sub(this.root = next)
-            else {
-              this.long = more.sub(next)
-              this.root = this.long.strip(-_radius).sum(next)
-            }
-          }
-          else {
-            throw "TODO ERROR"
-          }
+      if (_dist == __dist && path.length != 0) {
+        const [nextB,___dist] = path.pop()
+        if (flip) {
+          this.long = nextB.sub(next)
+          this.root = next
         }
-        else if (flip) this.long = next.sub(this.root = target)
         else {
-          this.long = target.sub(next)
-          this.root = this.long.strip(-_radius).sum(target)
+          this.long = next.sub(nextB)
+          this.root = this.long.strip(-_radius).sum(next)
         }
-      }
-      else {
-        root = target.sub(root).unit.strip(dist).sum(root)
-
-        if (_dist - dist < _radius) {
-          let scale = MazeGame.Point.next_radius(_radius,root,target,next)
-          if (isNaN(scale) || !isFinite(scale)) scale = 0
-          long = next.sub(target).unit.strip(scale).sum(target)
-        }
-        else long = target
-
-        if (flip) this.long = long.sub(this.root = root)
-        else {
-          this.long = root.sub(target)
-          this.root = this.long.strip(-_radius).sum(root)
-        }
-      }
-    }
-  }
-
-  __move(
-    dt, // Number (milliseconds)
-  ) {
-    if (!this._spot) return
-    let {root,spot,long} = this
-
-    const {src:level,nose,constructor} = this
-    const {lines} = level, {speed,radius,intersect} = constructor
-    let [ lock, key ] = level.get_lock_key(spot)
-    if (key == nose.key || (key && key.is_jack)) key = null
-
-    const dist = dt * speed
-    if (level.portals_active) {
-      const [root_portal,spot_portal] = level.__active_portals
-
-      const root_center = root_portal.center
-      const spot_center = spot_portal.center
-      const temp = [ [root_center,spot_center], [spot_center,root_center], ]
-      for (const i in temp) {
-        const [root_center,spot_center] = temp[i]
-
-        if (
-          !intersect(lines,root,root_center) &&
-          !intersect(lines,spot_center,spot)
-        ) {
-          if (key || nose.key) {
-            const lung = root_center.sub(root).unit
-            this.long = lung
-            const snot = nose.spot
-            if (intersect(lines,root,snot)) {
-              this.long = root.sub(root_center)
-              const sub = root_center.sub(root).unit
-              const move = sub.strip(dist).sum(root)
-
-              if (intersect(lines,root,move)) {
-                this._spot = null
-              }
-              else if (sub.scale < dist) {
-                this.root = spot_center
-                this.long = spot_center.sub(spot)
-              }
-              else {
-                this.root = sub.strip(dist).sum(root)
-              }
-            }
-
-            const sub = root_center.sub(snot).unit
-            const length = nose.length + radius
-
-            if (
-              lung.scale < length ? // moving backwards
-              intersect(lines,snot,sub.strip(dist).sum(root)) :
-              intersect(lines,root,sub.strip(dist).sum(snot))
-            ) {
-              this._spot = null
-            }
-            else if (sub.scale < dist) {
-              this.root = spot_center
-              this.long = spot.sub(spot_center)
-            }
-            else {
-              this.root = sub.strip(dist).sum(root)
-            }
-          }
-          else {
-            this.long = root.sub(root_center)
-            const sub = root_center.sub(root).unit
-            const move = sub.strip(dist).sum(root)
-
-            if (intersect(lines,root,move)) {
-              this._spot = null
-            }
-            else if (sub.scale < dist) {
-              this.root = spot_center
-              this.long = spot_center.sub(spot)
-            }
-            else {
-              this.root = move
-            }
-          }
-
-          return
-        }
-      }
-    }
-
-    if (key || nose.key) {
-      const lung = spot.sub(root).unit
-      this.long = lung
-      const snot = nose.spot
-      if (intersect(lines,root,snot,key)) {
-        this._spot = null
-        this.long = long
         return
       }
+      else long = target
+    }
 
-      const sub = spot.sub(snot).unit
-      const length = nose.length + radius
-      const back = lung.scale < length
+    if (intersect(root,long)) {
+      this.spot = null
+      return
+    }
+    else root = long
 
-      if (
-        back ? // moving backwards
-        intersect(lines,snot,sub.strip(dist).sum(root),key) :
-        intersect(lines,root,sub.strip(dist).sum(snot),key)
-      ) {
-        this._spot = null
+    // if (false)
+    {
+      const {radius} = MazeGame[flip ? 'Key' : 'Lock']
+      snot = snot.sub(root).ustrip(_radius).sum(root)
+
+      const intersect = (a,b) => {
+        return MazeGame.Point.radius_intersect(radius,root,snot,a,b)
       }
-      else if (sub.scale < dist) {
-        this._spot = null
-        if (sub.scale != 0) {
-          this.root = spot.sub(sub.strip(length * (back ? -1 : 1)))
-        }
 
-        if (nose.key && lock && !key && lock.is_slot == !nose.key.is_open) {
-          lock.key = nose.key
+      const _lines = []
+      for (const i in lines) {
+        const sub = lines[i]
+        for (let j = 1; j < sub.length; ++j) {
+          _lines.push([sub[j-1],sub[j]])
         }
-        else if (key && !nose.key) nose.key = key
       }
-      else {
-        this.root = sub.strip(dist).sum(root)
+
+      const a = root, queue = [snot]
+      for (let i = 0; i < queue.length && i < 4; ++i) {
+        snot = queue[i]; const b = snot
+        for (const j in _lines) {
+          const [c,d] = _lines[j]
+          if (intersect(c,d)) {
+            const [p,q] = [d.sub(c),b.sub(a)]
+            const s = a.sub(c), j1 = p.square
+            const g = s.sub(p.mul(s.dot(p)/j1)).ustrip(radius+1e-8).sub(s)
+            const j2 = g.dot(p) / j1, j3 = (g.square - q.square) / j1
+
+            let u, u0 = Infinity, j4 = j2*j2 - j3
+            if (j4 < 0) continue
+            if (j4 == 0) u = -j2
+            else {
+              j4 = Math.sqrt(j4)
+              const w = b.sub(c).dot(p) / j1, u1 = j4 - j2, u2 = -j4 - j2
+              u = Math.abs(u2-w) > Math.abs(u1-w) ? u1 : u2
+              u0 = u1 == u ? u2 : u1
+            }
+
+            const snot2 = p.vec(u,g).sum(a)
+            let flag = true
+            for (const k in queue) if (queue[k].dist(snot2) <= 1e-7) {
+              flag = false
+              break
+            }
+            if (flag) {
+              // log(queue.length)
+              if (queue.length < 2) queue.push(snot2)
+              else if (queue.length == 2) {
+                const [snot0,snot1] = queue
+                // if (isFinite(u0)) queue.push(p.vec(u0,g).sum(a))
+                // else
+                queue.push(
+                  snot1.sub(a).sum(snot2).sub(a).ustrip(-radius).sum(a)
+                )
+              }
+              else snot = queue[0]
+            }
+          }
+        }
       }
     }
-    else {
-      this.long = root.sub(spot)
-      const sub = spot.sub(root).unit
-      const move = sub.strip(dist).sum(root)
 
-      if (intersect(lines,root,move)) {
-        this._spot = null
-      }
-      else if (sub.scale < dist) {
-        this._spot = null
-        this.root = spot
+    if (flip) {
+      this.long = root.sub(snot)
+      this.root = this.long.strip(-_radius).sum(root)
+    }
+    else this.long = snot.sub(this.root = root)
 
-        if (lock) {
-          this.lock = lock
-          this.editor = null
-        }
+    if (path_length && dist >= _dist) {
+      if (nose.key && lock && !key && lock.is_slot == !nose.key.is_open) {
+        lock.key = nose.key
       }
-      else {
-        this.root = sub.strip(dist).sum(root)
+      else if (key && !nose.key) nose.key = key
+      else if (lock) {
+        this.lock = lock
+        this.editor = null
       }
+      this.spot = null
     }
   }
 
