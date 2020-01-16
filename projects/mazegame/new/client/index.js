@@ -35,6 +35,13 @@ function MazeGame() {
 	client.name = client.id
 	setup_game()
 
+	// log(MazeGame.Point.next_radius(
+	// 	1.22,
+	// 	{x:4.514,y:5.618},
+	// 	{x:5.13,y:4.09},
+	// 	{x:5.51,y:5.91},
+	// ))
+
 	function setup_game(game) {
 		const {id,name} = client
 		client.game = game || MazeGame.Game.init()
@@ -149,7 +156,7 @@ function MazeGame() {
 			// TODO UNDO
 		}
 		else if (c == ' ') {
-			log(client.editor)
+			log(client.editor, client.editor.level.__path)
 			window.editor = client.editor
 			// client.game = MazeGame.Type.read(client.game.serialize())
 			// client.editor = client.game[editor.id]

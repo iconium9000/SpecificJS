@@ -88,7 +88,10 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     for (const id in _portals) {
       if (_portals[id]._is_open) __active_portals.push(_portals[id])
     }
-    return __active_portals.length == 2
+
+    if (__active_portals.length == 2) return true
+    this.__active_portals = []
+    return false
   }
   get lines() {
     const {_walls} = this, lines = this.__lines = []
@@ -282,12 +285,12 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
       for (const id in _nodes) _nodes[id].draw(ctx,offset,scale)
     }
 
-    // ctx.lineWidth = thin_line_width * scale
-    // ctx.strokeStyle = 'black'
-    // const {__path} = this
-    // ctx.beginPath()
-    // for (const i in __path) __path[i].vec(scale,offset).lineTo = ctx
-    // ctx.stroke()
+    ctx.lineWidth = thin_line_width * scale
+    ctx.strokeStyle = 'black'
+    const {__path} = this
+    ctx.beginPath()
+    for (const i in __path) __path[i][0].vec(scale,offset).lineTo = ctx
+    ctx.stroke()
 
     for (const id in _locks) _locks[id].draw(ctx,offset,scale)
     for (const id in _keys) _keys[id].draw(ctx,offset,scale)

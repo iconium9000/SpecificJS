@@ -1,7 +1,7 @@
 module.exports = MazeGame => class Editor extends MazeGame.Type {
 
-  static get tally_id() { return false }
-  get draw_preview() { return false }
+  get draw_preview() { return true }
+  // get draw_preview() { return false }
 
   constructor() {
     super()

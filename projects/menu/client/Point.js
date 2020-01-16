@@ -179,6 +179,30 @@ module.exports = constructors => class Point {
     )
   }
 
+  static next_radius(
+    r,{x:a1,y:a2},{x:b1,y:b2},{x:c1,y:c2},
+  ) {
+    const q1 = b1-a1, q2 = b2-a2, p1 = c1-b1, p2 = c2-b2
+    const j1 = q1*q1 + q2*q2, j2 = p1*p1 + p2*p2, j3 = q1*p1+q2*p2
+    if (j2 == 0) return j3 == 0 ? 0 : (r*r - j1) / j3
+    else {
+      let k2 = j2*r*r + j3*j3 - j1*j2
+      if (k2 < 0) return 0
+
+      const k1 = -j3/j2
+      if (k2 == 0) return k1
+      else {
+        k2 = Math.sqrt(k2)/j2
+        const u1 = k1 + k2, u2 = k1 - k2
+        return (
+          u1 > u2 ?
+          u2 > 0 ? u2 : u1 > 0 ? u1 : 0 :
+          u1 > 0 ? u1 : u2 > 0 ? u2 : 0
+        )
+      }
+    }
+  }
+
   equals(
     {x,y}, // Float
   ) {

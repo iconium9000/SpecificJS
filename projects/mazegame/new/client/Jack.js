@@ -139,58 +139,70 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
   }
 
   path_to(
+    lines, // Point[][]
     spot, // Point
     key, // Key,Null
   ) {
-    const {src,nose,center,constructor} = this, {speed,radius} = constructor
-    const {lines,__active_portals} = src, queue = [[this,center,0]], path = []
-    const [root_portal,spot_portal] = __active_portals || [null,null]
-    const [nidx,ridx,didx,pidx,pdepth,map,nodes,wins] = [0,1,2,3,1e-8,{},[],[]]
+    const {_id,src,nose,center,constructor} = this, {speed,radius} = constructor
+    const {portals_active,__active_portals} = src
+    const [root_portal,spot_portal] = __active_portals || []
+    const op_portal = [spot_portal,root_portal]
+    const [path,con,out] = [[],{},{}]
+    const [nidx,ridx,didx,pidx,pdepth,] = [0,1,2,3,1e-8]
+    let [min,win,sin] = [[this,center,0],null,null]
+    const intersect = (root,spot) => constructor.intersect(lines,root,spot,key)
 
-    for (const id in src) if (src[id] && src[id].is_node) nodes.push(src[id])
-    for (let i = 0; i < queue.length; ++i) {
-      const [node,root,depth,prev] = queue[i]
+    const _radius = radius + nose.length
 
-      if (!constructor.intersect(lines,root,spot,key)) {
-        wins.push([null,spot,depth+root.dist(spot),queue[i]])
-      }
-
-      for (const j in nodes) {
-        const target = nodes[j], {id,center} = target
-        const _depth = depth+root.dist(center)
-        if (map[id] && map[id][didx] <= _depth) continue
-        else if (!constructor.intersect(lines,root,center,key)) {
-          queue.push(map[id] = [target,center,_depth,queue[i]])
-        }
-      }
-
-      if (node == root_portal) {
-        const {id,center} = spot_portal
-        const _depth = depth+pdepth
-        if (!map[id] || map[id] > _depth) {
-          queue.push(map[id] = [spot_portal,center,_depth,queue[i]])
-        }
-      }
-      else if (node == spot_portal) {
-        const {id,center} = root_portal
-        const _depth = depth+pdepth
-        if (!map[id] || map[id] > _depth) {
-          queue.push(map[id] = [root_portal,center,_depth,queue[i]])
-        }
+    for (const id in src) {
+      if (src[id] && (src[id].is_node || id == _id)) {
+        const {center} = src[id]
+        const _depth = spot.dist(center)
+        out[id] = [src[id],center,_depth]
       }
     }
 
-    let min = null
-    for (const i in wins) if (!min || wins[i][didx] < min[didx]) min = wins[i]
-    for (let pan = min; pan; pan = pan[pidx]) path.push(pan[ridx])
+    do {
+      const [node,root,depth] = min, {id} = node
+      const __depth = out[id][didx]
+      const _depth = depth + __depth; delete out[id]; delete con[id]
 
-    if (path.length) return path
+      if (!sin || sin[didx] > __depth) {
+        sin = [null,spot,__depth,min]
+      }
+      if ((!win || win[didx] > _depth) && (
+        __depth < _radius ?
+        !intersect(spot, root.sub(spot).mul(_radius/__depth).sum(spot)) :
+        !intersect(root,spot)
+      )) {
+        win = [null,spot,_depth,min]
+      }
 
-    let dist = Infinity
-    for (const id in map) {
-      
-    }
+      for (const id in out) {
+        const [target,center,__depth] = out[id]
+        const _depth = depth + center.dist(root)
+        if ((!con[id] || con[id][didx] > _depth) && !intersect(root,center)) {
+          con[id] = [target,center,_depth,min]
+        }
+      }
 
+      for (const i in __active_portals) {
+        const root_portal = __active_portals[i], {id} = op_portal[i]
+        if (node == root_portal && out[id]) {
+          const [target,center,__depth] = out[id]
+          const _depth = depth + __depth
+          if (!con[id] || con[id] > _depth) {
+            con[id] = [target,center,_depth,min]
+          }
+        }
+      }
+
+      min = null
+      for (const id in con) if (!min || min[didx] > con[id][didx]) min = con[id]
+    } while (min != null)
+
+    min = win || sin
+    for (let pan = min; pan; pan = pan[pidx]) path.push([pan[ridx],pan[didx]])
     return path
   }
 
@@ -213,7 +225,97 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     else this._spot = null
   }
 
+  get center() {
+    const {root,spot,nose,src} = this
+    if (!spot) return root
+    const key = MazeGame.Key.get_closest(src.keys,spot)
+    return (key && !key.is_jack) || nose.key ? root : nose.spot
+  }
   move(
+    dt, // Number (milliseconds)
+  ) {
+    let {root,spot,long} = this
+    if (!spot) return
+
+    const {src,node,nose,constructor} = this, {lines} = src
+    let [lock,key] = src.get_lock_key(spot)
+    if (key == nose.key || (key && key.is_jack)) key = null
+    const {speed,radius,radius_intersect} = constructor
+    const intersect = (root,spot) => constructor.intersect(lines,root,spot,key)
+    const flip = key || nose.key
+
+    const path = this.path_to(lines,spot,key)
+    if (path.length < 2) return this.spot = null
+
+
+    const dist = speed * dt
+    const _radius = radius + nose.length
+    if (!flip) root = nose.spot
+
+    path.pop()
+    let [target,_dist] = path.pop()
+
+    if (path.length == 0) {
+      log('move', dist, _dist, _radius)
+      if (
+        _dist == _radius ||
+        (_dist > _radius ? _dist - dist <= _radius : _dist + dist >= _radius)
+      ) {
+        // detect backing into a wall
+        if (_dist > _radius) {
+          long = root.sub(target).unit.strip(_radius).sum(target)
+          if (intersect(target,long)) {
+            // will back into wall if continue
+            this.spot = null
+            return
+          }
+        }
+        if (flip) {
+          this.long = target.sub(root)
+        }
+        else {
+          this.long = root.sub(target)
+          this.root = target
+        }
+
+        // TODO
+        this.spot = null
+        return
+      }
+    }
+
+    // if (dist <= _dist) {
+    //   if (path.length) {
+    //     root = target
+    //     const [_target,__dist] = path.pop()
+    //     target = _target; _dist = __dist
+    //   }
+    //   else {
+    //     // TODO
+    //     return this.spot = null
+    //   }
+    // }
+    // else root = target.sub(root).unit.strip(dist).sum(root)
+    //
+    // if (path.length) {
+    //   const [next] = path.pop()
+    //   let scale = MazeGame.Point.next_radius(_radius,root,target,next)
+    //   if (isNaN(scale) || !isFinite(scale)) scale = 0
+    //   long = next.sub(target).mul(scale).sum(target)
+    // }
+    // else long = target
+    //
+    // if (flip) {
+    //   this.long = long.sub(root)
+    //   this.root = root
+    // }
+    // else {
+    //   this.long = root.sub(long)
+    //   this.root = long
+    // }
+  }
+
+  __move(
     dt, // Number (milliseconds)
   ) {
     if (!this._spot) return
