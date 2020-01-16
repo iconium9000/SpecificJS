@@ -148,7 +148,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     const [root_portal,spot_portal] = __active_portals || []
     const op_portal = [spot_portal,root_portal]
     const [path,con,out] = [[],{},{}]
-    const [nidx,ridx,didx,pidx,pdepth,] = [0,1,2,3,1e-8]
+    const [nidx,ridx,didx,pidx,] = [0,1,2,3]
     let [min,win,sin] = [[this,center,0],null,null]
     const intersect = (root,spot) => constructor.intersect(lines,root,spot,key)
 
@@ -171,8 +171,8 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
         sin = [null,spot,__depth,min]
       }
       if ((!win || win[didx] > _depth) && (
-        __depth < _radius ?
-        !intersect(spot, root.sub(spot).mul(_radius/__depth).sum(spot)) :
+        // __depth < _radius ?
+        // !intersect(spot, root.sub(spot).mul(_radius/__depth).sum(spot)) :
         !intersect(root,spot)
       )) {
         win = [null,spot,_depth,min]
@@ -190,9 +190,8 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
         const root_portal = __active_portals[i], {id} = op_portal[i]
         if (node == root_portal && out[id]) {
           const [target,center,__depth] = out[id]
-          const _depth = depth + __depth
           if (!con[id] || con[id] > _depth) {
-            con[id] = [target,center,_depth,min]
+            con[id] = [target,center,depth,min]
           }
         }
       }
@@ -247,72 +246,110 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     const path = this.path_to(lines,spot,key)
     if (path.length < 2) return this.spot = null
 
-
-    const dist = speed * dt
-    const _radius = radius + nose.length
+    const dist = speed * dt, _radius = radius + nose.length
     if (!flip) root = nose.spot
 
     path.pop()
-    let [target,_dist] = path.pop()
+    const [target,_dist] = path.pop()
 
     if (path.length == 0) {
-      log('move', dist, _dist, _radius)
       if (
         _dist == _radius ||
-        (_dist > _radius ? _dist - dist <= _radius : _dist + dist >= _radius)
+        (_dist > _radius ?_radius + dist >= _dist : _radius - dist <= dist)
       ) {
-        // detect backing into a wall
-        if (_dist > _radius) {
-          long = root.sub(target).unit.strip(_radius).sum(target)
-          if (intersect(target,long)) {
-            // will back into wall if continue
-            this.spot = null
-            return
-          }
-        }
-        if (flip) {
-          this.long = target.sub(root)
-        }
-        else {
-          this.long = root.sub(target)
-          this.root = target
+        if (
+          _dist > _radius ?
+          intersect(root,spot) :
+          intersect(spot,root.sub(spot).mul(_radius/_dist).sum(spot))
+        ) {
+          return this.spot = null
         }
 
-        // TODO
+        if (flip) {
+          this.long = spot.sub(root)
+          this.root = spot.sub(this.long.strip(_radius))
+        }
+        else this.long = root.sub(this.root = spot)
+
+        if (nose.key && lock && !key && lock.is_slot == !nose.key.is_open) {
+          lock.key = nose.key
+        }
+        else if (key && !nose.key) nose.key = key
+        else if (lock) {
+          this.lock = lock
+          this.editor = null
+        }
         this.spot = null
         return
       }
-    }
+      else if (_dist > _radius) {
+        long = spot.sub(root).mul((_radius + dist)/_dist).sum(root)
 
-    // if (dist <= _dist) {
-    //   if (path.length) {
-    //     root = target
-    //     const [_target,__dist] = path.pop()
-    //     target = _target; _dist = __dist
-    //   }
-    //   else {
-    //     // TODO
-    //     return this.spot = null
-    //   }
-    // }
-    // else root = target.sub(root).unit.strip(dist).sum(root)
-    //
-    // if (path.length) {
-    //   const [next] = path.pop()
-    //   let scale = MazeGame.Point.next_radius(_radius,root,target,next)
-    //   if (isNaN(scale) || !isFinite(scale)) scale = 0
-    //   long = next.sub(target).mul(scale).sum(target)
-    // }
-    // else long = target
-    //
-    // if (flip) {
-    //   this.long = long.sub(root)
-    //   this.root = root
-    // }
-    // else {
-    //   this.long = root.sub(long)
-    //   this.root = long
-    // }
+        if (intersect(root,long)) {
+          return this.spot = null
+        }
+
+        if (flip) {
+          this.long = spot.sub(root)
+          this.root = this.long.strip(dist).sum(root)
+        }
+        else this.long = root.sub(this.root = long)
+      }
+      else {
+        long = spot.sub(root).mul(_radius/_dist).sum(root)
+        root = root.sub(spot).mul(dist/_dist).sum(root)
+
+        if (intersect(long,root)) {
+          return this.spot = null
+        }
+
+        if (flip) this.long = long.sub(this.root = root)
+        else {
+          this.long = root.sub(spot)
+          this.root = this.long.strip(dist).sum(long)
+        }
+      }
+    }
+    else {
+      const [next,__dist] = path.pop()
+
+      if (_dist <= dist) {
+        if (_dist == __dist) {
+          if (path.length) {
+            const [more,___dist] = path.pop()
+            if (flip) this.long = more.sub(this.root = next)
+            else {
+              this.long = more.sub(next)
+              this.root = this.long.strip(-_radius).sum(next)
+            }
+          }
+          else {
+            throw "TODO ERROR"
+          }
+        }
+        else if (flip) this.long = next.sub(this.root = target)
+        else {
+          this.long = target.sub(next)
+          this.root = this.long.strip(-_radius).sum(target)
+        }
+      }
+      else {
+        root = target.sub(root).unit.strip(dist).sum(root)
+
+        if (_dist - dist < _radius) {
+          let scale = MazeGame.Point.next_radius(_radius,root,target,next)
+          if (isNaN(scale) || !isFinite(scale)) scale = 0
+          long = next.sub(target).unit.strip(scale).sum(target)
+        }
+        else long = target
+
+        if (flip) this.long = long.sub(this.root = root)
+        else {
+          this.long = root.sub(target)
+          this.root = this.long.strip(-_radius).sum(root)
+        }
+      }
+    }
   }
 
   __move(

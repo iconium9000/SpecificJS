@@ -7,7 +7,7 @@ module.exports = MazeGame => class Type {
   static get scale() { return 60 }
   static get font_scale() { return 2.6 }
   static get thin_line_width() { return this.line_width / 2 }
-  static get speed() { return 5e-2 } // dist / time = speed
+  static get speed() { return 3e-2 } // dist / time = speed
   get is_type() { return true }
 
   static get search_radius() { return 2 }
