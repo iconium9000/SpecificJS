@@ -48,6 +48,16 @@ function MazeGame() {
 		client.editor = MazeGame.Editor.init(client.game, id, name)
 	}
 
+	function update() {
+		const {level} = client.editor
+
+		try {
+			const string = Lib.stringify(level.serialize())
+			client.socket.emit('update', string)
+		}
+		catch (e) {}
+	}
+
 	function send_game() {
 		const {editor,game} = client
 
@@ -189,6 +199,7 @@ function MazeGame() {
 	client.socket.on(
 		'devmode', devmode => client.devmode = devmode
 	)
+	client.socket.on('update', update)
 	client.socket.on('serial', string => {
 		const {id,name} = client
 		try {
@@ -230,6 +241,7 @@ function MazeGame() {
 		const {_editor,root} = editor, {_mode} = _editor
 		editor.log = log
     _mode.act_at(_editor, _mouse.sub(_center).div(_scale).sum(root))
+		update()
 
 		client.mouse = _mouse
 	})

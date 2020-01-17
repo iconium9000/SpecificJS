@@ -4,8 +4,8 @@ module.exports = (project, projects, super_require) => {
   const fs = require('fs')
   const file_name = __dirname + '/MazeGame.txt'
 
-  const devmode = true
-  // const devmode = false
+  // const devmode = true
+  const devmode = false
 
   const clients = {}
   const MazeGame = {}
@@ -76,7 +76,7 @@ module.exports = (project, projects, super_require) => {
     })
 
     client.socket.on(`disconnect`, () => {
-      delete client[client.socket.id]
+      delete clients[client.socket.id]
       // delete game.editors[client.socket.id]
     })
   })

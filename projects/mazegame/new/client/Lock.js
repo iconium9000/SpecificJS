@@ -189,7 +189,8 @@ module.exports = MazeGame => class Lock extends MazeGame.Target {
 
     this.length = _length
     this.parent = parent
-    if (_key) this.key = constructor.read(serialize, src, _key)
+    // log('lock parent', this.parent)
+    // if (_key) this.key = constructor.read(serialize, src, _key)
 
     return this
   }

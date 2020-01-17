@@ -5,7 +5,7 @@
     _name:Tap,\ Don't\ Drag
     Door22:@ _constructor:Door _root:-2,-3,4 _long:16,-4 _length:1;
     Door22_root_long23:@ _constructor:Lock _name:_root_long _length:2 _parent:Door22;
-    Key39:@ _constructor:Key _is_open:true _root:-12,-1,0.5;
+    Key39:@ _constructor:Key _is_open:true _root:11,-1,0.5;
     Header32:@ _constructor:Header _root:-2,-7,4 _long:16,-4 _length:1;
     Header32_lock236:@ _constructor:Slot _name:_lock2 _length:2 _parent:Header32;
     Wall25:@ _constructor:Wall _root:-16,10 _long:2,-26;
@@ -21,7 +21,7 @@
     Node6:@ _constructor:Node _root:21,13;
     Node7:@ _constructor:Node _root:-21,13;
     Node8:@ _constructor:Node _root:,-23;
-    Jack1:@ _constructor:Jack _is_open:true _root:13,-1,0.5 _long:1,,1.2 _nose:Jack1_nose;
+    Jack1:@ _constructor:Jack _is_open:true _root:-12,-1,0.5 _long:1,,1.2 _nose:Jack1_nose;
     Jack1_nose:@ _constructor:Lock _name:_nose _length:2 _parent:Jack1;
     _root:,-11
     _scale:25
@@ -656,9 +656,9 @@
     Door9_root_long:@ _constructor:Lock _name:_root_long _length:2 _parent:Door9 _key:Key1;
     Key1:@ _constructor:Key _is_open:true _lock:Door9_root_long;
     Door9_spot_short:@ _constructor:Lock _name:_spot_short _length:2 _parent:Door9;
-    Key5:@ _constructor:Key _is_open:true _lock:Door1_root_long;
     Door1:@ _constructor:Door _is_open:true _root:8,9,4 _long:-20,4 _length:0;
     Door1_root_long:@ _constructor:Laser _name:_root_long _length:14 _parent:Door1 _key:Key5;
+    Key5:@ _constructor:Key _is_open:true _lock:Door1_root_long;
     Wall1:@ _constructor:Wall _root:,-24 _long:-8,2;
     Wall12:@ _constructor:Wall _root:32,40 _long:16,2;
     Door3:@ _constructor:Door _is_open:true _root:12,6,4 _long:-16,4 _length:0;

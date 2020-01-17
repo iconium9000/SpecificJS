@@ -184,20 +184,21 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     if (src && src.__points) this.__points = src.__points
 
     super.read(serialize, src, id)
+    if (src) serialize = serialize[id]
 
-    const {_root,_scale} = serialize[id], {constructor,__points} = this
+    const {_root,_scale} = serialize, {constructor,__points} = this
     if (_root) this.root = MazeGame.Point.read(_root,__points)
     this.scale = _scale
 
 
-    const {_prev_level,_next_level} = serialize[id]
+    const {_prev_level,_next_level} = serialize
     if (src) {
       this.prev_level = constructor.read(serialize, src, _prev_level)
       this.next_level = constructor.read(serialize, src, _next_level)
     }
     else {
-      _serialize._prev_level = _prev_level
-      _serialize._next_level = _next_level
+      serialize._prev_level = _prev_level
+      serialize._next_level = _next_level
     }
 
     this.__backup = this.copy()

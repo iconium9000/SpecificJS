@@ -1,48 +1,44 @@
 // -----------------------------------------------------------------------------
 // server setup
 
-const projects = [
-  {
+const projects = {
+  '': {
     name: 'menu',
-    path: '',
     title: 'Iconium9000 Games Menu',
   },
-  {
+  'blockade': {
     name: 'blockade',
-    path: 'blockade',
     title: 'Blockade',
   },
-  {
+  'knifeline': {
     name: 'knifeline',
-    path: 'knifeline',
     title: 'Knifeline',
   },
-  {
+  '2048': {
     name: '2048',
-    path: '2048',
     title: '2048',
   },
-  {
+  'mazegame_old': {
     name: 'mazegame/old',
-    path: 'mazegame_old',
     title: 'MazeGame Old',
   },
-  {
+  'mazegame_grid': {
     name: 'mazegame/grid',
-    path: 'mazegame_grid',
     title: 'MazeGame Grid',
   },
-  {
+  'mazegame_new': {
     name: 'mazegame/new',
-    path: 'mazegame_new',
     title: 'MazeGame New',
   },
-  {
+  'mazegame_viewer': {
+    name: 'mazegame/new/viewer',
+    title: 'MazeGame Viewer',
+  },
+  'mazegame_solver': {
     name: 'mazegame/solver',
-    path: 'mazegame_solver',
     title: 'MazeGame Solver',
   },
-]
+}
 
 const jquery_dir = '/node_modules/jquery/dist/'
 const socket_io_dir = '/node_modules/socket.io-client/dist/'
@@ -63,10 +59,11 @@ const socket_io = require('socket.io')(serv, {})
 // const Lib = require(`./projects/menu/client/Lib.js`)
 // const Point = require(`./projects/menu/client/Point.js`)
 
-for ( const project_idx in projects ) {
-  const project = projects[project_idx]
+for ( const path in projects ) {
+  const project = projects[path]
+  project.path = path
 
-  project.socket = socket_io.of(`/${project.path}`)
+  project.socket = socket_io.of(`/${path}`)
 
   app.get(
     `/${project.path}`,
@@ -80,9 +77,11 @@ for ( const project_idx in projects ) {
   )
 }
 
-for ( const project_idx in projects ) {
-  const project = projects[project_idx]
-  require(`./projects/${project.name}/server.js`)(project, projects, require)
+for ( const path in projects ) {
+  const project = projects[path]
+  require(`./projects/${project.name}/server.js`)(
+    project,projects,require,app,socket_io
+  )
 }
 
 app.use('/images', express.static(__dirname + '/images'))
