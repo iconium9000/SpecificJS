@@ -46,9 +46,16 @@ module.exports = (constructors) => class Lib {
 
   static get_cookie(cookie_name) {
     return document.cookie.
-    replace(
-      new RegExp(`(?:(?:^|.*;\\s*)${cookie_name}\\s*\\=\\s*([^;]*).*$)|^.*$`
+    replace(new RegExp(
+      `(?:(?:^|.*;\\s*)${cookie_name}\\s*\\=\\s*([^;]*).*$)|^.*$`
     ), '$1')
+  }
+
+  static set_cookie(cname, cvalue, exdays) {
+    const d = new Date()
+    d.setTime(d.getTime() + (exdays*24*60*60*1000))
+    var expires = "expires="+ d.toUTCString()
+    document.cookie = `${cname}=${cvalue}; ${expires}; path=/`
   }
 
   static safe_string(

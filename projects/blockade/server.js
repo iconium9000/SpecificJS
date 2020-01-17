@@ -14,10 +14,10 @@ module.exports = (project) => {
   const bar_height = 1/10     // bar height variance
   const bar_freq = 4/1        // bar spawn per sec
 
+  let bar_stop = null, msg_stop = null
 
   // send a new bar to all client sockets bar_freq times per sec
-  setInterval(() => {
-
+  function bar_interval() {
     // define specs of new bar
     const w = bar_width_min + bar_width * Math.random()
     const h = bar_hieght_min + bar_height * Math.random()
@@ -29,11 +29,10 @@ module.exports = (project) => {
       const client_socket = client_sockets[client_socket_id]
       client_socket.emit('new bar', x, y, w, h)
     }
-
-  }, 1e3/bar_freq)
+  }
 
   // update game update_freq times a second
-  setInterval(() => {
+  function msg_interval() {
 
     // message to send to all client sockets
     const msg = {
@@ -64,13 +63,16 @@ module.exports = (project) => {
       client_socket.emit('update', msg)
     }
 
-  }, 1e3/update_freq)
+  }
 
   // called for each client that connects to the server
   // manage each client individually
   project.socket.on('connection', (client_socket) => {
 
     client_sockets[ client_socket.id ] = client_socket
+
+    bar_stop = bar_stop || setInterval(bar_interval, 1e3/bar_freq)
+    msg_interval = msg_interval || setInterval(msg_interval, 1e3/update_freq)
 
     // change the name when the client tells you to
     client_socket.on('client name', msg => {
@@ -82,7 +84,7 @@ module.exports = (project) => {
       client_socket.full_name = `'${msg.name}' (${client_socket.id})`
 
       // log the loggin of the client
-      log(`${client_socket.full_name} connected`)
+      // log(`${client_socket.full_name} connected`)
     })
 
     // when a client sends a msg, resend that msg to all clients
@@ -92,7 +94,7 @@ module.exports = (project) => {
       msg = `${client_socket.name}: ${msg}`
 
       // log the msg being sent clients
-      log(msg)
+      // log(msg)
 
       // send the msg to all clients
       for (const client_socket_id in client_sockets) {
@@ -116,7 +118,7 @@ module.exports = (project) => {
         // TODO: trake death statistics
 
         // log where a player has died
-        log(`${client_socket.full_name} died at ${score}`)
+        // log(`${client_socket.full_name} died at ${score}`)
       }
       // save the client's death state
       client_socket.dead = dead
@@ -135,7 +137,12 @@ module.exports = (project) => {
     // on a client disconnect, remove it from the map, and log it
     client_socket.on('disconnect', () => {
       delete client_sockets[client_socket.id]
-      log(`${client_socket.full_name} disconnected`)
+      // log(`${client_socket.full_name} disconnected`)
+
+      for (const id in client_sockets) return
+
+      if (bar_stop) clearInterval(bar_stop)
+      if (msg_stop) clearInterval(msg_stop)
     })
   })
 }

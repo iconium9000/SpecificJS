@@ -62,6 +62,13 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
   get levels() { return this._levels }
   get editors() { return this._editors }
 
+  get tally() { return this._tally }
+  set tally(
+    tally, // Number
+  ) {
+    this._tally = tally || 0
+  }
+
   get root_level() { return this._root_level || MazeGame.Level.init(this) }
   set root_level(
     root_level // Level,Null
@@ -88,7 +95,8 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
   ) {
     const _serialize = super.serialize(src)
 
-    const {_root_level,constructor} = this
+    const {_root_level,_tally,constructor} = this
+    _serialize._tally = _tally
     if (_root_level) {
       _serialize._root_level = constructor.serialize(_root_level, _serialize)
     }
@@ -102,8 +110,9 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
   ) {
     super.read(serialize, src, id)
 
-    const {_root_level} = serialize, {constructor} = this
+    const {_root_level,_tally} = serialize, {constructor} = this
 
+    this.tally = 1 + (_tally || 0)
     if (_root_level) {
       this.root_level = constructor.read(serialize, this, _root_level)
     }

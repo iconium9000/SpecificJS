@@ -1,4 +1,4 @@
-module.exports = (project, projects, super_require, app, socket_io) => {
+module.exports = (project, {projects, super_require, app, socket_io}) => {
   const project_name = 'MazeGame Viwer:'
   const log = (...msg) => console.log(project_name, ...msg)
 

@@ -1,11 +1,11 @@
-module.exports = (project, projects, super_require) => {
+module.exports = (project, {super_require}) => {
   const project_name = 'MazeGame New:'
   const log = (...msg) => console.log(project_name, ...msg)
   const fs = require('fs')
   const file_name = __dirname + '/MazeGame.txt'
 
-  const devmode = true
-  // const devmode = false
+  const {argv} = process; let devmode = false
+  for (const i in argv) if (argv[i] == 'devmode') {devmode = true; break}
 
   const clients = {}
   const MazeGame = {}

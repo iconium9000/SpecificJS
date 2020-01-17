@@ -1,4 +1,4 @@
-module.exports = (project, projects) => {
+module.exports = (project, {projects}) => {
 
   const project_name = 'Menu:'
   const log = (...msg) => console.log(project_name, ...msg)

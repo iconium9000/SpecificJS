@@ -1,4 +1,4 @@
-module.exports = (project, projects, super_require) => {
+module.exports = (project) => {
 
   const project_name = 'MazeGame Grid:'
   const log = (...msg) => console.log(project_name, ...msg)

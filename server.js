@@ -31,7 +31,7 @@ const projects = {
     title: 'MazeGame New',
   },
   'mazegame_viewer': {
-    name: 'mazegame/new/viewer',
+    name: 'mazegame/viewer',
     title: 'MazeGame Viewer',
   },
   'mazegame_solver': {
@@ -56,9 +56,6 @@ const http = require('http')
 const serv = http.Server(app)
 const socket_io = require('socket.io')(serv, {})
 
-// const Lib = require(`./projects/menu/client/Lib.js`)
-// const Point = require(`./projects/menu/client/Point.js`)
-
 for ( const path in projects ) {
   const project = projects[path]
   project.path = path
@@ -77,11 +74,20 @@ for ( const path in projects ) {
   )
 }
 
+const info = {
+  projects: projects,
+  super_require: require,
+  app: app,
+  socket_io: socket_io
+}
 for ( const path in projects ) {
   const project = projects[path]
-  require(`./projects/${project.name}/server.js`)(
-    project,projects,require,app,socket_io
-  )
+  try {
+    require(`./projects/${project.name}/server.js`)(project,info)
+  }
+  catch (e) {
+    log('error', e)
+  }
 }
 
 app.use('/images', express.static(__dirname + '/images'))

@@ -1,4 +1,4 @@
-module.exports = (project, projects) => {
+module.exports = () => {
 
   const project_name = '2048:'
   const log = (...msg) => console.log(project_name, ...msg)

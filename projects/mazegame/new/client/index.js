@@ -10,10 +10,14 @@ const module = {
 
 function MazeGame() {
 	const max_deltaT = 0.1
-	const {Lib} = MazeGame, {pi,pi2} = Lib
+	const {Lib,Game,Point,Level,Editor,Target} = MazeGame
 	const project_name = 'MazeGame:'
 	const log = (...msg) => console.log(project_name, ...msg)
 	const err = console.error
+
+	const cookie_age = 15
+
+	log('cookies', document.cookie)
 
 	const key_bindings = {}
 	for (const type_name in MazeGame) {
@@ -25,27 +29,18 @@ function MazeGame() {
 	const client = {
 	  socket: io('/mazegame_new'),
 		full_name: null,
-		root: MazeGame.Point.zero, mouse: MazeGame.Point.zero,
+		root: Point.zero, mouse: Point.zero,
 		right_down: false, left_down: false,
 		free: true,
-		// rect: true,
 		get id() { return client.socket.id },
 	}
-	// MazeGame.client = client
 	client.name = client.id
 	setup_game()
 
-	// log(MazeGame.Point.next_radius(
-	// 	1.22,
-	// 	{x:4.514,y:5.618},
-	// 	{x:5.13,y:4.09},
-	// 	{x:5.51,y:5.91},
-	// ))
-
 	function setup_game(game) {
 		const {id,name} = client
-		client.game = game || MazeGame.Game.init()
-		client.editor = MazeGame.Editor.init(client.game, id, name)
+		client.game = game || Game.init()
+		client.editor = Editor.init(client.game, id, name)
 	}
 
 	function update() {
@@ -67,8 +62,8 @@ function MazeGame() {
 	}
 
 	function get_center_scale(canvas) {
-		const _center = MazeGame.Point.init(canvas.width, canvas.height, 0.5)
-		const {scale} = client.editor.level || MazeGame.Target
+		const _center = Point.init(canvas.width, canvas.height, 0.5)
+		const {scale} = client.editor.level || Target
 		return [_center, _center.short.scale / scale ]
 	}
 
@@ -80,7 +75,7 @@ function MazeGame() {
 		const new_mode = key_bindings[c]
 		const {editor,game} = client
 
-		const {time} = MazeGame.Lib
+		const {time} = Lib
 		// log(e.which)
 
 		if (new_mode) {
@@ -126,7 +121,7 @@ function MazeGame() {
 			send_game()
 		}
 		else if (c == 'n') {
-			editor.level = MazeGame.Level.init(game)
+			editor.level = Level.init(game)
 		}
 		// left: 37
 		// up: 38
@@ -178,8 +173,6 @@ function MazeGame() {
 		else if (c == ' ') {
 			log(client.editor, client.editor.level.__path)
 			window.editor = client.editor
-			// client.game = MazeGame.Type.read(client.game.serialize())
-			// client.editor = client.game[editor.id]
 		}
 	}
 
@@ -192,7 +185,7 @@ function MazeGame() {
 	  // if no name is found in cookies, get one from the user
 	  while (!client.name || client.name == 'null') {
 	    client.name = prompt('Choose a name:', client.name)
-	    document.cookie = `name=${client.name}`
+	    Lib.set_cookie('name', client.name, cookie_age)
 	  }
 		const {name,id} = client
 
@@ -206,16 +199,34 @@ function MazeGame() {
 
 	  tick()
 	})
-	client.socket.on(
-		'devmode', devmode => client.devmode = devmode
-	)
+	client.socket.on('devmode', devmode => client.devmode = devmode)
 	client.socket.on('update', update)
 	client.socket.on('serial', string => {
 		const {id,name} = client
 		try {
-			const serial = MazeGame.Lib.parse(string)
-			setup_game(MazeGame.Game.read(serial))
+			const serial = Lib.parse(string)
+			setup_game(Game.read(serial))
 			client.free = false
+
+			const {editor} = client, {src,level} = editor
+
+			if (src.tally != Lib.get_cookie('game_tally')) {
+				Lib.set_cookie('game_tally', src.tally, cookie_age)
+			}
+			else {
+				const unlocked_levels = Lib.get_cookie('unlocked_levels').split(' ')
+				const {levels} = editor.src
+				for (const i in unlocked_levels) {
+					const level = levels[unlocked_levels[i]]
+					if (level) level.is_locked = false
+				}
+
+				const root_level = levels[Lib.get_cookie('root_level')]
+				if (root_level) {
+					src.root_level = editor.level = root_level
+				}
+			}
+
 		}
 		catch (e) {
 			log(e)
@@ -224,7 +235,7 @@ function MazeGame() {
 
 	$(document).mousemove(e => {
 		const {right_down,mouse,editor} = client
-		const _mouse = MazeGame.Point.init(e.offsetX,e.offsetY,1)
+		const _mouse = Point.init(e.offsetX,e.offsetY,1)
 		const [_center,_scale] = get_center_scale(e.target)
 
 		if (right_down) {
@@ -235,7 +246,7 @@ function MazeGame() {
 	})
 
 	$(document).mousedown(e => {
-		client.mouse = MazeGame.Point.init(e.offsetX,e.offsetY,1)
+		client.mouse = Point.init(e.offsetX,e.offsetY,1)
 		client[e.button == 2 ? 'right_down' : 'left_down'] = true
 	})
 
@@ -244,7 +255,7 @@ function MazeGame() {
 		target.width = window.innerWidth - 20
 		target.height = window.innerHeight - 20
 		const [_center, _scale] = get_center_scale(target)
-		const _mouse = MazeGame.Point.init(e.offsetX,e.offsetY,1)
+		const _mouse = Point.init(e.offsetX,e.offsetY,1)
 		client[e.button == 2 ? 'right_down' : 'left_down'] = false
 
 		const {editor} = client
@@ -287,6 +298,16 @@ function MazeGame() {
 
 			editor.draw(ctx,_center,root,mouse)
 			editor.move()
+
+			if (!client.free) {
+				const {src,level} = client.editor, {levels} = src
+				let unlocked_levels = ''
+				for (const id in levels) {
+					if (!levels[id].is_locked) unlocked_levels += ' ' + id
+				}
+				Lib.set_cookie('unlocked_levels', unlocked_levels, cookie_age)
+				Lib.set_cookie('root_level', level.id, cookie_age)
+			}
 		}
 		catch(e) { log(e) }
 	}

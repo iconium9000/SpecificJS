@@ -24,7 +24,8 @@ function MazeGameViwer() {
 
   function get_center_scale_offset({scale,root},{width,height}) {
 		const center = Point.init(width, height, 0.5)
-		return [center, center.short.scale / scale, center.sub(root) ]
+		scale = center.short.scale / scale
+		return [center, scale, center.sub(root.mul(scale)) ]
 	}
 
   client.full_name = client.name = client.socket.id
