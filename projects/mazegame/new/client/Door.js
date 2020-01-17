@@ -12,8 +12,6 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     return ['_root_short','_root_long','_spot_long','_spot_short',]
   }
 
-  get is_node() { return super.is_open }
-
   get is_open() { return super.is_open }
   set is_open(
     is_open // Boolean

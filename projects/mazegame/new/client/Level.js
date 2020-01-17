@@ -286,12 +286,12 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
       for (const id in _nodes) _nodes[id].draw(ctx,offset,scale)
     }
 
-    // ctx.lineWidth = thin_line_width * scale
-    // ctx.strokeStyle = 'black'
-    // const {__path} = this
-    // ctx.beginPath()
-    // for (const i in __path) __path[i][0].vec(scale,offset).lineTo = ctx
-    // ctx.stroke()
+    ctx.lineWidth = thin_line_width * scale
+    ctx.strokeStyle = 'black'
+    const {__path} = this
+    ctx.beginPath()
+    for (const i in __path) __path[i][0].vec(scale,offset).lineTo = ctx
+    ctx.stroke()
 
     for (const id in _locks) _locks[id].draw(ctx,offset,scale)
     for (const id in _keys) _keys[id].draw(ctx,offset,scale)

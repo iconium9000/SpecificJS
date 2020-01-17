@@ -97,6 +97,16 @@ function MazeGame() {
 		else if (c == 'r') {
 			client.socket.emit('serial')
 		}
+		else if (c == 'y') {
+			const {level} = editor
+			if (level) {
+				const {lines,portals} = level
+				log(lines)
+				for (const i in portals) {
+					log(portals[i])
+				}
+			}
+		}
 		else if (c == 'q') {
 			send_game()
 		}

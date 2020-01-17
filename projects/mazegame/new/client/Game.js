@@ -11,14 +11,17 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
     editor, // Editor
     spot, // Point
   ) {
-    const level = editor.src
+    const {src} = editor, {Button,Wall} = MazeGame
 
-    const closest_buttton = MazeGame.Button.get_closest(level.buttons, spot)
+    // const closest_wall = Wall.get_closest(src.walls, spot)
+    // if (closest_wall) return false
+
+    const closest_buttton = Button.get_closest(src.buttons, spot)
     if (closest_buttton) {
       closest_buttton.press(editor)
       return true
     }
-    const [closest_lock, closest_key] = level.get_lock_key(spot)
+    const [closest_lock, closest_key] = src.get_lock_key(spot)
 
     if (closest_key && closest_key.is_jack) {
       const jack = closest_key
@@ -43,14 +46,14 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
     // }
     // else
     if (closest_key && jack.nose.key) {
-      if (!this.intersect(level.lines,jack.root,jack.nose.spot)) {
+      if (!this.intersect(src.lines,jack.root,jack.nose.spot)) {
         jack.nose.key = null
       }
     }
     jack.spot = _spot
 
-    delete level.__path
-    level.__path = jack.path_to(level.lines,_spot)
+    delete src.__path
+    src.__path = jack.path_to(src.lines,_spot)
 
     return true
   }

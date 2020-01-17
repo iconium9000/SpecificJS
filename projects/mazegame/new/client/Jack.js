@@ -146,19 +146,35 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     const {_id,src,nose,center,constructor} = this, {speed,radius} = constructor
     const {portals_active,__active_portals} = src
     const [root_portal,spot_portal] = __active_portals || []
-    const op_portal = [spot_portal,root_portal]
-    const [path,con,out] = [[],{},{}]
+    const [path,con,out,pout,opout] = [[],{},{},{},[1,0]]
     const [nidx,ridx,didx,pidx,] = [0,1,2,3]
     let [min,win,sin] = [[this,center,0],null,null]
     const intersect = (root,spot) => constructor.intersect(lines,root,spot,key)
-
     const _radius = radius + nose.length
 
+    out[_id] = [src[_id],center,spot.dist(center)]
+
+    for (const i in __active_portals) {
+      const portal = __active_portals[i], {center} = portal
+      pout[i] = [portal,center,spot.dist(center)]
+    }
+
     for (const id in src) {
-      if (src[id] && (src[id].is_node || id == _id)) {
+      if (src[id] && src[id].is_node) {
         const {center} = src[id]
         const _depth = spot.dist(center)
         out[id] = [src[id],center,_depth]
+      }
+    }
+
+    const add_out = min => {
+      const [node,root,depth] = min
+      for (const id in out) {
+        const [target,center,__depth] = out[id]
+        const _depth = depth + center.dist(root)
+        if ((!con[id] || con[id][didx] > _depth) && !intersect(root,center)) {
+          con[id] = [target,center,_depth,min]
+        }
       }
     }
 
@@ -170,29 +186,19 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
       if (!sin || sin[didx] > __depth) {
         sin = [null,spot,__depth,min]
       }
-      if ((!win || win[didx] > _depth) && (
-        // __depth < _radius ?
-        // !intersect(spot, root.sub(spot).mul(_radius/__depth).sum(spot)) :
-        !intersect(root,spot)
-      )) {
+      if ((!win || win[didx] > _depth) && !intersect(root,spot)) {
         win = [null,spot,_depth,min]
       }
 
-      for (const id in out) {
-        const [target,center,__depth] = out[id]
-        const _depth = depth + center.dist(root)
-        if ((!con[id] || con[id][didx] > _depth) && !intersect(root,center)) {
-          con[id] = [target,center,_depth,min]
-        }
-      }
+      add_out(min)
 
-      for (const i in __active_portals) {
-        const root_portal = __active_portals[i], {id} = op_portal[i]
-        if (node == root_portal && out[id]) {
-          const [target,center,__depth] = out[id]
-          if (!con[id] || con[id] > _depth) {
-            con[id] = [target,center,depth,min]
-          }
+      for (const i in pout) {
+        const [portal,center] = pout[i]
+        const _depth = depth + root.dist(center)
+        const _min = [portal,center,_depth,min]
+        if (!intersect(root,center)) {
+          const [portal,center] = pout[opout[i]]
+          add_out([portal,center,_depth,_min])
         }
       }
 
