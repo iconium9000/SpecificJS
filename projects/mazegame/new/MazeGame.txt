@@ -5,7 +5,7 @@
     _name:Tap,\ Don't\ Drag
     Door22:@ _constructor:Door _root:-2,-3,4 _long:16,-4 _length:1;
     Door22_root_long23:@ _constructor:Lock _name:_root_long _length:2 _parent:Door22;
-    Key39:@ _constructor:Key _is_open:true _root:11,-1,0.5;
+    Key39:@ _constructor:Key _is_open:true _root:11,,0.5;
     Header32:@ _constructor:Header _root:-2,-7,4 _long:16,-4 _length:1;
     Header32_lock236:@ _constructor:Slot _name:_lock2 _length:2 _parent:Header32;
     Wall25:@ _constructor:Wall _root:-16,10 _long:2,-26;
@@ -21,7 +21,8 @@
     Node6:@ _constructor:Node _root:21,13;
     Node7:@ _constructor:Node _root:-21,13;
     Node8:@ _constructor:Node _root:,-23;
-    Jack1:@ _constructor:Jack _is_open:true _root:-12,-1,0.5 _long:1,,1.2 _nose:Jack1_nose;
+    Room1:@ _constructor:Room _lines:-16,-16~16,-16~16,10~-16,10;
+    Jack1:@ _constructor:Jack _is_open:true _root:-12,,0.5 _long:1,,1.2 _nose:Jack1_nose;
     Jack1_nose:@ _constructor:Lock _name:_nose _length:2 _parent:Jack1;
     _root:,-11
     _scale:25
@@ -31,6 +32,7 @@
     _name:Baggage
     Header1:@ _constructor:Header _root:8,-24 _long:-16,-4 _length:1;
     Header1_lock12:@ _constructor:Slot _name:_lock1 _length:2 _parent:Header1;
+    Key13:@ _constructor:Key _root:-19,10,0.5;
     Header1_lock33:@ _constructor:Slot _name:_lock3 _length:2 _parent:Header1;
     Door4:@ _constructor:Door _root:-3,-3,4 _long:24,4 _length:1;
     Door4_spot_long11:@ _constructor:Lock _name:_spot_long _length:2 _parent:Door4;
@@ -40,7 +42,6 @@
     Wall7:@ _constructor:Wall _root:-9,6,2 _long:36,2;
     Wall8:@ _constructor:Wall _root:9,6,2 _long:2,-24;
     Wall10:@ _constructor:Wall _root:6,-6,2 _long:6,2;
-    Key13:@ _constructor:Key _root:-22,11,0.5;
     Node1:@ _constructor:Node _root:15,1;
     Node2:@ _constructor:Node _root:,;
     Node3:@ _constructor:Node _root:-23,-11;
@@ -48,7 +49,8 @@
     Node5:@ _constructor:Node _root:22,17;
     Node6:@ _constructor:Node _root:-21,16;
     Node7:@ _constructor:Node _root:,-17;
-    Jack1:@ _constructor:Jack _is_open:true _root:-22,-4,0.5 _long:1,,1.2 _nose:Jack1_nose;
+    Room1:@ _constructor:Room _lines:-18,-8~-18,12~18,12~18,-12~-12,-12~-12,-8;
+    Jack1:@ _constructor:Jack _is_open:true _root:-19,-1,0.5 _long:1,,1.2 _nose:Jack1_nose;
     Jack1_nose:@ _constructor:Lock _name:_nose _length:2 _parent:Jack1;
     _root:1,-8
     _scale:25
@@ -85,6 +87,8 @@
     Node9:@ _constructor:Node _root:6,-8;
     Jack1:@ _constructor:Jack _is_open:true _root:-12,23,0.5 _long:1,,1.2 _nose:Jack1_nose;
     Jack1_nose:@ _constructor:Lock _name:_nose _length:2 _parent:Jack1;
+    Room1:@ _constructor:Room _lines:-12,-16~-12,~12,~12,-16;
+    Room2:@ _constructor:Room _lines:-12,~-12,16~20,16~20,8~12,8~12,;
     _root:,-5
     _scale:30
     _prev_level:Level2
@@ -135,6 +139,10 @@
     Node9:@ _constructor:Node _root:22,6;
     Node10:@ _constructor:Node _root:-7,-2;
     Node11:@ _constructor:Node _root:4,32;
+    Room1:@ _constructor:Room _lines:-12,-12~-12,16~12,16~12,-12;
+    Room2:@ _constructor:Room _lines:-30,-12~-12,-12~-12,4~-30,4;
+    Room3:@ _constructor:Room _lines:28,-4~28,12~12,12~12,-4;
+    Room4:@ _constructor:Room _lines:12,28~-4,28~-4,16~12,16;
     _root:-1,-2
     _scale:35
     _prev_level:Level4
@@ -153,18 +161,14 @@
     Wall22:@ _constructor:Wall _root:-14,-6,2 _long:2,20;
     Door23:@ _constructor:Door _root:-7,2,4 _long:16,4 _length:1;
     Door23_root_long24:@ _constructor:Lock _name:_root_long _length:2 _parent:Door23;
-    Jack25:@ _constructor:Jack _is_open:true _root:-47,-12,0.5 _long:1,,1.5 _nose:Jack25_nose26;
-    Jack25_nose26:@ _constructor:Lock _name:_nose _length:2 _parent:Jack25;
-    Jack28:@ _constructor:Jack _is_open:true _root:,-14,0.5 _long:1,,1.5 _nose:Jack28_nose29;
-    Jack28_nose29:@ _constructor:Lock _name:_nose _length:2 _parent:Jack28;
     Key30:@ _constructor:Key _is_open:true _root:39,8,0.5;
+    Header40:@ _constructor:Header _root:-2,6,4 _long:16,4 _length:1;
+    Header40_lock355:@ _constructor:Slot _name:_lock3 _length:2 _parent:Header40;
+    Header40_lock156:@ _constructor:Slot _name:_lock1 _length:2 _parent:Header40;
     Door36:@ _constructor:Door _root:-3,1,4 _long:24,4 _length:1;
     Door36_root_long37:@ _constructor:Lock _name:_root_long _length:2 _parent:Door36;
+    Key39:@ _constructor:Key _is_open:true _root:,-2,0.5;
     Door36_spot_long38:@ _constructor:Lock _name:_spot_long _length:2 _parent:Door36;
-    Key39:@ _constructor:Key _is_open:true _root:,,0.5;
-    Header40:@ _constructor:Header _root:-2,6,4 _long:16,4 _length:1;
-    Header40_lock156:@ _constructor:Slot _name:_lock1 _length:2 _parent:Header40;
-    Header40_lock355:@ _constructor:Slot _name:_lock3 _length:2 _parent:Header40;
     Wall46:@ _constructor:Wall _root:-28,-12 _long:54,2;
     Node1:@ _constructor:Node _root:,-4;
     Node2:@ _constructor:Node _root:-21,-8;
@@ -176,6 +180,13 @@
     Node8:@ _constructor:Node _root:31,-18;
     Node9:@ _constructor:Node _root:-33,-18;
     Node10:@ _constructor:Node _root:-20,15;
+    Room1:@ _constructor:Room _lines:-28,-12~-28,12~-12,12~-12,-12;
+    Room2:@ _constructor:Room _lines:-12,-12~-12,8~12,8~12,-12;
+    Room3:@ _constructor:Room _lines:12,-12~26,-12~26,8~12,8;
+    Jack1:@ _constructor:Jack _is_open:true _root:-44,-6,0.5 _long:1,,1.2 _nose:Jack1_nose;
+    Jack1_nose:@ _constructor:Lock _name:_nose _length:2 _parent:Jack1;
+    Jack2:@ _constructor:Jack _is_open:true _root:,-14,0.5 _long:1,,1.2 _nose:Jack2_nose;
+    Jack2_nose:@ _constructor:Lock _name:_nose _length:2 _parent:Jack2;
     _root:-1,4
     _scale:30
     _prev_level:Level3
@@ -216,6 +227,8 @@
     Node7:@ _constructor:Node _root:-22,28;
     Node8:@ _constructor:Node _root:10,29;
     Node9:@ _constructor:Node _root:14,-10;
+    Room1:@ _constructor:Room _lines:-20,-8~-20,12~8,12~8,-8;
+    Room2:@ _constructor:Room _lines:-20,12~8,12~8,26~-20,26;
     _root:-6,1
     _scale:30
     _prev_level:Level5
@@ -291,6 +304,14 @@
     Jack1_nose:@ _constructor:Lock _name:_nose _length:2 _parent:Jack1;
     Jack2:@ _constructor:Jack _is_open:true _root:36,32,0.5 _long:1,,1.2 _nose:Jack2_nose;
     Jack2_nose:@ _constructor:Lock _name:_nose _length:2 _parent:Jack2;
+    Room1:@ _constructor:Room _lines:-32,-24~-8,-24~-8,-8~-16,-8~-16,8~-32,8;
+    Room2:@ _constructor:Room _lines:-8,-24~8,-24~8,-8~-8,-8;
+    Room3:@ _constructor:Room _lines:8,-24~24,-24~24,-8~8,-8;
+    Room4:@ _constructor:Room _lines:24,-24~24,-8~32,-8~32,8~-4,8~-4,24~40,24~40,-24;
+    Room5:@ _constructor:Room _lines:-16,-8~,-8~,8~-16,8;
+    Room6:@ _constructor:Room _lines:,-8~16,-8~16,8~,8;
+    Room7:@ _constructor:Room _lines:16,-8~32,-8~32,8~16,8;
+    Room8:@ _constructor:Room _lines:-32,8~-8,8~-8,24~-32,24;
     _root:4,-6
     _scale:40
     _prev_level:Level6
@@ -341,6 +362,9 @@
     Node12:@ _constructor:Node _root:5,-1;
     Node13:@ _constructor:Node _root:17,7;
     Node14:@ _constructor:Node _root:6,18;
+    Room1:@ _constructor:Room _lines:-16,-20~12,-20~12,-8~-16,-8;
+    Room2:@ _constructor:Room _lines:-16,-8~,-8~,12~-16,12;
+    Room3:@ _constructor:Room _lines:,-8~22,-8~22,12~,12;
     _root:2,7
     _scale:30
     _prev_level:Level7
@@ -410,6 +434,14 @@
     Node23:@ _constructor:Node _root:-28,36;
     Node24:@ _constructor:Node _root:-22,32;
     Node25:@ _constructor:Node _root:-7,18;
+    Room1:@ _constructor:Room _lines:-16,-20~-16,-12~-12,-8~,-8~,-20;
+    Room2:@ _constructor:Room _lines:,-20~,8~20,8~20,-20;
+    Room3:@ _constructor:Room _lines:4,8~4,24~20,24~20,8;
+    Room4:@ _constructor:Room _lines:-16,-12~-16,24~4,24~4,-8~-12,-8;
+    Room5:@ _constructor:Room _lines:-16,24~20,24~20,40~-16,40;
+    Room6:@ _constructor:Room _lines:-30,24~-16,24~-16,40~-30,40;
+    Node10:@ _constructor:Node _root:-5,-14;
+    Node26:@ _constructor:Node _root:-10,-17;
     _root:-7,11
     _scale:32
     _prev_level:Level8
@@ -477,6 +509,12 @@
     Node21:@ _constructor:Node _root:24,-18;
     Node22:@ _constructor:Node _root:24,-29;
     Node23:@ _constructor:Node _root:24,-8;
+    Room1:@ _constructor:Room _lines:-24,-20~,-20~,-12~-12,-12~-12,4~-24,4;
+    Room2:@ _constructor:Room _lines:-16,-20~,-20~,-24~16,-24~16,-36~-16,-36;
+    Room3:@ _constructor:Room _lines:,-24~16,-24~16,-12~,-12;
+    Room4:@ _constructor:Room _lines:-12,-12~28,-12~28,4~-12,4;
+    Room5:@ _constructor:Room _lines:16,-36~28,-36~27,-13~16,-12;
+    Room6:@ _constructor:Room _lines:4,4~4,20~28,20~28,4;
     _root:-4,-2
     _scale:35
     _prev_level:Level9
@@ -599,6 +637,16 @@
     Node15:@ _constructor:Node _root:-20,20;
     Node17:@ _constructor:Node _root:18,-4;
     Node25:@ _constructor:Node _root:-23,39;
+    Room1:@ _constructor:Room _lines:-40,8~,8~,24~-4,24~-4,32~-20,32~-20,24~-40,24;
+    Room2:@ _constructor:Room _lines:-28,8~-28,-8~-12,-8~-12,~4,~4,8;
+    Room3:@ _constructor:Room _lines:-40,-24~-12,-24~-12,-12~-28,-12~-28,8~-40,8;
+    Room4:@ _constructor:Room _lines:-12,-16~4,-16~4,~-12,;
+    Room5:@ _constructor:Room _lines:12,-26~28,-26~28,-16~12,-17;
+    Room6:@ _constructor:Room _lines:4,-16~40,-16~40,8~4,8;
+    Room8:@ _constructor:Room _lines:8,24~40,24~40,48~24,48~24,32~8,32;
+    Room9:@ _constructor:Room _lines:-4,24~8,24~8,48~-40,48~-40,24~-20,24~-20,36~-4,36;
+    Room7:@ _constructor:Room _lines:4,8~40,8~40,24~4,24;
+    Room10:@ _constructor:Room _lines:8,32~20,32~20,48~8,48;
     _root:-1,4
     _scale:45
     _prev_level:Level10
@@ -729,6 +777,16 @@
     Node54:@ _constructor:Node _root:-4,-21;
     Jack2:@ _constructor:Jack _is_open:true _root:8,10,0.5 _long:1,,1.2 _nose:Jack2_nose;
     Jack2_nose:@ _constructor:Lock _name:_nose _length:2 _parent:Jack2;
+    Room1:@ _constructor:Room _lines:-8,-24~-8,24~16,24~16,8~20,8~20,-8~4,-8~4,-24;
+    Room2:@ _constructor:Room _lines:-20,-36~20,-36~20,-24~-8,-24~-8,-8~-20,-8;
+    Room3:@ _constructor:Room _lines:-32,-8~-8,-8~-8,8~-20,8~-20,36~-32,36;
+    Room4:@ _constructor:Room _lines:-20,8~-8,8~-8,36~-20,36;
+    Room5:@ _constructor:Room _lines:-8,24~48,24~48,40~12,40~12,36~-8,36;
+    Room6:@ _constructor:Room _lines:20,8~20,24~32,24~32,8;
+    Room7:@ _constructor:Room _lines:20,-22~48,-22~48,-12~20,-12;
+    Room8:@ _constructor:Room _lines:20,-12~48,-12~48,8~20,8;
+    Room9:@ _constructor:Room _lines:4,-24~20,-24~20,-8~4,-8;
+    Room10:@ _constructor:Room _lines:32,8~48,8~48,28~32,28;
     _root:10,7
     _scale:45
     _prev_level:Level11
@@ -847,6 +905,15 @@
     Node8:@ _constructor:Node _root:-4,-28;
     Node38:@ _constructor:Node _root:6,9;
     Node39:@ _constructor:Node _root:17,21;
+    Room1:@ _constructor:Room _lines:-44,-36~16,-36~16,~14,~14,8~24,8~24,48~12,48~12,24~8,28~2,28~2,16~,16~,4~-12,4~-12,-24~-28,-24~-28,-8~-44,-8;
+    Room2:@ _constructor:Room _lines:-44,-8~-28,-8~-28,16~2,16~2,28~-20,28~-20,32~-44,32;
+    Room3:@ _constructor:Room _lines:-28,-24~-12,-24~-12,-8~-28,-8;
+    Room4:@ _constructor:Room _lines:-28,-8~-12,-8~-12,4~-28,4;
+    Room5:@ _constructor:Room _lines:-28,4~-16,4~-16,16~-28,16;
+    Room6:@ _constructor:Room _lines:-16,8~,8~,16~-16,16;
+    Room7:@ _constructor:Room _lines:-32,32~-20,32~-20,28~-8,28~-8,42~-32,42;
+    Room8:@ _constructor:Room _lines:14,~14,8~24,8~24,-14~16,-14;
+    Room9:@ _constructor:Room _lines:-8,28~12,28~12,48~-8,48;
     _root:-13,8
     _scale:45
     _prev_level:Level14
@@ -1197,4 +1264,5 @@
     _root:-3,6
     _scale:48
     _prev_level:Level13;
+  _tally:71
   _root_level:Level1;

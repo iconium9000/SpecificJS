@@ -174,13 +174,33 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     this.length += (is_open ? -1 : 1) / scale * speed * dt
   }
 
+  _draw(
+    ctx, // CanvasRenderingContext2D
+    offset, // MazeGame.Point (in drawspace)
+    scale, // Number
+  ) {
+    const {root,spot,long} = this
+    const {lite_fill_color} = this.constructor
+    const _root = root.vec(scale,offset)
+    const _spot = spot.vec(scale,offset)
+    const _long = long.mul(scale)
+
+    ctx.fillStyle = lite_fill_color
+    ctx.beginPath()
+    _root.lineTo = ctx
+    _root.sum(_long).lineTo = ctx
+    _spot.lineTo = ctx
+    _spot.sub(_long).lineTo = ctx
+    ctx.fill()
+  }
+
   draw(
     ctx, // CanvasRenderingContext2D
     offset, // MazeGame.Point (in drawspace)
     scale, // Number
   ) {
     const {
-      line_width,thin_line_width,
+      line_width,thin_line_width,lite_fill_color,
       stroke_color,fill_color,thin_stroke_color,
     } = this.constructor
     const {root,spot,long,short,length} = this

@@ -1,6 +1,7 @@
 module.exports = MazeGame => class Level extends MazeGame.Type {
 
   get draw_lines() { return false }
+  get draw_path() { return false }
   get draw_nodes() { return this._draw_nodes }
   set draw_nodes(
     draw_nodes // Boolean
@@ -12,7 +13,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     super()
     this._draw_nodes = false
     this._is_locked = true; this._root = MazeGame.Point.zero
-    this._targets = {}; this._editors = {}
+    this._targets = {}; this._editors = {}; this._rooms = {}
     this._locks = {}; this._lasers = {}; this._slots = {}; this._buttons = {}
     this._walls = {}; this._doors = {}; this._headers = {}; this._portals = {}
     this._keys = {}; this._jacks = {}; this._nodes = {}
@@ -35,6 +36,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
 
   get editors() { return this._editors }
   get targets() { return this._targets }
+  get rooms() { return this._rooms }
   get locks() { return this._locks }
   get lasers() { return this._lasers }
   get slots() { return this._slots }
@@ -94,9 +96,13 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     return false
   }
   get lines() {
-    const {_walls} = this, lines = this.__lines = []
+    this.__lines = []; const {__lines,_walls} = this, lines = []
     for (const id in _walls) lines.push(..._walls[id].lines)
-    return lines
+    for (const i in lines) {
+      const sub = lines[i]
+      for (let j = 1; j < sub.length; ++j) __lines.push([sub[j-1],sub[j]])
+    }
+    return __lines
   }
 
   get prev_level() { return this._prev_level }
@@ -206,7 +212,6 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     return this
   }
 
-
   static init(
     src, // Game,Null
   ) {
@@ -254,10 +259,14 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     offset, // MazeGame.Point (in drawspace)
     scale, // Number
   ) {
-    const {lines,_nodes,_locks,_keys,_walls,name,draw_lines,draw_nodes} = this
+    const {lines,_nodes,_rooms,_locks,_keys,_walls,_doors,name} = this
     const {thin_line_width,thin_stroke_color} = this.constructor
 
-    if (draw_nodes) {
+
+    for (const id in _rooms) _rooms[id].draw(ctx,offset,scale)
+    for (const id in _doors) _doors[id]._draw(ctx,offset,scale)
+
+    if (this.draw_nodes) {
       const _targets = []
       for (const id in this) {
         if (this[id] && this[id].is_node) _targets.push(this[id])
@@ -286,18 +295,25 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
       for (const id in _nodes) _nodes[id].draw(ctx,offset,scale)
     }
 
-    // ctx.lineWidth = thin_line_width * scale
-    // ctx.strokeStyle = 'black'
-    // const {__path} = this
-    // ctx.beginPath()
-    // for (const i in __path) __path[i][0].vec(scale,offset).lineTo = ctx
-    // ctx.stroke()
+    if (this.draw_path)
+    {
+      ctx.lineWidth = thin_line_width * scale
+      ctx.strokeStyle = 'black'
+      const {__path} = this
+      ctx.beginPath()
+      for (const i in __path) __path[i][0].vec(scale,offset).lineTo = ctx
+      ctx.stroke()
+    }
 
     for (const id in _locks) _locks[id].draw(ctx,offset,scale)
     for (const id in _keys) _keys[id].draw(ctx,offset,scale)
     for (const id in _walls) _walls[id].draw(ctx,offset,scale)
 
-    if (draw_lines) {
+    if (this.draw_rooms) {
+      for (const id in _rooms) _rooms[id]._draw(ctx,offset,scale)
+    }
+
+    if (this.draw_lines) {
       const {thin_line_width,thin_stroke_color} = MazeGame.Target
       ctx.lineWidth = thin_line_width * scale
       ctx.strokeStyle = thin_stroke_color

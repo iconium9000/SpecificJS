@@ -2,6 +2,7 @@ module.exports = MazeGame => class Type {
 
   static get fill_color() { return 'black' }
   static get stroke_color() { return 'white' }
+  static get lite_fill_color() { return '#303030' }
   static get thin_stroke_color() { return '#505050' }
   static get line_width() { return 0.4 }
   static get scale() { return 60 }
@@ -14,17 +15,15 @@ module.exports = MazeGame => class Type {
 
   get lines() { return [] }
   static intersect(
-    lines, // Point[][]
+    lines, // [Point,Point][]
     root,spot, // Point
     key_lock, // Boolean,Null
   ) {
     const {radius} = MazeGame[key_lock ? 'Lock' : 'Key']
     for (const i in lines) {
-      const sub = lines[i]
-      for (let j = 1; j < sub.length; ++j) {
-        if (MazeGame.Point.radius_intersect(radius,root,spot,sub[j-1],sub[j])) {
-          return true
-        }
+      const [a,b] = lines[i]
+      if (MazeGame.Point.radius_intersect(radius,root,spot,a,b)) {
+        return true
       }
     }
     return false

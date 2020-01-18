@@ -139,7 +139,7 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
   }
 
   path_to(
-    lines, // Point[][]
+    lines, // [Point,Point][]
     spot, // Point
     key, // Key,Null
   ) {
@@ -249,14 +249,16 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
     let {root,spot,long} = this
     if (!spot) return
 
-    const {src,nose,constructor} = this, {lines} = src
+    const {src,nose,constructor} = this, {__lines} = src
     let snot = nose.spot, [lock,key] = src.get_lock_key(spot)
     if (key == nose.key || (key && key.is_jack)) key = null
     const {speed,radius,radius_intersect} = constructor
-    const intersect = (root,spot) => constructor.intersect(lines,root,spot,key)
+    const intersect = (root,spot) => {
+      return constructor.intersect(__lines,root,spot,key)
+    }
     const flip = this.flip(lock,key)
 
-    const path = this.path_to(lines,spot,key)
+    const path = this.path_to(__lines,spot,key)
     if (path.length < 2) return this.spot = null
 
     const dist = speed * dt, _radius = radius + nose.length
@@ -305,19 +307,11 @@ module.exports = MazeGame => class Jack extends MazeGame.Key {
         return MazeGame.Point.radius_intersect(radius,root,snot,a,b)
       }
 
-      const _lines = []
-      for (const i in lines) {
-        const sub = lines[i]
-        for (let j = 1; j < sub.length; ++j) {
-          _lines.push([sub[j-1],sub[j]])
-        }
-      }
-
       const a = root, queue = [snot]
       for (let i = 0; i < queue.length && i < 4; ++i) {
         snot = queue[i]; const b = snot
-        for (const j in _lines) {
-          const [c,d] = _lines[j]
+        for (const j in __lines) {
+          const [c,d] = __lines[j]
           if (intersect(c,d)) {
             const [p,q] = [d.sub(c),b.sub(a)]
             const s = a.sub(c), j1 = p.square

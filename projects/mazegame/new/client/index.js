@@ -15,9 +15,7 @@ function MazeGame() {
 	const log = (...msg) => console.log(project_name, ...msg)
 	const err = console.error
 
-	const cookie_age = 15
-
-	log('cookies', document.cookie)
+	const cookie_age = 15 // years
 
 	const key_bindings = {}
 	for (const type_name in MazeGame) {
@@ -45,20 +43,23 @@ function MazeGame() {
 
 	function update() {
 		const {level} = client.editor
-
 		try {
-			const string = Lib.stringify(level.serialize())
-			client.socket.emit('update', string)
+			client.socket.emit('update', Lib.stringify(level.serialize()))
 		}
-		catch (e) {}
+		catch (e) {
+			log(e)
+		}
 	}
 
 	function send_game() {
 		const {editor,game} = client
 
-		const serial = game.serialize()
-		log('serial',serial)
-		client.socket.emit('serial', serial)
+		try {
+			client.socket.emit('serial', Lib.stringify(game.serialize()))
+		}
+		catch (e) {
+			log(e)
+		}
 	}
 
 	function get_center_scale(canvas) {
@@ -79,6 +80,7 @@ function MazeGame() {
 		// log(e.which)
 
 		if (new_mode) {
+			// log('new mode', new_mode.name)
 			editor.mode = new_mode
 			// TODO UNDO
 		}
@@ -165,7 +167,9 @@ function MazeGame() {
 		// delete: code = 8,46
 		else if (code == 8 || code == 46) {
 			const {editor} = client.editor
-			if (editor && editor.target) editor.target.remove()
+			if (editor && editor.target) {
+				editor.target.remove()
+			}
 		}
 		else if (c == 'z') {
 			// TODO UNDO

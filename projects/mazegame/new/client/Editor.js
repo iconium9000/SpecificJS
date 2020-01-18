@@ -181,7 +181,8 @@ module.exports = MazeGame => class Editor extends MazeGame.Type {
         _level = _level.copy()
         _mode.act_at(_level[id], mouse.ivec(_scale,_offset))
       }
-      _level.draw_nodes = mode == MazeGame.Node// || mode == MazeGame.Game
+      _level.draw_nodes = mode == MazeGame.Node
+      _level.draw_rooms = mode == MazeGame.Room
       _level.draw(ctx,_offset,_scale)
     }
   }

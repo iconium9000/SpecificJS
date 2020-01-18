@@ -11,7 +11,7 @@ module.exports = (project, {super_require}) => {
   const MazeGame = {}
   const super_classes = ['Lib','Point']
   const classes = [
-    'Type','Target',
+    'Type','Target','Room',
     'Lock','Laser','Slot','Button',
     'Wall','Door','Header','Portal',
     'Key','Jack','Node',
@@ -24,14 +24,16 @@ module.exports = (project, {super_require}) => {
     `./client/${name}.js`
   )(MazeGame))
 
+  const {Lib,Game,Type} = MazeGame
+
   let game = null, serial
   try {
-    serial = MazeGame.Lib.parse(fs.readFileSync(file_name).toString('utf8'))
-    game = MazeGame.Game.read(serial)
+    serial = Lib.parse(fs.readFileSync(file_name).toString('utf8'))
+    game = Game.read(serial)
   }
   catch (e) {
     console.log(e)
-    game = MazeGame.Game.init()
+    game = Game.init()
   }
 
   project.socket.on('connection', (socket) => {
@@ -41,14 +43,13 @@ module.exports = (project, {super_require}) => {
       name: null,
       full_name: null,
     }
-    client.socket.on('serial', (serial) => {
-      if (serial && devmode) {
+    client.socket.on('serial', (string) => {
+      if (string && devmode) {
         try {
-          game = MazeGame.Type.read(serial)
+          game = Type.read(Lib.parse(string))
           game.remove_editors()
-          serial = game.serialize()
 
-          let string = MazeGame.Lib.stringify(serial)
+          string = Lib.stringify(game.serialize())
           project.socket.emit('serial', string)
 
           fs.writeFile(file_name, string, 'utf8', log)
@@ -59,7 +60,7 @@ module.exports = (project, {super_require}) => {
       }
       else {
         const serial = game.serialize()
-        const string = MazeGame.Lib.stringify(serial)
+        const string = Lib.stringify(serial)
         client.socket.emit('serial', string)
       }
     })

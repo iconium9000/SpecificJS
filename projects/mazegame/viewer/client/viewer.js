@@ -64,6 +64,7 @@ function MazeGameViwer() {
     document.getElementById('title').innerHTML = name
     try {
       client.level = Level.read(Lib.parse(string))
+			// log(string, client.level.Room1)
     }
     catch (e) {
       console.error(e)
