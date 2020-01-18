@@ -264,7 +264,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
 
 
     for (const id in _rooms) _rooms[id].draw(ctx,offset,scale)
-    for (const id in _doors) _doors[id]._draw(ctx,offset,scale)
+    // for (const id in _doors) _doors[id]._draw(ctx,offset,scale)
 
     if (this.draw_nodes) {
       const _targets = []

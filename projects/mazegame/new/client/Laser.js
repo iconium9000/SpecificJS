@@ -27,7 +27,7 @@ module.exports = MazeGame => class Laser extends MazeGame.Lock {
     const {root,spot,long,constructor} = this, {pi2} = MazeGame.Lib
     const {
       stroke_color,fill_color,line_width,
-      thin_line_width,thin_stroke_color,
+      thin_line_width,
       radius,
     } = constructor
 
@@ -40,7 +40,7 @@ module.exports = MazeGame => class Laser extends MazeGame.Lock {
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'
     ctx.lineWidth = thin_line_width * scale
-    ctx.strokeStyle = thin_stroke_color
+    ctx.strokeStyle = fill_color
 
     ctx.beginPath()
     _root.lineTo = ctx

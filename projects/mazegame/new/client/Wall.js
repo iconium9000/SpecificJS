@@ -93,8 +93,14 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
       short_sign,
     } = constructor
 
-    this._long = long.long.cramp(long_min,long_max,long_round)
-    this._short = long.short.cramp(short_min,short_max,short_round)
+    if (short_sign) {
+      this._long = long.long.cramp(long_min,long_max,long_round)
+      this._short = long.short.cramp(short_min,short_max,short_round)
+    }
+    else {
+      this._long = long.round(long_round).unit
+      this._short = long.invert.ustrip(short_min)
+    }
 
     this._spot = _root.sum(this._long)
     if (short_sign) this._spot = this._spot.sum(this._short)
@@ -142,9 +148,13 @@ module.exports = MazeGame => class Wall extends MazeGame.Target {
   ) {
     const _serialize = super.serialize(src)
 
-    const {_root,_long,_short,__points,constructor} = this
-    _serialize._root = _root.serialize(__points)
-    _serialize._long = _long.sum(_short).serialize(__points)
+    const {_root,_long,_short,constructor} = this, {short_sign} = constructor
+    const long = short_sign ? _long.sum(_short) : _long
+
+    _serialize._root = _root.serialize()
+    _serialize._long = long.serialize()
+
+    // log(constructor.name, short_sign, _serialize._long)
 
     return _serialize
   }

@@ -200,8 +200,8 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     scale, // Number
   ) {
     const {
-      line_width,thin_line_width,lite_fill_color,
-      stroke_color,fill_color,thin_stroke_color,
+      line_width,thin_line_width,
+      stroke_color,fill_color,lite_fill_color,
     } = this.constructor
     const {root,spot,long,short,length} = this
 
@@ -241,18 +241,18 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     else if (0 < length) {
       const _length = _long.mul(length/2)
 
-      ctx.lineWidth = _thin_line_width
-      ctx.strokeStyle = thin_stroke_color
-      ctx.beginPath()
-      _root.sum(_length).lineTo = ctx
-      _spot.sub(_length).sub(_short).lineTo = ctx
-      ctx.fill()
-      ctx.stroke()
+      // ctx.lineWidth = _thin_line_width
+      // ctx.strokeStyle = lite_fill_color
+      // ctx.beginPath()
+      // _root.sum(_length).lineTo = ctx
+      // _spot.sub(_length).sub(_short).lineTo = ctx
+      // ctx.fill()
+      // ctx.stroke()
 
-      ctx.beginPath()
-      _root.sum(_length).sum(_short).lineTo = ctx
-      _spot.sub(_length).lineTo = ctx
-      ctx.stroke()
+      // ctx.beginPath()
+      // _root.sum(_length).sum(_short).lineTo = ctx
+      // _spot.sub(_length).lineTo = ctx
+      // ctx.stroke()
 
       ctx.lineWidth = _line_width
       ctx.strokeStyle = stroke_color
@@ -276,19 +276,19 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
       ctx.stroke()
     }
     else {
-      ctx.lineWidth = _thin_line_width
-      ctx.strokeStyle = thin_stroke_color
+      // ctx.lineWidth = _thin_line_width
+      // ctx.strokeStyle = lite_fill_color
+      //
+      // ctx.beginPath()
+      // _root.lineTo = ctx
+      // _spot.sub(_short).lineTo = ctx
+      // ctx.fill()
+      // ctx.stroke()
 
-      ctx.beginPath()
-      _root.lineTo = ctx
-      _spot.sub(_short).lineTo = ctx
-      ctx.fill()
-      ctx.stroke()
-
-      ctx.beginPath()
-      _root.sum(_short).lineTo = ctx
-      _spot.lineTo = ctx
-      ctx.stroke()
+      // ctx.beginPath()
+      // _root.sum(_short).lineTo = ctx
+      // _spot.lineTo = ctx
+      // ctx.stroke()
 
       ctx.lineWidth = _line_width
       ctx.strokeStyle = stroke_color

@@ -13,10 +13,8 @@ module.exports = MazeGame => class Room extends MazeGame.Target {
   get src() { return super.src }
   get colors() {
     return [
-      '#403030','#304030','#264154',
-      '#173326','#43432D','#342E50',
-      // '#403030','#304030','#264154',
-      // '#173326','#43432D','#303838',
+      '#403030','#304030','#264154','#342E50',
+      // '#33331A','#43432D',
     ]
   }
   set src(
@@ -25,9 +23,6 @@ module.exports = MazeGame => class Room extends MazeGame.Target {
     super.src = src
     const {_id,colors} = this
     src.rooms[_id] = this
-    const color = src.__color || 0
-    this._color = colors[color%colors.length]
-    src.__color = color+1
   }
 
   get root() { return this._root }
@@ -36,6 +31,11 @@ module.exports = MazeGame => class Room extends MazeGame.Target {
   constructor() {
     super()
     this._lines = []
+  }
+  next_color() {
+    const {src,colors} = this
+    if (!src.__color) src.__color = 0
+    this._color = colors[src.__color++ % colors.length]
   }
 
   static act_at(
@@ -51,7 +51,10 @@ module.exports = MazeGame => class Room extends MazeGame.Target {
       if (closest_room == target) editor.target = null
       else target.lines.push(spot)
     }
-    else if (closest_room) editor.target = closest_room
+    else if (closest_room) {
+      editor.target = closest_room
+      closest_room.next_color()
+    }
     else editor.target = this.init(src,spot)
     return true
   }
@@ -63,25 +66,27 @@ module.exports = MazeGame => class Room extends MazeGame.Target {
     const _room = super.init(src)
     _room._root = root
     _room._lines.push(root)
+    _room.next_color()
     return _room
   }
 
   copy(
     src, // Level
   ) {
-    const {_id,_root,_lines} = this
+    const {_id,_root,_color,_lines} = this
     const _room = super.copy(src)
     _room._root = _root
     _room._lines = _lines.slice()
+    _room._color = _color
     return _room
   }
   serialize(
     src, // Object
   ) {
-    const {_root,_lines,constructor} = this
+    const {_root,_lines,_color,colors,constructor} = this
     const _serialize = super.serialize(src)
 
-    // log(_root,_lines)
+    _serialize._color = colors.indexOf(_color)
     _serialize._lines = _root.serialize()
     for (let i = 1; i < _lines.length; ++i) {
       _serialize._lines += '~' + _lines[i].serialize()
@@ -94,12 +99,16 @@ module.exports = MazeGame => class Room extends MazeGame.Target {
     src, // Level
     id, // String
   ) {
-    const {Point} = MazeGame, {_lines,_key} = serialize[id]
+    const {colors} = this
+    const {Point} = MazeGame, {_lines,_key,_color} = serialize[id]
     super.read(serialize, src, id)
 
     this._lines = _lines.split('~')
     this._root = Point.read(this._lines[0])
     for (const i in this._lines) this._lines[i] = Point.read(this._lines[i])
+
+    if (colors[_color]) this._color = colors[_color]
+    else this.next_color()
 
     return this
   }
