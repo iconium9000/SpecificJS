@@ -185,7 +185,7 @@
     Door23:@ _constructor:Door _root:-7,2,4 _long:16,4 _length:1;
     Door23_root_long24:@ _constructor:Lock _name:_root_long _length:2 _parent:Door23;
     Key30:@ _constructor:Key _is_open:true _root:39,8,0.5;
-    Header40:@ _constructor:Header _root:-8,24 _long:16,-4 _length:1;
+    Header40:@ _constructor:Header _root:8,20 _long:-16,-4 _length:1;
     Header40_lock355:@ _constructor:Slot _name:_lock3 _length:2 _parent:Header40;
     Header40_lock156:@ _constructor:Slot _name:_lock1 _length:2 _parent:Header40;
     Door36:@ _constructor:Door _root:-3,1,4 _long:24,4 _length:1;
