@@ -13,8 +13,11 @@ module.exports = MazeGame => class Room extends MazeGame.Target {
   get src() { return super.src }
   get colors() {
     return [
-      '#403030','#304030','#264154','#342E50',
-      // '#33331A','#43432D',
+      '#522F34', // Red
+      '#2D4032', // Green
+      '#264154', // Blue
+      '#3A3359', // Purple
+      '#4F473B', // Beige
     ]
   }
   set src(

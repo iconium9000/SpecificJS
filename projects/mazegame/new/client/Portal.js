@@ -100,6 +100,7 @@ module.exports = MazeGame => class Portal extends MazeGame.Door {
     ctx.lineJoin = 'round'
     ctx.lineCap = 'round'
 
+    // if (false)
     if (1 <= length) {
       const _mid_root = _long.div(2).sum(_root)
       const _mid_spot = _mid_root.sum(_short)

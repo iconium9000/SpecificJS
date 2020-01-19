@@ -219,6 +219,7 @@ module.exports = MazeGame => class Door extends MazeGame.Wall {
     ctx.strokeStyle = stroke_color
     ctx.fillStyle = fill_color
 
+    // if (false)
     if (1 <= length) {
       const _mid_root = _long.div(2).sum(_root)
       const _mid_spot = _mid_root.sum(_short)
