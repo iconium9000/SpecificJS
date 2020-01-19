@@ -52,8 +52,8 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
     }
     jack.spot = _spot
 
-    delete src.__path
-    src.__path = jack.path_to(src.lines,_spot)
+    // delete src.__path
+    // src.__path = jack.path_to(src.lines,_spot)
 
     return true
   }
