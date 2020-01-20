@@ -100,8 +100,9 @@ module.exports = MazeGame => class Header extends MazeGame.Door {
   }
 
   remove() {
-    const {id,src} = this
+    const {id,src,constructor} = this, {button_names} = constructor
     super.remove()
+    for (const i in button_names) this[button_names[i]].remove()
     delete src.headers[id]
   }
 
@@ -111,7 +112,7 @@ module.exports = MazeGame => class Header extends MazeGame.Door {
     offset, // MazeGame.Point (in drawspace)
     scale, // Number
   ) {
-    const {short,center,src:level,constructor,is_open} = this
+    const {short,center,src,constructor,is_open} = this
     const {stroke_color,font_scale,button_names} = constructor
 
     let _center = center.vec(scale,offset)
@@ -124,7 +125,7 @@ module.exports = MazeGame => class Header extends MazeGame.Door {
     ctx.textAlign = 'center'
     ctx.fillStyle = stroke_color
 
-    ctx.fillText(level.name, _center.x, _center.y)
+    ctx.fillText(src.name, _center.x, _center.y)
   }
 
 }

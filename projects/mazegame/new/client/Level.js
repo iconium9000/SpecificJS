@@ -1,5 +1,8 @@
 module.exports = MazeGame => class Level extends MazeGame.Type {
 
+  static get key_bind() { return 'b' }
+  static get hittxt_round() { return 1 }
+
   get draw_lines() { return false }
   get draw_path() { return false }
   get draw_nodes() { return this._draw_nodes }
@@ -9,14 +12,36 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     this._draw_nodes = draw_nodes
   }
 
+  static act_at(
+    editor, // Editor
+    spot, // Spot
+  ) {
+    const {src} = editor, {hittxt_round} = this
+    if (src._hittxt) src._hittxt = null
+    else src._hittxt = spot.round(hittxt_round)
+    return true
+  }
+
   constructor() {
     super()
+    this._hit = 0; this._minhit = Infinity
     this._draw_nodes = false
     this._is_locked = true; this._root = MazeGame.Point.zero
     this._targets = {}; this._editors = {}; this._rooms = {}
     this._locks = {}; this._lasers = {}; this._slots = {}; this._buttons = {}
     this._walls = {}; this._doors = {}; this._headers = {}; this._portals = {}
     this._keys = {}; this._jacks = {}; this._nodes = {}
+  }
+
+  get hittxt() { return this._hittxt }
+  get hit() { return this._hit }
+  dohit() { return ++this._hit }
+
+  get minhit() { return this._minhit }
+  set minhit(
+    minhit, // Number
+  ) {
+    this._minhit = minhit
   }
 
   get is_locked() { return this._is_locked }
@@ -141,8 +166,15 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   ) {
     const _level = super.copy(src)
 
-    const {root,_is_locked,_prev_level,_next_level,_scale,constructor} = this
-    _level.root = root
+    const {
+      _root,_is_locked,_hit,_minhit,_hittxt,
+      _prev_level,_next_level,__backup,
+      _scale,constructor,
+    } = this
+    _level._hit = _hit
+    _level._minhit = _minhit
+    _level._hittxt = _hittxt
+    _level.root = _root
     _level.is_locked = _is_locked
     _level._scale = _scale > 0 ? _scale : constructor.scale
     _level.__path = this.__path && this.__path.slice()
@@ -156,6 +188,8 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
       _level._next_level = !!_next_level
     }
 
+    _level.__backup = __backup
+
     return _level
   }
   serialize(
@@ -163,17 +197,18 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
   ) {
     const _serialize = super.serialize(src)
 
-    const {root,_prev_level,_next_level,__points,_scale,constructor} = this
-    _serialize._root = root.round(1).serialize(__points)
+    const {Type} = MazeGame
+    const {root,_prev_level,_next_level,_scale,_minhit,_hittxt} = this
+
+    _serialize._root = root.round(1).serialize()
     _serialize._scale = _scale
 
+    _serialize._minhit = _minhit
+    if (_hittxt) _serialize._hittxt = _hittxt.serialize()
+
     if (src) {
-      if (_prev_level) {
-        _serialize._prev_level = constructor.serialize(_prev_level, src)
-      }
-      if (_next_level) {
-        _serialize._next_level = constructor.serialize(_next_level, src)
-      }
+      if (_prev_level) _serialize._prev_level = Type.serialize(_prev_level, src)
+      if (_next_level) _serialize._next_level = Type.serialize(_next_level, src)
     }
     else {
       _serialize._prev_level = !!_prev_level
@@ -187,20 +222,22 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     src, // Game,Null
     id, // String,Null
   ) {
-    if (src && src.__points) this.__points = src.__points
+    const {Point,Type} = MazeGame
 
     super.read(serialize, src, id)
     if (src) serialize = serialize[id]
 
-    const {_root,_scale} = serialize, {constructor,__points} = this
-    if (_root) this.root = MazeGame.Point.read(_root,__points)
-    this.scale = _scale
+    const {_root,_scale,_hit,_minhit,_hittxt} = serialize
+    if (_root) this.root = Point.read(_root)
 
+    this.scale = _scale
+    this._minhit = _minhit || Infinity
+    if (_hittxt) this._hittxt = Point.read(_hittxt)
 
     const {_prev_level,_next_level} = serialize
     if (src) {
-      this.prev_level = constructor.read(serialize, src, _prev_level)
-      this.next_level = constructor.read(serialize, src, _next_level)
+      this.prev_level = Type.read(serialize, src, _prev_level)
+      this.next_level = Type.read(serialize, src, _next_level)
     }
     else {
       serialize._prev_level = _prev_level
@@ -259,12 +296,15 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     offset, // MazeGame.Point (in drawspace)
     scale, // Number
   ) {
-    const {lines,_nodes,_rooms,_locks,_keys,_walls,_doors,name} = this
-    const {thin_line_width,thin_stroke_color} = this.constructor
-
+    const {
+      lines,_nodes,_rooms,_locks,_keys,_walls,_doors,name,
+      _hit,_minhit,_hittxt,constructor
+    } = this
+    const {
+      thin_line_width,thin_stroke_color,stroke_color,font_scale,
+    } = constructor
 
     for (const id in _rooms) _rooms[id].draw(ctx,offset,scale)
-    // for (const id in _doors) _doors[id]._draw(ctx,offset,scale)
 
     if (this.draw_nodes) {
       const _targets = []
@@ -308,6 +348,17 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     for (const id in _locks) _locks[id].draw(ctx,offset,scale)
     for (const id in _keys) _keys[id].draw(ctx,offset,scale)
     for (const id in _walls) _walls[id].draw(ctx,offset,scale)
+
+    if (_hittxt) {
+      ctx.font = `${font_scale * scale}px Arial`
+      ctx.textAlign = 'left'
+      ctx.fillStyle = stroke_color
+      const {x,y} = _hittxt.vec(scale,offset)
+
+      const f = _minhit < _hit ? '<' : _minhit > _hit ? '>' : '='
+      let txt = `Hit: ${_minhit}${f}${_hit}`
+      ctx.fillText(txt, x, y)
+    }
 
     if (this.draw_rooms) {
       for (const id in _rooms) _rooms[id]._draw(ctx,offset,scale)

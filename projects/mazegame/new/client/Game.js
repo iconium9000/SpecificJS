@@ -23,11 +23,20 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
     }
     const [closest_lock, closest_key] = src.get_lock_key(spot)
 
-    if (closest_key && closest_key.is_jack) {
-      const jack = closest_key
-      editor.target = jack
-      // jack.long = spot.sub(jack.root)
-      return true
+    src.dohit()
+    if (closest_key) {
+      if (closest_key.is_jack) {
+        if (editor.target != closest_key) editor.target = closest_key
+        else if (closest_lock && closest_lock.key == null) {
+          closest_lock.key = closest_key
+        }
+        else editor.target = null
+        return true
+      }
+      else if (closest_key.lock && closest_key.lock.parent.is_jack) {
+        editor.target = closest_key.lock.parent
+        return true
+      }
     }
 
     const jack = editor.target
@@ -38,17 +47,9 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
       closest_lock ? closest_lock.spot : spot.round(this.round)
     )
 
+    if (closest_key) {
+      if (jack.nose.key) jack.nose.key = null
 
-    // if (closest_key == jack.nose.key) {
-    //   jack.spot = null
-    //   log('plbp')
-    //   return true
-    // }
-    // else
-    if (closest_key && jack.nose.key) {
-      if (!this.intersect(src.lines,jack.root,jack.nose.spot)) {
-        jack.nose.key = null
-      }
     }
     jack.spot = _spot
 
@@ -58,6 +59,14 @@ module.exports = MazeGame => class Game extends MazeGame.Type {
     return true
   }
 
+  get level_strings() {
+    const {_levels} = this, {Lib} = MazeGame
+    const level_strings = {}
+    for (const id in _levels) {
+      level_strings[id] = Lib.stringify(_levels[id].serialize())
+    }
+    return level_strings
+  }
 
   get levels() { return this._levels }
   get editors() { return this._editors }

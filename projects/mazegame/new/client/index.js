@@ -30,21 +30,25 @@ function MazeGame() {
 		root: Point.zero, mouse: Point.zero,
 		right_down: false, left_down: false,
 		free: true,
+		stack: [],
 		get id() { return client.socket.id },
 	}
 	client.name = client.id
 	setup_game()
 
 	function setup_game(game) {
-		const {id,name} = client
+		const {id,name,stack} = client
 		client.game = game || Game.init()
 		client.editor = Editor.init(client.game, id, name)
+		stack.push(client.game.copy())
 	}
 
 	function update() {
-		const {level} = client.editor
+		const {game,stack,editor,level_strings,socket} = client, {level} = editor
 		try {
-			client.socket.emit('update', Lib.stringify(level.serialize()))
+			const string = Lib.stringify(level.serialize())
+			socket.emit('update', string)
+			stack.push(game.copy())
 		}
 		catch (e) {
 			log(e)
@@ -52,7 +56,7 @@ function MazeGame() {
 	}
 
 	function send_game() {
-		const {editor,game} = client
+		const {editor,game,stack} = client
 
 		try {
 			client.socket.emit('serial', Lib.stringify(game.serialize()))
@@ -72,8 +76,7 @@ function MazeGame() {
 		if (!client.devmode) return
 
 		const code = e.which
-		var c = e.key // String.fromCharCode(code | 0x20)
-		const new_mode = key_bindings[c]
+		const new_mode = key_bindings[e.key]
 		const {editor,game} = client
 
 		const {time} = Lib
@@ -83,47 +86,6 @@ function MazeGame() {
 			// log('new mode', new_mode.name)
 			editor.mode = new_mode
 			// TODO UNDO
-		}
-		else if (c == 't') {
-			if (editor.level) {
-				editor.level.scale = parseInt(
-					prompt('enter level scale', editor.level.scale)
-				)
-			}
-		}
-		else if (c == 'r') {
-			client.socket.emit('serial')
-		}
-		else if (c == 'y') {
-			const {level} = editor
-			if (level) {
-				const {lines,portals} = level
-				log(lines)
-				for (const i in portals) {
-					log(portals[i])
-				}
-			}
-		}
-		else if (c == 'q') {
-			send_game()
-		}
-		// name level
-		else if (c == 'm') {
-			if (!editor.level) {
-				editor.level = game.root_level
-			}
-
-			let name = ''
-			do {
-				name = prompt('Level Name: ', editor.level.name)
-			}
-			while (!name)
-
-			editor.level.name = name
-			send_game()
-		}
-		else if (c == 'n') {
-			editor.level = Level.init(game)
 		}
 		// left: 37
 		// up: 38
@@ -171,12 +133,60 @@ function MazeGame() {
 				editor.target.remove()
 			}
 		}
-		else if (c == 'z') {
-			// TODO UNDO
-		}
-		else if (c == ' ') {
-			log(client.editor, client.editor.level.__path)
-			window.editor = client.editor
+
+		switch (e.key) {
+			// change level scale
+			case 't':
+				if (editor.level) {
+					editor.level.scale = parseInt(
+						prompt('enter level scale', editor.level.scale)
+					)
+				}
+				break;
+			case 'v':
+				if (editor.level) {
+					let minhit = editor.level.minhit
+					do { minhit = parseInt(prompt('Min Hit',minhit)) }
+					while (!(0 < minhit && minhit < Infinity))
+					editor.level.minhit = minhit
+				}
+				break
+			// reload game
+			case 'r': client.socket.emit('serial'); break
+			// save game
+			case 'q': send_game(); break
+			// name level
+			case 'm':
+				if (!editor.level) {
+					editor.level = game.root_level
+				}
+
+				let name = ''
+				do {
+					name = prompt('Level Name: ', editor.level.name)
+				}
+				while (!name)
+				editor.level.name = name
+				break
+			// new level
+			case 'n': editor.level = Level.init(game); break
+			// UNDO
+			case 'e': {
+				const {game,editor} = client
+					try {
+						client.game = client.stack.pop()
+						client.editor = client.game[editor.id]
+						if (!client.game || !client.editor) throw client
+					}
+					catch (e) {
+						client.game = game; client.editor = editor
+					}
+				}
+				break
+			// get gamestate
+			case ' ': log(client.editor); break
+			default:
+
 		}
 	}
 
@@ -208,11 +218,14 @@ function MazeGame() {
 	client.socket.on('serial', string => {
 		const {id,name} = client
 		try {
+			client.string = string
+
 			const serial = Lib.parse(string)
 			setup_game(Game.read(serial))
 			client.free = false
 
 			const {editor} = client, {src,level} = editor
+			client.level_strings = src.level_strings
 
 			if (src.tally != Lib.get_cookie('game_tally')) {
 				Lib.set_cookie('game_tally', src.tally, cookie_age)

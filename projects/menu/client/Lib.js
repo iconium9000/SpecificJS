@@ -275,6 +275,27 @@ module.exports = (constructors) => class Lib {
     return state.value
   }
 
+  static gitdif(
+    root,spot, // String
+  ) {
+    root = root.split('\n'); spot = spot.split('\n')
+    const [map,root_array,spot_array] = [{},[],[],[]]
+    let tally = 0
+    for (const i in root) {
+      const tok = root[i]
+      if (!map[tok]) map[tok] = ++tally
+      root_array.push(map[tok])
+    }
+    const root_max = tally
+    for (const i in spot) {
+      const tok = spot[i]
+      if (!map[tok]) map[tok] = ++tally
+      spot_array.push(map[tok])
+    }
+
+    console.log(map,root_array,spot_array)
+  }
+
   // for -pi < angle < pi
   static inverse_angle(angle) {
     return angle + pi > pi ? angle - pi : angle + pi

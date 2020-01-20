@@ -1,7 +1,7 @@
 module.exports = MazeGame => class Wall extends MazeGame.Target {
 
   static get key_bind() { return 'w' }
-  static get root_round() { return 1 }
+  static get root_round() { return 2 }
   static get long_round() { return 2 }
   static get long_min() { return 2 }
   static get long_max() { return Infinity }

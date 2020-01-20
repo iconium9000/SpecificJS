@@ -1,6 +1,6 @@
 module.exports = MazeGame => class Button extends MazeGame.Target {
 
-  get length() { return 5.5 }
+  get length() { return 4 }
   static get radius() { return 1.5 }
 
   press(editor) {
@@ -95,8 +95,9 @@ module.exports = MazeGame => class Button extends MazeGame.Target {
   }
 
   remove() {
-    const {id,src} = this
+    const {id,src,name,parent} = this
     super.remove()
+    delete parent[name]
     delete src.buttons[id]
   }
 

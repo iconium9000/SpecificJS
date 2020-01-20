@@ -11,7 +11,7 @@ module.exports = MazeGame => class Type {
   static get speed() { return 3e-2 } // dist / time = speed
   get is_type() { return true }
 
-  static get search_radius() { return 2 }
+  static get search_radius() { return 2.5 }
 
   get lines() { return [] }
   static intersect(
