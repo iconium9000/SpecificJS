@@ -1178,7 +1178,6 @@
     Node24:@ _constructor:Node _root:-3,-10;
     Door10:@ _constructor:Door _root:-8,7,4 _long:-16,4 _length:1;
     Wall30:@ _constructor:Wall _root:-32,32 _long:,4;
-    Room12:@ _constructor:Room _color:3 _lines:-48,32~-32,32~-32,48~-44,48~-48,44;
     Room13:@ _constructor:Room _color:2 _lines:-48,-20~-36,-8~-36,20~-20,20~-20,48~-32,48~-32,32~-48,32;
     Room14:@ _constructor:Room _color:4 _lines:-20,16~-12,16~-8,20~-8,32~8,32~8,48~-20,47;
     Door10_spot_long:@ _constructor:Lock _name:_spot_long _length:2 _parent:Door10 _key:Key1;
@@ -1199,6 +1198,12 @@
     Room2:@ _constructor:Room _color:3 _lines:-14,~-12,~8,20~8,32~-8,32~-8,20~-12,16~-14,16;
     Node26:@ _constructor:Node _root:28,1;
     Node23:@ _constructor:Node _root:23,-13;
+    Key3:@ _constructor:Key _is_open:true _root:-89,89,0.5;
+    Wall31:@ _constructor:Wall _root:-48,42 _long:4,;
+    Wall33:@ _constructor:Wall _root:-42,48 _long:,-4;
+    Wall35:@ _constructor:Wall _root:-22,21,2 _long:2,2;
+    Room12:@ _constructor:Room _color:3 _lines:-48,32~-32,32~-32,48~-42,48~-42,44~-44,42~-48,42;
+    Room18:@ _constructor:Room _color:0 _lines:-48,42~-44,42~-42,44~-42,48~-44,48~-48,44;
     _root:2,-2
     _scale:51
     _minhit:190
