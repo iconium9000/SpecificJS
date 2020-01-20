@@ -72,7 +72,7 @@ module.exports = (project) => {
     client_sockets[ client_socket.id ] = client_socket
 
     bar_stop = bar_stop || setInterval(bar_interval, 1e3/bar_freq)
-    msg_interval = msg_interval || setInterval(msg_interval, 1e3/update_freq)
+    msg_stop = msg_stop || setInterval(msg_interval, 1e3/update_freq)
 
     // change the name when the client tells you to
     client_socket.on('client name', msg => {
