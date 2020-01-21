@@ -13,12 +13,11 @@ module.exports = (project, {projects, super_require, app, socket_io}) => {
     socket.emit('update', _clients)
   }
 
-  const {length} = '/mazegame_new#'
   projects.mazegame_new.socket.on('connection', (socket) => {
     const client = {
       name: socket.id,
       socket: socket,
-      id: socket.id.slice(length)
+      id: socket.id.split('#').pop()
     }
     clients[client.id] = client
     const listener = socket_io.of(`/${client.id}`)

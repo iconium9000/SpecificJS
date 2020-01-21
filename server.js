@@ -14,6 +14,10 @@ const projects = {
     name: 'knifeline',
     title: 'Knifeline',
   },
+  'greed': {
+    name: 'greed',
+    title: 'Greed',
+  },
   '2048': {
     name: '2048',
     title: '2048',
