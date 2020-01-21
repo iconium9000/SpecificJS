@@ -18,6 +18,10 @@ const projects = {
     name: '2048',
     title: '2048',
   },
+  'circuit': {
+    name: 'circuit',
+    title: 'Circuit',
+  },
   'mazegame_old': {
     name: 'mazegame/old',
     title: 'MazeGame Old',
