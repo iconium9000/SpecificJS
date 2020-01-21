@@ -65,6 +65,9 @@ module.exports = (project) => {
 
   }
 
+  setInterval(bar_interval, 1e3/bar_freq)
+  setInterval(msg_interval, 1e3/update_freq)
+
   // called for each client that connects to the server
   // manage each client individually
   project.socket.on('connection', (client_socket) => {
@@ -139,10 +142,10 @@ module.exports = (project) => {
       delete client_sockets[client_socket.id]
       // log(`${client_socket.full_name} disconnected`)
 
-      for (const id in client_sockets) return
-
-      if (bar_stop) clearInterval(bar_stop)
-      if (msg_stop) clearInterval(msg_stop)
+      // for (const id in client_sockets) return
+      //
+      // if (bar_stop) clearInterval(bar_stop)
+      // if (msg_stop) clearInterval(msg_stop)
     })
   })
 }
