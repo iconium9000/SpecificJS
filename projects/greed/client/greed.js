@@ -11,7 +11,6 @@ const module = {
 function Greed() {
   const {Lib} = Greed
   const socket = io('/' + window.location.href.split('/').pop())
-  log('Greed')
 
   socket.on('connect', () => {
     let name = Lib.get_cookie('name')
