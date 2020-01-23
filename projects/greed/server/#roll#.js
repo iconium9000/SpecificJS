@@ -1,7 +1,8 @@
 // #roll#
 
 module.exports = function (cl,client_id) {
-  const {clients,turn,state} = cl.game, client = clients[client_id]
+  const {game} = cl, {clients,turn,state} = game
+  const client = clients[client_id]
 
   if (turn != client_id || !client) return
   if (state != '#rollwait#') return
@@ -22,7 +23,7 @@ module.exports = function (cl,client_id) {
       cl.next(client_id)
     }
     else {
-      client.state = game.state = '#filterwait#'
+      game.state = '#filterwait#'
     }
     cl.update()
 

@@ -280,6 +280,11 @@ module.exports = constructors => class Point {
     const {_x,_y} = this
     return Math.atan2( y-_y, x-_x )
   }
+  static angle(
+    angle,radius, // Number
+  ) {
+    return Point.init(Math.cos(angle),Math.sin(angle),radius)
+  }
   dot(
     {x,y}, // Point
   ) {

@@ -20,24 +20,16 @@ module.exports = (
   })
 
   game_socket.on('connection', _game_socket => {
-    const game_id = '/' + _game_socket.id.split('#').pop()
-    const client_socket = socket_io.of(game_id)
-    const cl = new ClientListener(_game_socket, client_socket)
+    const cl = new ClientListener(game_names, socket_io, _game_socket)
 
-    app.get(game_id, (req,res) => {
+    app.get(cl.game_id, (req,res) => {
       res.sendFile(`${__dirname}/client/${cl.index}.html`)
     })
 
     _game_socket.on('client name', ({name}) => {
-      game_names[game_id] = `Join ${name}'s game`
+      game_names[cl.game_id] = `Join ${name}'s game`
       menu_socket.emit('update', game_names)
     })
-
-    _game_socket.on('disconnect', () => {
-      delete game_names[game_id]
-      menu_socket.emit('update', game_names)
-    })
-
 
   })
 })

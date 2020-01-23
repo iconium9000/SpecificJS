@@ -9,11 +9,12 @@ const module = {
 }
 
 function Greed() {
-  const {Lib} = Greed
-  const socket = io('/' + window.location.href.split('/').pop())
+	Greed.socket = io('/' + window.location.href.split('/').pop())
+	const {Lib,Point,Dim,socket} = Greed
 
   socket.on('connect', () => {
     let name = Lib.get_cookie('name')
+		Greed.socket_id = socket.id.split('#').pop()
 
 		// if no name is found in cookies, get one from the user
 		while (!name || name == 'null') {
@@ -30,7 +31,14 @@ function Greed() {
     window.location.href = href.replace(href.split('/').pop(),'greed')
   })
 
-  socket.on('update', clients => {
-    log('clients', clients)
+  socket.on('update', game => {
+    if (Greed.game == null) {
+			Greed.game = game
+			Greed.tick()
+			$(document).mouseup(Greed.mouseup)
+		}
+		else Greed.game = game
+
+		log('update', game)
   })
 }

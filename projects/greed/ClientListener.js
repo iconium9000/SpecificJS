@@ -1,6 +1,6 @@
 const _functions = [
   'client name','disconnect',
-  '#roll#','#filter#','#pass#',
+  '#join#','#roll#','#filter#','#pass#',
 ]
 const functions = {}
 for (const i in _functions) {
@@ -18,37 +18,41 @@ module.exports = class ClientListener {
     this.client_socket.emit(...argv)
   }
 
-  update() { this.emit('update', this.game) }
+  update() {
+    this.emit('update', this.game)
+  }
 
   yeet() {
     this.index = 'index'
     this.emit('yeet')
+    delete this.game_names[this.game_id]
   }
 
   reset() {
-    this.roll_score = this.turn_score = 0
-    this.dice = [0,0,0, 0,0,0]
+    const {game} = this
+    game.roll_score = game.turn_score = 0
+    game.dice = [0,0,0, 0,0,0]
   }
 
   clear() {
-    const {dice} = this
-    if (dice.length == 0) return this.dice = [0,0,0, 0,0,0]
+    const {dice} = this.game
+    if (dice.length == 0) return this.game.dice = [0,0,0, 0,0,0]
     else for (const die in dice) dice[die] = 0
     return dice
   }
 
   roll() {
-    const {dice} = this
+    const {dice} = this.game
     for (const die in dice) dice[die] = Math.ceil(Math.random()*6)
     return dice
   }
 
-  next(client_id) {
-    const {client_queue,game} = this
-    client_queue.push(client_id)
-    const {length} = client_queue, {clients} = game
-    while (++this.client_idx < length) {
-      const _client_id = client_queue[this.client_idx]
+  next() {
+    const {game} = this, {clients,turn,client_queue} = game
+    client_queue.push(turn)
+    const {length} = client_queue
+    while (++game.client_idx < length) {
+      const _client_id = client_queue[game.client_idx]
       const _client = clients[_client_id]
       if (_client) {
         game.turn = _client_id
@@ -68,23 +72,27 @@ module.exports = class ClientListener {
     })
   }
 
-  constructor(
-    _game_socket,
-    client_socket,
-  ) {
-    this.index = 'greed'
-    this.client_idx = 0
-    this.client_queue = []
+  constructor(game_names, socket_io,_game_socket) {
+    this.game_names = game_names
     this._game_socket = _game_socket
-    this.client_socket = client_socket
+    this.game_id = '/' + _game_socket.id.split('#').pop()
+    this.client_socket = socket_io.of(this.game_id)
+
+    this.index = 'greed'
     this.get_score = get_score
+    this.names = {}
 
     this.game = {
+      client_idx: 0,
+      client_queue: [],
+      dice: [],
       clients: {},
-      state: '#wait#',
+      state: '#joinwait#',
     }
 
     this.connect(_game_socket)
-    client_socket.on('connection',_client_socket=>this.connect(_client_socket))
+    this.client_socket.on('connection', _client_socket => {
+      this.connect(_client_socket)
+    })
   }
 }
