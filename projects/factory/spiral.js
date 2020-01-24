@@ -30,7 +30,7 @@ for (let a = 1; a < 300; ++a) {
   const p = l ? g : n ? i : k
   const q = m ? h : o ? j : k
 
-  // print(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q)
+  print(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q)
 
   {
     const _p = abs(p), _q = abs(q)
@@ -54,11 +54,11 @@ for (let a = 1; a < 300; ++a) {
     const j = ''
     const k = ''
 
-    // print(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q)
+    print(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q)
   }
 
   if (pointToIdx(idxToPoint(a)) != a) log(a, 'ERROR')
-  // print(pointToIdx(idxToPoint(a)), ...'              ', ...idxToPoint(a),'\n')
+  print(pointToIdx(idxToPoint(a)), ...'              ', ...idxToPoint(a),'\n')
 
 }
 
@@ -73,7 +73,7 @@ function idxToPoint(a) {
 // int p,q
 function pointToIdx([p,q]) {
   if (p==0 && q==0) return 0
-  const b = p<0?-p:p, c=q<0?-q:q, g=b>c?b:c
-  const d = g==-q && q<p ? g+g+1 : g+g-1, e = q+p-1, f = q+d-p
-  return d*d + (q<p&&e<1 ? -f : 0<e&&f<d+1 ? e : p<q&&-e<2 ? f : d+d - e)
+  const b = p<0?-p:p, c = q<0?-q:q, g = b>c?b+b:c+c
+  const d = -g==q+q && q<p ? g+1 : g-1, e = q+p-1, f = q+d-p
+  return d*d + (q<p && e<1 ? -f : 0<e && f<d+1 ? e : p<q && -e<2 ? f : d+d-e)
 }
