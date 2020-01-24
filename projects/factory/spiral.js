@@ -78,7 +78,17 @@ function idxToPoint(a) {
 }
 
 function pointToIdx([p,q]) {
+  if (p==0&&q==0) return 0
 
+  const w = Math.abs(Math.abs(p) > Math.abs(q) ? p : q)
+  const d = 2*w - 1 + (w == -q && p > q ? 2 : 0)
+  const c = d*4+2
+  const b = c == 6 ? 1 : (c + 2) / 8
+  const e = b == 1 ? 1 : (4*b - 2) * (b - 1) + 1
 
-  return 0
+  return e + (
+    q <= 0 && q < p && p < 2 - q ? p-q-1 :
+    p > 0 && 1-p < q && q < p+1 ? q+p+d-2 :
+    q > 0 && -1-q < p && p < q ? 2*d+q-p-1 : 3*d-p-q
+  )
 }
