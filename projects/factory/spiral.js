@@ -6,10 +6,10 @@ function print(...argv) {
   for (const i in argv) str += `\t${argv[i]}`
   log(str)
 }
-print(...'abcdefghijklmnopq')
-print(...'00100000000fftf00')
+// print(...'abcdefghijklmnopq')
+// print(...'00100000000fftf00')
 const {ceil,sqrt,abs} = Math
-for (let a = 1; a < 200; ++a) {
+for (let a = 1; a < 300; ++a) {
   const b = ceil(a > 6 ? (-1+sqrt(4*a + 1)) / 4 : a / 6)
   const c = b == 1 ? 6 : 8*b - 2
   const d = (c-2)/4
@@ -27,12 +27,10 @@ for (let a = 1; a < 200; ++a) {
   const j = o ? c - f + b - d - 2 : ''
   const k = l ? 1 - b : m || n ? b : -b
 
-  // const p = l ? g : n ? i : k
-  // const q = m ? h : o ? j : k
-  const p = l ? f-b+2   : n ? c-f-2*d+b-3 : m ? b : -b
-  const q = m ? f-b+2-d : o ? c-f+  b-d-2 : n ? b : -b
+  const p = l ? g : n ? i : k
+  const q = m ? h : o ? j : k
 
-  print(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q)
+  // print(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q)
 
   {
     const _p = abs(p), _q = abs(q)
@@ -56,39 +54,26 @@ for (let a = 1; a < 200; ++a) {
     const j = ''
     const k = ''
 
-    print(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q)
+    // print(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q)
   }
 
-  print(pointToIdx(idxToPoint(a)), ...'              ', ...idxToPoint(a),'\n')
+  if (pointToIdx(idxToPoint(a)) != a) log(a, 'ERROR')
+  // print(pointToIdx(idxToPoint(a)), ...'              ', ...idxToPoint(a),'\n')
+
 }
 
+// int a >= 0
 function idxToPoint(a) {
   if (a == 0) return [0,0]
-
-  const b = ceil(a > 6 ? (-1+Math.sqrt(4*a + 1))/4 : a / 6)
-  const c = b == 1 ? 6 : 8*b - 2
-  const d = (c - 2)/4
-  const f = a - (b == 1 ? 1 : (4*b - 2) * (b - 1) + 1)
-
-  return (
-    f < d ? [f-b+2,-b] :
-    f < 2*d ? [b,f-b+2-d] :
-    f <= 3*d ? [c-f-2*d+b-3,b] : [-b,c-f+b-d-2]
-  )
+  const b = Math.ceil(a > 6 ? (Math.sqrt(4*a+1)-1)/4 : a/6)
+  const c = b==1 ? 6 : 8*b-2, d = (c-2)/4, f = a-c*(b-1)/2, e = f+b-d-2
+  return e<0 ? [f,1-b] : e<d ? [b,f-d] : e>d+d ? [-b,c-f-d] : [c-f-d-d-1,b]
 }
 
+// int p,q
 function pointToIdx([p,q]) {
-  if (p==0&&q==0) return 0
-
-  const w = Math.abs(Math.abs(p) > Math.abs(q) ? p : q)
-  const d = 2*w - 1 + (w == -q && p > q ? 2 : 0)
-  const c = d*4+2
-  const b = c == 6 ? 1 : (c + 2) / 8
-  const e = b == 1 ? 1 : (4*b - 2) * (b - 1) + 1
-
-  return e + (
-    q <= 0 && q < p && p < 2 - q ? p-q-1 :
-    p > 0 && 1-p < q && q < p+1 ? q+p+d-2 :
-    q > 0 && -1-q < p && p < q ? 2*d+q-p-1 : 3*d-p-q
-  )
+  if (p==0 && q==0) return 0
+  const b = p<0?-p:p, c=q<0?-q:q, g=b>c?b:c
+  const d = g==-q && q<p ? g+g+1 : g+g-1, e = q+p-1, f = q+d-p
+  return d*d + (q<p&&e<1 ? -f : 0<e&&f<d+1 ? e : p<q&&-e<2 ? f : d+d - e)
 }
