@@ -38,6 +38,22 @@ module.exports = (constructors) => class Lib {
     return value
   }
 
+  // int a >= 0
+  static idxToPoint(a) {
+    if (a == 0) return [0,0]
+    const b = Math.ceil(a > 6 ? (Math.sqrt(4*a+1)-1)/4 : a/6)
+    const c = b==1 ? 6 : 8*b-2, d = (c-2)/4, f = a-c*(b-1)/2, e = f+b-d-2
+    return e<0 ? [f,1-b] : e<d ? [b,f-d] : e>d+d ? [-b,c-f-d] : [c-f-d-d-1,b]
+  }
+
+  // int p,q
+  static pointToIdx([p,q]) {
+    if (p==0 && q==0) return 0
+    const b = p<0?-p:p, c = q<0?-q:q, g = b>c?b+b:c+c
+    const d = -g==q+q && q<p ? g+1 : g-1, e = q+p-1, f = q+d-p
+    return d*d + (q<p && e<1 ? -f : 0<e && f<d+1 ? e : p<q && -e<2 ? f : d+d-e)
+  }
+
   static get_first(object) {
     for (const i in object) return object[i]
   }
