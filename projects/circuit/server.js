@@ -2,7 +2,7 @@ module.exports = project => {
   const proj_name = 'Circuit:'
   const log = (...msg) => console.log(proj_name, ...msg)
   const fs = require('fs')
-  const file_name = __dirname + '/circuit.js'
+  const file_name = __dirname + '/circuit.c'
 
   log('server.js')
 
