@@ -206,6 +206,28 @@ for (const i in tokmap) {
 	tokmap[i] = scope
 }
 
+function test(string) {
+	const {Lib} = Circuit
+	parse.count = []
+	parse.total = 0
+	const m = {
+		map: [],
+		s: string,
+		count: [],
+	}
+	const a = parse(m,0,'scope')
+	log(string.length,string)
+	if (a) log('print',a,Lib.stringify(a))
+	else log('error')
+
+	function count(a) { let c = 0; for (const i in a) ++c; return c }
+
+	m.total = 0
+	for (const i in m.map) m.total += m.count[i] = count(m.map[i])
+
+	log('parse.count',parse.count,parse.total,m,parse.push)
+}
+
 function Circuit() {
 
   const socket = io('/circuit')
@@ -218,25 +240,10 @@ function Circuit() {
   })
 
   socket.on('update', string => {
-		const {Lib} = Circuit
-		parse.count = []
-		parse.total = 0
-		const m = {
-			map: [],
-			s: string,
-			count: [],
-		}
-		const a = parse(m,0,'scope')
-		log(string.length,string)
-		if (a) log('print',a,Lib.stringify(a))
-		else log('error')
 
-		function count(a) { let c = 0; for (const i in a) ++c; return c }
+		log(Circuit.Parse(string))
 
-		m.total = 0
-		for (const i in m.map) m.total += m.count[i] = count(m.map[i])
-
-		log('parse.count',parse.count,parse.total,m,parse.push)
+		// test(string)
   })
 
 }
