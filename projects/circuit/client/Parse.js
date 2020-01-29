@@ -21,158 +21,171 @@ module.exports = Circuit => {
       this.stats = { count: 0, }
     }
 
-    get valid() {
-      const {idx,string:{length}} = this
-      return idx < length
-    }
-
-    get copy() {
-      const {map,stats,string,idx,src} = this
-      const scp = new Scope(string,idx,this)
-      scp.map = map
-      scp.stats = stats
-      return scp
-    }
-
-    fun(tok,...args) {
-      const {idx,map,stats} = this
-
-      if (!map[idx]) map[idx] = {}
-      else if (map[idx][tok]) return map[idx][tok]
-      ++stats.count
-
-      this._tok = tok
-      this._input = []
-
-      let scp;
-      if (tokmap[tok]) scp = tokmap[tok](this,...args)
-      else scp = this.match(tok)
-
-      return map[idx][tok] = scp
-    }
-
-    match(match) {
-      const {idx,string} = this, off = idx + match.length
-      if (string.slice(idx,off) == match) {
-        this.idx = off
-        return this.input(match)
-      }
-      else return this.error('no match',match)
-    }
-
-    get empty() {
-      delete this._input
-      return this
-    }
-
-    get next() {
-      return this.string[this.idx++]
-    }
-
-    input(input) {
-      this._input = input
-      return this
-    }
-
-    get output() {
-      const {_input} = this
-      if (_input == null) return []
-      else if (typeof this == 'string') return [_input]
-      else return _input
-    }
-
-    error(...args) {
-      this._error = args
-      return this
-    }
-    get clear() {
-      delete this._error
-      return this
-    }
-
-    filter(filter,...args) {
-      this._filter = filter
-      if (this[filter]) return this[filter](...args)
-      else return this.error('no filter for',filter)
-    }
-
-    range(low, upr) {
-      const c = this.next
-      if (low <= c && c <= upr) return this.input(c)
-      else return this.error(c,'not in range',low,upr)
-    }
-
-    endat(tok,skip) {
-      let str = '', i = this.idx, s = this.string
-  		while (i < s.length) {
-  			if (s[i] == skip) { str += s[++i]; ++i }
-  			else if (s.slice(i,i+tok.length) == tok) {
-          this.idx = i + tok.length
-  				return this.input(str)
-  			}
-  			else str += s[i++]
-  		}
-      return this.error('endat terminated without',tok)
-    }
-
-    comp(...toks) {
-      const errors = []
-      for (const i in toks) {
-        const _scp = this.copy.fun(toks[i])
-        if (_scp._error) errors.push(toks[i], _scp._error)
-        else return _scp
-      }
-      return this.error('comp error',...errors)
-    }
-
-    repo(tok) {
-      const _scp = this.copy.fun(tok)
-      if (_scp.error) return this.empty
-      else return _scp
-    }
-
-    rept(tok) {
-      let scp = this; const output = []
-      while (scp.valid) {
-        const _scp = scp.copy.fun(tok)
-        if (_scp._error) break
-
-        scp = _scp
-        if (scp._input) output.push(scp._input)
-      }
-      // log('rept',tok,output)
-      return scp.input(output)
-    }
-
-    repf(tok, ...args) {
-      let scp = this; const output = []
-      while (scp.valid) {
-        const _scp = scp.copy.filter(tok,...args)
-        if (_scp._error) break
-
-        scp = _scp
-        if (scp._input) output.push(scp._input)
-      }
-      // log('repf',args,output)
-      return scp.input(output)
-    }
-
-    regx(...args) {
-      let scp = this; const output = []
-
-      for (const i in args) {
-        const arg = args[i]
-
-        if (typeof arg == 'string') scp = scp.fun(arg)
-        else scp = scp.filter(...arg)
-
-        // log('regx',arg,scp._input,scp._error)
-        if (scp._error) return scp.error('regx error',...scp._error)
-        else if (scp._input) output.push(scp._input)
-      }
-      // log('regx',args,output)
-      return scp.input(output)
-    }
+    // get valid() {
+    //   const {idx,string:{length}} = this
+    //   return idx < length
+    // }
+    //
+    // get copy() {
+    //   const {map,stats,string,idx,src} = this
+    //   const scp = new Scope(string,idx,this)
+    //   scp.map = map
+    //   scp.stats = stats
+    //   return scp
+    // }
+    //
+    // fun(tok,...args) {
+    //   const {idx,map,stats} = this
+    //
+    //   if (!map[idx]) map[idx] = {}
+    //   // else if (map[idx][tok]) return map[idx][tok]
+    //   ++stats.count
+    //
+    //   let scp = this.copy;
+    //   scp._tok = tok
+    //   scp._input = []
+    //   delete scp._error
+    //
+    //   if (tokmap[tok]) scp = tokmap[tok](scp,...args)
+    //   else scp = scp.match(tok)
+    //   scp._args = args
+    //
+    //   const _scp = map[idx][tok]
+    //   if (_scp) {
+    //     const in1 = _scp._input
+    //     const in2 = scp._input
+    //     const string1 = JSON.stringify(in1)
+    //     const string2 = JSON.stringify(in2)
+    //     if (string1 != string2) {
+    //       log(map)
+    //       throw ['bad',tok,_scp._args,scp._args,in1,in2]
+    //     }
+    //   }
+    //   return map[idx][tok] = scp
+    // }
+    //
+    // match(match) {
+    //   const {idx,string} = this, off = idx + match.length
+    //   if (string.slice(idx,off) == match) {
+    //     this.idx = off
+    //     return this.input(match)
+    //   }
+    //   else return this.error('no match',match)
+    // }
+    //
+    // get empty() {
+    //   delete this._input
+    //   return this
+    // }
+    //
+    // get next() {
+    //   return this.string[this.idx++]
+    // }
+    //
+    // input(input) {
+    //   this._input = input
+    //   return this
+    // }
+    //
+    // get output() {
+    //   const {_input} = this
+    //   if (_input == null) return []
+    //   else if (typeof this == 'string') return [_input]
+    //   else return _input
+    // }
+    //
+    // error(...args) {
+    //   this._error = args
+    //   return this
+    // }
+    // get clear() {
+    //   delete this._error
+    //   return this
+    // }
+    //
+    // filter(filter,...args) {
+    //   this._filter = filter
+    //   if (this[filter]) return this[filter](...args)
+    //   else return this.error('no filter for',filter)
+    // }
+    //
+    // range(low, upr) {
+    //   const c = this.next
+    //   if (low <= c && c <= upr) return this.input(c)
+    //   else return this.error(c,'not in range',low,upr)
+    // }
+    //
+    // endat(tok,skip) {
+    //   let str = '', i = this.idx, s = this.string
+  	// 	while (i < s.length) {
+  	// 		if (s[i] == skip) { str += s[++i]; ++i }
+  	// 		else if (s.slice(i,i+tok.length) == tok) {
+    //       this.idx = i + tok.length
+  	// 			return this.input(str)
+  	// 		}
+  	// 		else str += s[i++]
+  	// 	}
+    //   return this.error('endat terminated without',tok)
+    // }
+    //
+    // comp(...toks) {
+    //   const errors = []
+    //   for (const i in toks) {
+    //     const _scp = this.copy.fun(toks[i])
+    //     if (_scp._error) errors.push(toks[i], _scp._error)
+    //     else return _scp
+    //   }
+    //   return this.error('comp error',...errors)
+    // }
+    //
+    // repo(tok) {
+    //   const _scp = this.copy.fun(tok)
+    //   if (_scp.error) return this.empty
+    //   else return _scp
+    // }
+    //
+    // rept(tok) {
+    //   let scp = this; const output = []
+    //   while (scp.valid) {
+    //     const _scp = scp.copy.fun(tok)
+    //     if (_scp._error) break
+    //
+    //     scp = _scp
+    //     if (scp._input) output.push(scp._input)
+    //   }
+    //   // log('rept',tok,output)
+    //   return scp.input(output)
+    // }
+    //
+    // repf(tok, ...args) {
+    //   let scp = this; const output = []
+    //   while (scp.valid) {
+    //     const _scp = scp.copy.filter(tok,...args)
+    //     if (_scp._error) break
+    //
+    //     scp = _scp
+    //     if (scp._input) output.push(scp._input)
+    //   }
+    //   // log('repf',args,output)
+    //   return scp.input(output)
+    // }
+    //
+    // regx(...args) {
+    //   let scp = this; const output = []
+    //
+    //   for (const i in args) {
+    //     const arg = args[i]
+    //
+    //     if (typeof arg == 'string') scp = scp.fun(arg)
+    //     else scp = scp.filter(...arg)
+    //
+    //     // log('regx',arg,scp._input,scp._error)
+    //     if (scp._error) return scp.error('regx error',...scp._error)
+    //     else if (scp._input) output.push(scp._input)
+    //   }
+    //   // log('regx',args,output)
+    //   return scp.input(output)
+    // }
 
   }
 
@@ -229,12 +242,15 @@ module.exports = Circuit => {
 
       _ltrlow: { str: 'range a z', val: true, },
       _ltrupr: { str: 'range A Z', val: true, },
-      _ltr: { str: 'comp _ _ltrlow _ltrupr', val: true, },
+      _ltr: { str: 'comp _ _ltrlow _ltrupr', fun: (scp,[ltr]) => {
+        log('_ltr', ltr)
+        return scp.input(ltr)
+      } },
       var: {
         str: 'regx _ltr [repf comp _intdig _ltr]',
-        fun: (scp,[ltrA,                   ltrB]) => {
+        fun: (scp,[ltrA,ltrB]) => {
           for (const i in ltrB) ltrA += ltrB[i]
-          return scp.input(ltrA)
+          return scp.input(['Var',ltrA])
         },
       },
 
@@ -269,12 +285,18 @@ module.exports = Circuit => {
       _getvar1: {
         str: 'comp var',
         fun: (scp, name) => {
-          log('_getvar',name)
+          // log('_getvar',name)
           return scp.input(name)
         }
       },
       getvar1: { str: 'comp _getvar1 tuplevar', },
-      getval1: { str: 'comp num getvar1 array tupleval' },
+      getval1: {
+        str: 'comp num getvar1 array tupleval',
+        fun: (scp, input) => {
+          // log('getval1',input)
+          return scp.input(input)
+        }
+      },
 
       defvar: {
         str: 'regx gettype space+ var',
@@ -305,13 +327,19 @@ module.exports = Circuit => {
 
       getvar2: {
         str: 'regx [comp _getvar getvar1] [repf comp sub mem]',
-        fun: (scp, [gotvar, gotvars]) => {
-          // TODO fix this
-          return scp.input([gotvar,gotvars])
+        fun: (scp, [gotvar, repvar]) => {
+          // log('getvar2', gotvar, repvar)
+          return scp.input([gotvar,repvar])
         }
       },
 
-      getval2: { str: 'regx [comp postinc getval1] [repf comp fun sub mem]', },
+      getval2: {
+        str: 'regx [comp postinc getval1] [repf comp fun sub mem]',
+        fun: (scp, [gotval, repop]) => {
+          // log('getval2', gotval, repop)
+          return scp.input(gotval,repop)
+        }
+      },
     },
 
     getval3: {
@@ -463,22 +491,34 @@ module.exports = Circuit => {
 
       ternval: {
         str: 'regx getval15 space* ? space* getval16 space* : space* getval16',
-        fun: (scp, [bool,op,a,c,b]) => scp.input(op,bool,a,b),
+        fun: (scp, [bool,op,a,c,b]) => {
+          // TODO gettype
+          return scp.input(op,bool,a,b)
+        }
       },
 
       ternvar: {
         str: 'regx getval15 space* ? space* getvar16 space* : space* getvar16',
-        fun: (scp, [bool,op,a,c,b]) => scp.input(op,bool,a,b),
+        fun: (scp, [bool,op,a,c,b]) => {
+          // TODO gettype
+          return scp.input(op,bool,a,b)
+        }
       },
 
       _assignop: { str: 'comp = += -= *= /= %= <<= >>= &= ^= |=' },
       varassign: {
         str: 'regx getvar3 space* _assignop space* getval16',
-        fun: (scp,[gotvar,op,gotval]) => scp.input([op,gotvar,gotval])
+        fun: (scp,[gotvar,op,gotval]) => {
+          log('varassign', gotvar, op, gotval)
+          return scp.input([op,gotvar,gotval])
+        }
       },
       defassign: {
         str: 'regx getdef space* = space* getval16',
-        fun: (scp,[gotdef,op,gotval]) => scp.input([op,gotdef,gotval])
+        fun: (scp,[gotdef,op,gotval]) => {
+          // TODO gettype
+          return scp.input([op,gotdef,gotval])
+        }
       },
 
       getval16: { str: 'comp ternval varassign getval15' },
@@ -536,7 +576,7 @@ module.exports = Circuit => {
     for (const tok in toks) {
       let {str,fun,val,empty} = toks[tok]
 
-      if (!str) log(tok)
+      if (!str) throw tok
 
       let stack = [], scope = [], word = ''
       for (let j = 0; j < str.length; ++j) switch (str[j]) {
@@ -560,17 +600,32 @@ module.exports = Circuit => {
 
       tokmap[tok] = scp => {
         scp = scp.copy.filter(...scope)
+        // log('\nfilter',tok,scope,scp.string.slice(scp._idx))
+        // if (scp._error) console.error('error',scp._error)
+        // if (scp._input) log('input',scp._input)
+
         if (scp._error) return scp
-        scp = fun(scp,scp._input)
+        scp = fun(scp.copy,scp._input)
+        // log('\nfun',tok,"'",scp.string.slice(scp._idx))
+        // if (scp._error) console.error('error',scp._error)
+        // if (scp._input) log('input',scp._input,'\n')
+
         return scp
       }
     }
   }
 
   function Parse(string) {
-    const scp = Scope.init(string).fun('getval2')
-    if (scp._error) console.error(scp, scp._idx, scp._error)
-    else log(scp, ...scp._input)
+    let scp = Scope.init(string).fun('getval16')
+
+    if (scp._error) console.error('\n\n\nerror',scp._idx, scp._error)
+    else if (scp._input) log('\n\n\noutput',scp._input)
+
+    log(scp)
+    // while (scp) {
+    //   log('scp',scp._tok,scp._filter,scp._input)
+    //   scp = scp.src
+    // }
   }
   return Parse
 }
