@@ -16,7 +16,7 @@ const fmap = {
 	endat: (m,i,t,tok,skip) => {
 		let str = ''
 		while (i < m.s.length) {
-			if (m.s[i] == skip) { str == m.s[++i]; ++i }
+			if (m.s[i] == skip) { str += m.s[++i]; ++i }
 			else if (m.s.slice(i,i+tok.length) == tok) {
 				return [i+tok.length,simp([t,str])]
 			}
