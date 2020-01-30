@@ -1,58 +1,55 @@
 module.exports = Circuit => {
 
-  class Scope {
+  class Prg {
 
     static init(
       string, // String
     ) {
-      const _scp = new this
-      _scp.idx = 0
-      _scp.depth = 0
-      _scp.stats = {
+      const _prg = new this
+      _prg._idx = 0
+      _prg._depth = 0
+      _prg._stats = {
         map: {},
-        string: string
+        string: string,
+        copies: 0,
       }
-      return _scp
+      return _prg
     }
 
     get copy() {
-      const {stats,idx,depth} = this
-      const scp = new Scope
-      scp._idx = scp.idx = idx
-      scp.stats = stats
-      scp.depth = depth+1
-      return scp
+      const {_stats,_idx,_depth,_scope} = this
+      const prg = new Prg
+      prg._idx = _idx
+      prg._stats = _stats
+      prg._depth = _depth+1
+      prg._scope = _scope
+      prg._src = this
+      ++_stats.copies
+      return prg
     }
 
-    get umap() {
-      const scp = this.copy
-      scp._output = this._output
-      scp._error = this._error
-      return scp
+    get push() {
+      return this
     }
-    map(idx,tok) {
-      return this.stats.map[idx][tok] = this.umap
+    get pop() {
+      this._pop = true
+      return this
     }
+    scope(prg) {
+      this._scope = prg
+      return this
+    }
+    getvar(name) {
 
-    tok(tok) {
-      const {idx,stats:{map},depth} = this
+    }
+    vardef(name,input) {
 
-      if (!map[idx]) map[idx] = {}
-      else if (map[idx][tok]) return map[idx][tok].umap
+    }
+    gettype(name) {
 
-      let scp = this
-      if (tokmap[tok]) {
-        const [fun,filter] = tokmap[tok]
+    }
+    typedef(name,input) {
 
-        scp = scp.copy.filter(...filter)
-        if (scp._error) return scp.map(idx,tok)
-
-        scp = fun(scp.copy, scp._output)
-        if (scp._error) return scp.map(idx,tok)
-
-        return scp.map(idx,tok)
-      }
-      else return scp.match(tok).map(idx,tok)
     }
 
     filter(filter,...args) {
@@ -60,67 +57,90 @@ module.exports = Circuit => {
       else return this.error('filter error',filter)
     }
 
-    get valid() {
-      return this.idx < this.stats.string.length
+    map(idx,tok) {
+      const {_idx,_stats} = this
+      if (idx < _idx) {
+        this._range = _stats.string.slice(idx,_idx)
+        log('range',tok,this._range)
+      }
+      this._tok = tok
+      this._startidx = idx
+      _stats.map[idx][tok] = this
+      return this
     }
 
-    get next() {
-      return this.stats.string[this.idx++]
+    tok(tok) {
+      const {_idx,_stats:{map},_depth} = this
+
+      if (!map[_idx]) map[_idx] = {}
+      else if (map[_idx][tok]) return map[_idx][tok].scope(this)
+
+      let prg = this
+      if (tokmap[tok]) {
+        const [fun,filter,scope] = tokmap[tok]
+
+        if (scope) prg = prg.push
+
+        prg = prg.filter(...filter)
+        if (prg._error) return prg.map(_idx,tok)
+
+        prg = fun(prg, prg._output)
+        if (prg._error) return prg.map(_idx,tok)
+
+        if (scope) prg = prg.pop
+        return prg.map(_idx,tok)
+      }
+      else return prg.match(tok).map(_idx,tok)
     }
 
     get empty() {
-      if (this._output) throw ['bad empty', this]
+      if (this._output || this._error) return this.copy
+      else return this
+    }
+
+    idx(idx) {
+      this._idx = idx
       return this
     }
 
     output(input) {
-      const {_output,_error} = this
-      if (_output) {
-        const scp = this.copy
-        scp._output = input
-        scp._error = _error
-        return scp
-      }
-      this._output = input
-      return this
+      const {copy} = this
+      copy._output = input
+      return copy
     }
     error(...error) {
-      const {_output,_error} = this
-      if (_error) {
-        const scp = this.copy
-        scp._error = error
-        scp._output = _output
-        return scp
-      }
-      this._error = error
-      return this
+      const {copy} = this
+      copy._error = error
+      return copy
     }
 
     match(match) {
-      const {idx,stats:{string}} = this, off = idx + match.length
-      if (string.slice(idx,off) == match) {
-        this.idx = off
-        return this.output(match)
-      }
+      const {_idx,_stats:{string}} = this, off = _idx + match.length
+      if (string.slice(_idx,off) == match) return this.output(match).idx(off)
       else return this.error('no match',match)
     }
 
 
     range(low, upr) {
-      const c = this.next
-      if (low <= c && c <= upr) return this.output(c)
-      else return this.error(c,'not in range',low,upr)
+      const c = this._stats.string[this._idx]
+      if (low <= c && c <= upr) return this.output(c).idx(this._idx+1)
+      else return this.error('range error',c,low,upr)
+    }
+
+    not(not) {
+      const _prg = this.match(not)
+      if (_prg._error) return this.empty
+      else return this.error('not error',not)
     }
 
     endat(tok,skip) {
-      let str = '', i = this.idx, s = this.stats.string
-    	while (i < s.length) {
-    		if (s[i] == skip) { str += s[++i]; ++i }
-    		else if (s.slice(i,i+tok.length) == tok) {
-          this.idx = i + tok.length
-    			return this.output(str)
-    		}
-    		else str += s[i++]
+      let output = '', {_idx, _stats:{string}} = this
+    	while (_idx < string.length) {
+    		if (string[_idx] == skip) { output += string[++_idx]; ++_idx }
+    		else if (string.slice(_idx,_idx+tok.length) != tok) {
+          output += string[_idx++]
+        }
+    		else return this.output(output).idx(_idx+tok.length)
     	}
       return this.error('endat error',tok)
     }
@@ -129,51 +149,48 @@ module.exports = Circuit => {
       const errors = []
       for (const i in toks) {
         const tok = toks[i]
-        const _scp = this.copy.tok(tok)
-        if (_scp._error) errors.push(tok, _scp._error)
-        else return _scp
+        const _prg = this.tok(tok)
+        if (_prg._error) errors.push(tok, _prg._error)
+        else return _prg
       }
       return this.error('comp error',...errors)
     }
 
     regx(...args) {
-      let scp = this; const output = []
+      let prg = this; const output = []
 
       for (const i in args) {
         const arg = args[i]
 
-        if (typeof arg == 'string') scp = scp.copy.tok(arg)
-        else scp = scp.copy.filter(...arg)
+        if (typeof arg == 'string') prg = prg.tok(arg)
+        else prg = prg.filter(...arg)
 
-        if (scp._error) return scp.error('regx error', arg, ...scp._error)
-        else if (scp._output) output.push(scp._output)
+        if (prg._error) return prg.error('regx error', arg, prg._error)
+        else if (prg._output) output.push(prg._output)
       }
-      return scp.output(output)
+      return prg.output(output)
     }
 
     rept(tok) {
-      let scp = this; const output = []
-
-      while (scp.valid) {
-        const _scp = scp.copy.tok(tok)
-        if (_scp._error) break
-
-        scp = _scp; if (scp._output) output.push(scp._output)
+      let prg = this; const output = [], {length} = this._stats.string
+      while (prg._idx < length) {
+        const _prg = prg.tok(tok)
+        if (_prg._error) break
+        else prg = _prg
+        if (prg._output) output.push(prg._output)
       }
-      return scp.output(output)
+      return prg.output(output)
     }
 
     repf(tok, ...args) {
-      let scp = this; const output = []
-      while (scp.valid) {
-        const _scp = scp.copy.filter(tok,...args)
-        if (_scp._error) break
-
-        scp = _scp
-        if (scp._output) output.push(scp._output)
+      let prg = this; const output = [], {length} = this._stats.string
+      while (prg._idx < length) {
+        const _prg = prg.filter(tok,...args)
+        if (_prg._error) break
+        else prg = _prg
+        if (prg._output) output.push(prg._output)
       }
-
-      return scp.output(output)
+      return prg.output(output)
     }
   }
 
@@ -196,36 +213,36 @@ module.exports = Circuit => {
       _hexdig: { str: 'comp _intdig _hexlow _hexupr', val: true, },
       hex: {
         str: 'regx 0 [comp x X] _hexdig [rept _hexdig]',
-        fun: (scp,[z, x, dig, digs]) => {
+        fun: (prg,[z, x, dig, digs]) => {
           z += x + dig
           for (const i in digs) z += digs[i]
-          return scp.output(['Hex',z])
+          return prg.output(['Hex',z])
         },
       },
       float: {
         str: 'regx [rept _intdig] . _intdig [rept _intdig]',
-        fun: (scp, [digA, d, digB, digC]) => {
+        fun: (prg, [digA, d, digB, digC]) => {
           let str  = ''
           for (const i in digA) str += digA[i]
           str += d + digB
           for (const i in digC) str += digC[i]
-          return scp.output(['Float',str])
+          return prg.output(['Float',str])
         },
       },
       oct: {
         str: 'regx 0 [rept _octdig]',
-        fun: (scp,[z, digs]) => {
+        fun: (prg,[z, digs]) => {
           for (const i in digs) z += digs[i]
           // TODO type
-          return scp.output(['Oct',z])
+          return prg.output(['Oct',z])
         },
       },
       int: {
         str: 'regx _intdig [rept _intdig]',
-        fun: (scp, [dig, digs]) => {
+        fun: (prg, [dig, digs]) => {
           for (const i in digs) dig += digs[i]
           // TODO type
-          return scp.output(['Int',dig])
+          return prg.output(['Int',dig])
         },
       },
       num: { str: 'comp hex float oct int', },
@@ -235,17 +252,17 @@ module.exports = Circuit => {
       _ltr: { str: 'comp _ _ltrlow _ltrupr', val: true, },
       var: {
         str: 'regx _ltr [repf comp _intdig _ltr]',
-        fun: (scp,[ltrA,ltrB]) => {
+        fun: (prg,[ltrA,ltrB]) => {
           for (const i in ltrB) ltrA += ltrB[i]
-          return scp.output(['Var',ltrA])
+          return prg.output(ltrA)
         },
       },
 
       string: {
         str: 'regx " [endat " \\]',
-        fun: (scp, input) => {
+        fun: (prg, input) => {
           // TODO make type
-          return scp.output(['String',input[1]])
+          return prg.output(['String',input[1]])
         },
       }
     },
@@ -254,36 +271,58 @@ module.exports = Circuit => {
 
       array: {
         str: 'regx $[ space* getval17 space* $]',
-        fun: (scp, input) => {
+        fun: (prg, input) => {
           const gotval = input[1]
           // TODO check type
-          return scp.output(['Array',...gotval])
+          return prg.output(['Array',...gotval])
         }
       },
       tupleval: {
         str: 'regx ( space* getval16 space* )',
-        fun: (scp, input) => scp.output(input[1])
+        fun: (prg, input) => prg.output(input[1])
       },
       tuplevar: {
         str: 'regx ( space* getvar16 space* )',
-        fun: (scp, input) => scp.output(input[1])
+        fun: (prg, input) => prg.output(input[1])
       },
 
       _getvar1: {
         str: 'comp var',
-        fun: (scp, name) => {
+        fun: (prg, name) => {
           // log('_getvar',name)
-          return scp.output(name)
+          return prg.output(['Getvar',name])
         }
       },
       getvar1: { str: 'comp _getvar1 tuplevar', },
       getval1: { str: 'comp num getvar1 array tupleval', },
 
-      defvar: {
-        str: 'regx gettype space+ var',
-        fun: (scp, [type,gotvar]) => {
-          // TODO def type gotvar
-          return scp.output([type,gotvar])
+      repref: {
+        str: 'regx space* * [repf regx space* *]',
+        fun: (prg, [op,{length}]) => prg.output([op,1+length])
+      },
+      repadd: {
+        str: 'regx space* & [repf regx space* &]',
+        fun: (prg, [op,{length}]) => prg.output([op,1+length])
+      },
+      _repsub: {
+        str: 'regx space* $[ space* int space* $]',
+        fun: (prg, [a,i,b]) => prg.output(i),
+      },
+      repsub: {
+        str: 'regx _repsub [rept _repsub]',
+        fun: (prg, [int,ints]) => prg.output(['Sub',int,...ints]),
+      },
+      gettype: {
+        str: 'regx var [comp repref repadd repsub space+]',
+        fun: (prg, [gettype, ops]) => {
+          log('gettype',gettype,ops)
+          return prg.output(['Type',gettype,...(ops || [])])
+        }
+      },
+      vardef: {
+        str: 'regx gettype space* var',
+        fun: (prg, [gottype,gotvar]) => {
+          return prg.output(['vardef',gottype,gotvar])
         },
       }
     },
@@ -293,40 +332,40 @@ module.exports = Circuit => {
       incop: { str: 'comp ++ --', },
 
       postinc: {
-        str: 'regx getvar2 space* incop',
-        fun: (scp, [gotvar, op]) => scp.output(['Post'+op,gotvar]),
+        str: 'regx space* getvar2 space* incop',
+        fun: (prg, [gotvar, op]) => prg.output(['Post'+op,gotvar]),
       },
       fun: {
-        str: 'regx ( space* getval17 space* )',
-        fun: (scp, input) => {
-          return scp.output(['Fun',...input[1]])
+        str: 'regx space* ( space* getval17 space* )',
+        fun: (prg, input) => {
+          return prg.output(['Fun',...input[1]])
         },
       },
       sub: {
-        str: 'regx $[ space* getval16 space* $]',
-        fun: (scp, input) => scp.output(['Sub',input[1]]),
+        str: 'regx space* $[ space* getval16 space* $]',
+        fun: (prg, input) => prg.output(['Sub',input[1]]),
       },
       mem: { str: 'regx memop space* var', },
 
       getvar2: {
         str: 'regx getval1 [repf comp sub mem]',
-        fun: (scp, [gotvar, repvar]) => {
+        fun: (prg, [gotvar, repvar]) => {
           for (const i in repvar) {
             const [op,...args] = repvar[i]
             gotvar = [op, gotvar,...args]
           }
-          return scp.output(gotvar)
+          return prg.output(gotvar)
         }
       },
 
       getval2: {
         str: 'regx [comp postinc getval1] [repf comp fun sub mem]',
-        fun: (scp, [gotval, repop]) => {
+        fun: (prg, [gotval, repop]) => {
           for (const i in repop) {
             const [op,...args] = repop[i]
             gotval = [op, gotval,...args]
           }
-          return scp.output(gotval)
+          return prg.output(gotval)
         }
       },
     },
@@ -335,27 +374,27 @@ module.exports = Circuit => {
 
       preinc: {
         str: 'regx incop space* getvar3',
-        fun: (scp,[op,gotvar]) => {
+        fun: (prg,[op,gotvar]) => {
           // TODO check type
-          return scp.output(['Pre'+op,gotvar])
+          return prg.output(['Pre'+op,gotvar])
         }
       },
 
       _val3op: { str: 'comp + - ! ~' },
       _getval3: {
         str: 'regx _val3op space* getval3',
-        fun: (scp,[op,gotval]) => {
+        fun: (prg,[op,gotval]) => {
           // TODO check type
-          return scp.output(['Pre'+op,gotval])
+          return prg.output(['Pre'+op,gotval])
         }
       },
 
       _refop: { str: 'comp * &' },
       ref: {
         str: 'regx _refop space* getvar3',
-        fun: (scp,[op,gotvar]) => {
+        fun: (prg,[op,gotvar]) => {
           // TODO check type
-          return scp.output([op,gotvar])
+          return prg.output([op,gotvar])
         }
       },
 
@@ -367,7 +406,7 @@ module.exports = Circuit => {
       _val4op: { str: 'regx memop *', val: true, },
       getval4: {
         str: 'regx [repf regx getval3 space* _val4op space*] getval3',
-        fun: (scp,[rept, gotval]) => {
+        fun: (prg,[rept, gotval]) => {
           const stack = []
           while (rept.length) {
             const [repval,op] = rept.pop()
@@ -378,14 +417,14 @@ module.exports = Circuit => {
             const [op,repval] = stack.pop()
             gotval = [op,gotval,repval]
           }
-          return scp.output(gotval)
+          return prg.output(gotval)
         }
       },
 
       _val5op: { str: 'comp * / %' },
       getval5: {
         str: 'regx [repf regx getval4 space* _val5op space*] getval4',
-        fun: (scp,[rept, gotval]) => {
+        fun: (prg,[rept, gotval]) => {
           const stack = []
           while (rept.length) {
             const [repval,op] = rept.pop()
@@ -396,14 +435,14 @@ module.exports = Circuit => {
             const [op,repval] = stack.pop()
             gotval = [op,gotval,repval]
           }
-          return scp.output(gotval)
+          return prg.output(gotval)
         }
       },
 
       _val6op: { str: 'comp + -' },
       getval6: {
         str: 'regx [repf regx getval5 space* _val6op space*] getval5',
-        fun: (scp,[rept, gotval]) => {
+        fun: (prg,[rept, gotval]) => {
           const stack = []
           while (rept.length) {
             const [repval,op] = rept.pop()
@@ -414,14 +453,14 @@ module.exports = Circuit => {
             const [op,repval] = stack.pop()
             gotval = [op,gotval,repval]
           }
-          return scp.output(gotval)
+          return prg.output(gotval)
         }
       },
 
       _val7op: { str: 'comp << >>' },
       getval7: {
         str: 'regx [repf regx getval6 space* _val7op space*] getval6',
-        fun: (scp,[rept, gotval]) => {
+        fun: (prg,[rept, gotval]) => {
           const stack = []
           while (rept.length) {
             const [repval,op] = rept.pop()
@@ -432,13 +471,13 @@ module.exports = Circuit => {
             const [op,repval] = stack.pop()
             gotval = [op,gotval,repval]
           }
-          return scp.output(gotval)
+          return prg.output(gotval)
         }
       },
 
       getval8: {
         str: 'regx [repf regx getval7 space* <=> space*] getval7',
-        fun: (scp,[rept, gotval]) => {
+        fun: (prg,[rept, gotval]) => {
           const stack = []
           while (rept.length) {
             const [repval,op] = rept.pop()
@@ -449,14 +488,14 @@ module.exports = Circuit => {
             const [op,repval] = stack.pop()
             gotval = [op,gotval,repval]
           }
-          return scp.output(gotval)
+          return prg.output(gotval)
         }
       },
 
       _val9op: { str: 'comp < <= >= >' },
       getval9: {
         str: 'regx [repf regx getval8 space* _val9op space*] getval8',
-        fun: (scp,[rept, gotval]) => {
+        fun: (prg,[rept, gotval]) => {
           const stack = []
           while (rept.length) {
             const [repval,op] = rept.pop()
@@ -467,14 +506,14 @@ module.exports = Circuit => {
             const [op,repval] = stack.pop()
             gotval = [op,gotval,repval]
           }
-          return scp.output(gotval)
+          return prg.output(gotval)
         }
       },
 
       _val10op: { str: 'comp == !=' },
       getval10: {
         str: 'regx [repf regx getval9 space* _val10op space*] getval9',
-        fun: (scp,[rept, gotval]) => {
+        fun: (prg,[rept, gotval]) => {
           const stack = []
           while (rept.length) {
             const [repval,op] = rept.pop()
@@ -485,14 +524,14 @@ module.exports = Circuit => {
             const [op,repval] = stack.pop()
             gotval = [op,gotval,repval]
           }
-          return scp.output(gotval)
+          return prg.output(gotval)
         }
       },
 
       _val10op: { str: 'comp == !=' },
       getval10: {
         str: 'regx [repf regx getval9 space* _val10op space*] getval9',
-        fun: (scp,[rept, gotval]) => {
+        fun: (prg,[rept, gotval]) => {
           const stack = []
           while (rept.length) {
             const [repval,op] = rept.pop()
@@ -503,13 +542,13 @@ module.exports = Circuit => {
             const [op,repval] = stack.pop()
             gotval = [op,gotval,repval]
           }
-          return scp.output(gotval)
+          return prg.output(gotval)
         }
       },
 
       getval11: {
-        str: 'regx [repf regx getval10 space* & space*] getval10',
-        fun: (scp,[rept, gotval]) => {
+        str: 'regx [repf regx getval10 space* & [not &] space*] getval10',
+        fun: (prg,[rept, gotval]) => {
           const stack = []
           while (rept.length) {
             const [repval,op] = rept.pop()
@@ -520,13 +559,13 @@ module.exports = Circuit => {
             const [op,repval] = stack.pop()
             gotval = [op,gotval,repval]
           }
-          return scp.output(gotval)
+          return prg.output(gotval)
         }
       },
 
       getval12: {
         str: 'regx [repf regx getval11 space* ^ space*] getval11',
-        fun: (scp,[rept, gotval]) => {
+        fun: (prg,[rept, gotval]) => {
           const stack = []
           while (rept.length) {
             const [repval,op] = rept.pop()
@@ -537,13 +576,13 @@ module.exports = Circuit => {
             const [op,repval] = stack.pop()
             gotval = [op,gotval,repval]
           }
-          return scp.output(gotval)
+          return prg.output(gotval)
         }
       },
 
       getval13: {
-        str: 'regx [repf regx getval12 space* | space*] getval12',
-        fun: (scp,[rept, gotval]) => {
+        str: 'regx [repf regx getval12 space* | [not |] space*] getval12',
+        fun: (prg,[rept, gotval]) => {
           const stack = []
           while (rept.length) {
             const [repval,op] = rept.pop()
@@ -554,13 +593,13 @@ module.exports = Circuit => {
             const [op,repval] = stack.pop()
             gotval = [op,gotval,repval]
           }
-          return scp.output(gotval)
+          return prg.output(gotval)
         }
       },
 
       getval14: {
         str: 'regx [repf regx getval13 space* && space*] getval13',
-        fun: (scp,[rept, gotval]) => {
+        fun: (prg,[rept, gotval]) => {
           const stack = []
           while (rept.length) {
             const [repval,op] = rept.pop()
@@ -571,13 +610,13 @@ module.exports = Circuit => {
             const [op,repval] = stack.pop()
             gotval = [op,gotval,repval]
           }
-          return scp.output(gotval)
+          return prg.output(gotval)
         }
       },
 
       getval15: {
         str: 'regx [repf regx getval14 space* || space*] getval14',
-        fun: (scp,[rept, gotval]) => {
+        fun: (prg,[rept, gotval]) => {
           const stack = []
           while (rept.length) {
             const [repval,op] = rept.pop()
@@ -588,7 +627,7 @@ module.exports = Circuit => {
             const [op,repval] = stack.pop()
             gotval = [op,gotval,repval]
           }
-          return scp.output(gotval)
+          return prg.output(gotval)
         }
       },
     },
@@ -597,33 +636,32 @@ module.exports = Circuit => {
 
       ternval: {
         str: 'regx getval15 space* ? space* getval16 space* : space* getval16',
-        fun: (scp, [bool,op,a,c,b]) => {
-          // TODO gettype
-          return scp.output(op,bool,a,b)
+        fun: (prg, [bool,op,a,c,b]) => {
+          return prg.output([op,bool,a,b])
         }
       },
 
       ternvar: {
         str: 'regx getval15 space* ? space* getvar16 space* : space* getvar16',
-        fun: (scp, [bool,op,a,c,b]) => {
+        fun: (prg, [bool,op,a,c,b]) => {
           // TODO gettype
-          return scp.output(op,bool,a,b)
+          return prg.output([op,bool,a,b])
         }
       },
 
       _assignop: { str: 'comp = += -= *= /= %= <<= >>= &= ^= |=' },
       varassign: {
         str: 'regx getvar3 space* _assignop space* getval16',
-        fun: (scp,[gotvar,op,gotval]) => {
+        fun: (prg,[gotvar,op,gotval]) => {
           // log('varassign', gotvar, op, gotval)
-          return scp.output([op,gotvar,gotval])
+          return prg.output([op,gotvar,gotval])
         }
       },
       defassign: {
-        str: 'regx getdef space* = space* getval16',
-        fun: (scp,[gotdef,op,gotval]) => {
+        str: 'regx vardef space* = space* getval16',
+        fun: (prg,[gotdef,op,gotval]) => {
           // TODO gettype
-          return scp.output([op,gotdef,gotval])
+          return prg.output([op,gotdef,gotval])
         }
       },
 
@@ -635,9 +673,9 @@ module.exports = Circuit => {
 
       valspread: {
         str: 'regx ... space* getval16',
-        fun: (scp,[op,gotval]) => {
+        fun: (prg,[op,gotval]) => {
           // TODO typedef
-          return scp.output([op,gotval])
+          return prg.output([op,gotval])
         },
       },
 
@@ -645,8 +683,8 @@ module.exports = Circuit => {
       _repval17: { str: 'regx space* _getval17 space* ,', val: true, },
       getval17: {
         str: 'regx [rept _repval17] space* _getval17',
-        fun: (scp,[rep,gotval]) => {
-          return scp.output([...rep,gotval])
+        fun: (prg,[rep,gotval]) => {
+          return prg.output([...rep,gotval])
         },
       },
 
@@ -654,7 +692,7 @@ module.exports = Circuit => {
 
     scope: {
 
-      _statement: { str: 'comp varassign defassign newvar newtype callfun' },
+      _statement: { str: 'comp varassign defassign vardef typedef getval16' },
       statement: {
         str: 'regx space* _statement space* ;',
         val: true,
@@ -662,14 +700,22 @@ module.exports = Circuit => {
 
       scope: { str: 'comp statement subscope', },
       _repscope: { str: 'regx space* scope', val: true, },
-      repscope: { str: 'rept _repscope' },
+      repscope: { str: 'rept _repscope', scope: true, },
       subscope: {
         str: 'regx { space* repscope space* }',
-        fun: (scp, input) => scp.output(input[1]),
+        fun: (prg, input) => prg.output(input[1]),
       },
 
       start: {
         str: 'regx repscope space*',
+        fun: (prg, [input]) => {
+          const {_stats,_idx} = prg, {length} = prg._stats.string
+          if (_idx < length) {
+            const string = _stats.string.slice(_idx)
+            return prg.error('unexpected char at', _idx, string)
+          }
+          else return prg.output(input)
+        }
       }
     }
   }
@@ -679,40 +725,41 @@ module.exports = Circuit => {
     const toks = _tokmap[i]
 
     for (const tok in toks) {
-      let {str,fun,val,empty} = toks[tok]
+      let {str,fun,val,empty,scope} = toks[tok]
 
       if (!str) throw tok
 
-      let stack = [], scope = [], word = ''
+      let stack = [], filter = [], word = ''
       for (let j = 0; j < str.length; ++j) switch (str[j]) {
-        case ' ': if (word) scope.push(word); word = ''; break
+        case ' ': if (word) filter.push(word); word = ''; break
         case '[':
-        if (word) scope.push(word); word = ''
-        stack.push(scope); scope = []; break
+        if (word) filter.push(word); word = ''
+        stack.push(filter); filter = []; break
         case ']':
-        if (word) scope.push(word); word = ''
-        const temp = stack.pop(); temp.push(scope); scope = temp
+        if (word) filter.push(word); word = ''
+        const temp = stack.pop(); temp.push(filter); filter = temp
         break
         case '$': ++j
         default: word += str[j]; break
       }
-      if (word) scope.push(word)
+      if (word) filter.push(word)
 
       if (fun);
-      else if (val) fun = (scp,[val]) => scp.output(val)
-      else if (empty) fun = scp => scp.empty
-      else fun = (scp,input) => scp.output(input)
+      else if (val) fun = (prg,input) => prg.output(input[0])
+      else if (empty) fun = prg => prg.empty
+      else fun = (prg,input) => prg.output(input)
 
-      tokmap[tok] = [fun,scope]
+      tokmap[tok] = [fun,filter,scope]
     }
   }
 
   function Parse(string) {
-    let scp = Scope.init(string).tok('getval16')
+    let prg = Prg.init(string).tok('start')
 
-    if (scp._error) console.error('\n\n\nerror',scp._idx, scp._error)
-    else if (scp._output) log('\n\n\noutput',scp._output)
-    log(scp)
+    if (prg._error) console.error('\n\n\nerror',prg.__idx, prg._error)
+    else if (prg._output) log('\n\n\noutput',prg._output)
+    if (prg._stats.string.length > prg._idx) console.error('_idx error')
+    log(prg)
   }
   return Parse
 }
