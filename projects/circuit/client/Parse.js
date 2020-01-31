@@ -58,6 +58,7 @@ module.exports = Circuit => {
       }
       if (error.length > 1) return this.error(...error)
       else return this
+      return this
     }
     get split() {
       return this.copy.clear
@@ -84,13 +85,14 @@ module.exports = Circuit => {
       this._acts = _acts.slice()
       const flags = {}
       for (const i in _myacts) {
-        let actid = _myacts[i], [tok,op,...args] = acts[actid]
+        let actid = _myacts[i], [tok,...args] = acts[actid]
         if (tok == 'Getvar' || tok == 'Gettype') {
-          if (_defs[op] != null) actid = flags[actid] = _defs[op]
+          const [name] = args
+          if (_defs[name] != null) actid = flags[actid] = _defs[name]
           this._acts.push(actid)
         }
         else {
-          let flag = false, act = [tok,op]
+          let flag = false, act = [tok]
 
           for (const j in args) {
             let arg = args[j], [tok,actid] = arg
@@ -103,8 +105,10 @@ module.exports = Circuit => {
 
           if (flag) {
             actid = flags[actid] = acts.length;
+            // TODO TRACK ACTS
             acts.push(act)
           }
+
           this._acts.push(actid)
         }
       }
@@ -119,33 +123,37 @@ module.exports = Circuit => {
       return prg
     }
     getvar(name) {
-      log('getvar',name)
-      return this.newact('Getvar',name)
+      switch (name) {
+        case 'true': case 'false':
+          return this.settype(name == 'true','Boolean')
+        default: return this.newact('Getvar',name)
+      }
     }
-    settype(rawval,typename,...ops) {
-      return this.output(['Settype',rawval,typename,...ops])
+    settype(rawval,typename) {
+      return this.output(['Settype',rawval,typename])
     }
     gettype(typename,...ops) {
-      log('Gettype',typename,ops)
-      return this.newact('Gettype',typename,...ops)
+      switch (typename) {
+        case 'Boolean': case 'String': case 'Void':
+        case 'Int': case 'Float': case 'Char':
+          return this.output(['Nativetype',typename,...ops])
+        default: return this.newact('Gettype',typename,...ops)
+      }
     }
     typedef(name,input) {
-      log('typedef',name,input)
       const prg = this.newact('Typedef',name,input)
       const [act,actid] = prg._output
       prg._defs = Object.assign({},prg._defs,{[name]:actid})
       return prg
     }
     vardef(gottype,name) {
-      log('vardef',name,gottype)
       const prg = this.newact('Vardef',name,gottype)
       const [act,actid] = prg._output
       prg._defs = Object.assign({},prg._defs,{[name]:actid})
       return prg
     }
     getop(op,...args) {
-      log('getop',op,...args)
-      return this.newact('Getop',op,...args)
+      return this.newact(op,...args)
     }
     filter(filter,...args) {
       if (this[filter]) return this[filter](...args)
@@ -224,13 +232,17 @@ module.exports = Circuit => {
       return this.error('endat error',tok)
     }
 
-    comp(...toks) {
+    comp(...args) {
       const errors = []
-      for (const i in toks) {
-        const tok = toks[i]
-        const _prg = this.tok(tok)
-        if (_prg._error) errors.push(tok, _prg._error)
-        else return _prg
+      for (const i in args) {
+        const arg = args[i]
+        let prg = this
+
+        if (typeof arg == 'string') prg = prg.tok(arg)
+        else prg = prg.filter(...arg)
+
+        if (prg._error) errors.push(prg._error)
+        else return prg
       }
       return this.error('comp error',...errors)
     }
@@ -279,7 +291,7 @@ module.exports = Circuit => {
 
     space: {
       _commentsl: { str: 'regx // [endat \n]', empty: true, },
-      _commentml: { str: 'regx /* [endat */]', empty: true, },
+      _commentml: { str: 'regx /$* [endat $*/]', empty: true, },
       _space: { str: 'comp _commentsl _commentml $  \t \n', empty: true, },
       'space*': { str: 'rept _space', empty: true, },
       'space+': { str: 'regx _space space*', empty: true, },
@@ -300,8 +312,8 @@ module.exports = Circuit => {
       _float: {
         str: 'regx [rept _intdig] . _int',
         fun: (prg, [repdig, d, int]) => {
-          for (const i in rept) d = rept[i]+d
-          return prg.output(d+int)
+          let str = ''; for (const i in repdig) str += repdig[i]
+          return prg.output(str+d+int)
         },
       },
       hex: {
@@ -312,7 +324,7 @@ module.exports = Circuit => {
         },
       },
       _sci: {
-        str: 'regx [comp + -] _int',
+        str: 'regx [comp $+ -] _int',
         fun: (prg, [op, int]) => prg.output(op+int)
       },
       sci: {
@@ -376,7 +388,7 @@ module.exports = Circuit => {
       getval1: { str: 'comp num string getvar1 array tupleval', },
 
       repref: {
-        str: 'regx space* * [repf regx space* *]',
+        str: 'regx space* $* [repf regx space* $*]',
         fun: (prg, [op,{length}]) => prg.getop(op,1+length)
       },
       repadd: {
@@ -403,26 +415,24 @@ module.exports = Circuit => {
 
     getval2: {
       memop: { str: 'comp . ->' },
-      incop: { str: 'comp ++ --', },
+      incop: { str: 'comp $+$+ --', },
 
       postinc: {
         str: 'regx space* getvar2 space* incop',
-        fun: (prg, [gotvar, op]) => prg.output(['Post'+op,gotvar]),
+        fun: (prg, [gotvar, op]) => prg.getop('Post'+op,gotvar),
       },
-      fun: {
+      _fun: {
         str: 'regx space* ( space* getval17 space* )',
-        fun: (prg, input) => {
-          return prg.output(['()',input[1]])
-        },
+        fun: (prg, input) => prg.output(['()',input[1]])
       },
-      sub: {
+      _sub: {
         str: 'regx space* $[ space* getval16 space* $]',
-        fun: (prg, input) => prg.output(['[]',input[1]]),
+        fun: (prg, input) => prg.output(['[]',input[1]])
       },
-      mem: { str: 'regx memop space* var', },
+      _mem: { str: 'regx memop space* var', },
 
       _getvar2: {
-        str: 'regx getval1 [comp sub mem] [repf comp sub mem]',
+        str: 'regx getval1 [comp _sub _mem] [repf comp _sub _mem]',
         fun: (prg, [gotvar, [op,...args], repop]) => {
           prg = prg.getop(op,gotvar,...args)
           if (prg._error) return prg
@@ -440,7 +450,7 @@ module.exports = Circuit => {
       getvar2: { str: 'comp _getvar2 getvar1' },
 
       getval2: {
-        str: 'regx [comp postinc getval1] [repf comp fun sub mem]',
+        str: 'regx [comp postinc getval1] [repf comp _fun _sub _mem]',
         fun: (prg, [gotval, repop]) => {
           for (const i in repop) {
             const [op,...args] = repop[i]
@@ -460,13 +470,13 @@ module.exports = Circuit => {
         fun: (prg,[op,gotvar]) => prg.getop('Pre'+op,gotvar)
       },
 
-      _val3op: { str: 'comp + - ! ~' },
+      _val3op: { str: 'comp $+ - $! ~' },
       _getval3: {
         str: 'regx _val3op space* getval3',
         fun: (prg,[op,gotval]) => prg.getop('Pre'+op,gotval)
       },
 
-      _refop: { str: 'comp * &' },
+      _refop: { str: 'comp $* &' },
       ref: {
         str: 'regx _refop space* getval3',
         fun: (prg,[op,gotvar]) => prg.getop('Pre'+op,gotvar)
@@ -477,17 +487,17 @@ module.exports = Circuit => {
     },
 
     getval4_15: {
-      _val4op: { str: 'regx memop *', fun: (prg,[op,s]) => prg.output(op+s) },
+      _val4op: { str: 'regx memop $*', fun: (prg,[op,s]) => prg.output(op+s) },
       getval4: {
         str: 'regx [repf regx getval3 space* _val4op space*] getval3',
         midfx: true,
       },
-      _val5op: { str: 'comp * / %' },
+      _val5op: { str: 'comp $* / %' },
       getval5: {
         str: 'regx [repf regx getval4 space* _val5op space*] getval4',
         midfx: true,
       },
-      _val6op: { str: 'comp + -' },
+      _val6op: { str: 'comp $+ -' },
       getval6: {
         str: 'regx [repf regx getval5 space* _val6op space*] getval5',
         midfx: true,
@@ -506,12 +516,7 @@ module.exports = Circuit => {
         str: 'regx [repf regx getval8 space* _val9op space*] getval8',
         midfx: true,
       },
-      _val10op: { str: 'comp == !=' },
-      getval10: {
-        str: 'regx [repf regx getval9 space* _val10op space*] getval9',
-        midfx: true,
-      },
-      _val10op: { str: 'comp == !=' },
+      _val10op: { str: 'comp == $!=' },
       getval10: {
         str: 'regx [repf regx getval9 space* _val10op space*] getval9',
         midfx: true,
@@ -525,7 +530,7 @@ module.exports = Circuit => {
         midfx: true,
       },
       getval13: {
-        str: 'regx [repf regx getval12 space* | [not |] space*] getval12',
+        str: 'regx [repf regx getval12 space* $| [not $|] space*] getval12',
         midfx: true,
       },
       getval14: {
@@ -533,7 +538,7 @@ module.exports = Circuit => {
         midfx: true,
       },
       getval15: {
-        str: 'regx [repf regx getval14 space* || space*] getval14',
+        str: 'regx [repf regx getval14 space* $|$| space*] getval14',
         midfx: true,
       },
     },
@@ -550,7 +555,7 @@ module.exports = Circuit => {
         fun: (prg, [bool,op,a,c,b]) => prg.getop(op,bool,a,b),
       },
 
-      _assignop: { str: 'comp = += -= *= /= %= <<= >>= &= ^= |=' },
+      _assignop: { str: 'comp = $+= -= $*= /= %= <<= >>= &= ^= $|=' },
       varassign: {
         str: 'regx getvar3 space* _assignop space* getval16',
         fun: (prg,[gotvar,op,gotval]) => prg.getop(op,gotvar,gotval)
@@ -559,6 +564,7 @@ module.exports = Circuit => {
         str: 'regx vardef space* = space* getval16',
         fun: (prg,[gotdef,op,gotval]) => prg.getop(op,gotdef,gotval),
       },
+
 
       getval16: { str: 'comp ternval varassign getval15' },
       getvar16: { str: 'comp ternvar getvar3' },
@@ -582,17 +588,33 @@ module.exports = Circuit => {
 
     scope: {
 
-      _statement: { str: 'comp varassign defassign vardef typedef getval16' },
+      ifop: {
+        str: 'regx if space* ( space* getval16 space* ) space* scope',
+        fun: (prg,[op,p,gotval,q,scope]) => prg.getop(op,gotval,scope)
+      },
+      ifelse: {
+        str: 'regx ifop space* else space* scope',
+        fun: (prg,[ifop,op,scope]) => prg.getop(op,ifop,scope)
+      },
+      whileop: {
+        str: 'regx while space* ( space* getval16 space* ) space* scope',
+        fun: (prg,[op,p,gotval,q,scope]) => prg.getop(op,gotval,scope),
+      },
+
+      _statement: {
+        str: 'comp varassign defassign vardef typedef getval16'
+      },
       statement: {
         str: 'regx space* _statement space* ;',
         val: true,
       },
-      scope: { str: 'comp statement subscope', },
+      _scope: { str: 'regx space* ;', fun: prg => prg.getop(';') },
+      scope: { str: 'comp _scope ifelse ifop whileop subscope statement' },
       _repscope: { str: 'regx space* scope', val: true, },
       repscope: { str: 'rept _repscope', scope: true, },
       subscope: {
         str: 'regx { space* repscope space* }',
-        fun: (prg, input) => prg.output(input[1]),
+        fun: (prg, input) => prg.getop('{}',...input[1]),
       },
       start: {
         str: 'regx repscope space*',
