@@ -1,10 +1,5 @@
 module.exports = Circuit => {
 
-  function copyinfo(single,plural) {
-    if (single) return Object.assign({},plural,{[single.name]:single})
-    else return plural
-  }
-
   class Prg {
 
 
@@ -17,93 +12,140 @@ module.exports = Circuit => {
       _prg._depth = 0
       _prg._stats = {
         map: {},
+        acts: [],
         string: string,
         copies: 0,
       }
-      return _prg.clear.tok(tok)
+      return _prg.clear.tok(tok).resolveget
     }
     get string() {
       return this._stats.string.slice(this._startidx,this._idx)
     }
+    get clear() {
+      this._acts = []
+      this._defs = {}
+      return this
+    }
     get copy() {
-      const {_stats,_idx,_depth,_scope,_startidx} = this
+      const {_stats,_idx,_depth,_scope,_startidx,_acts,_defs} = this
       const prg = new Prg
-      prg._startidx = _startidx
-      prg._idx = _idx
+      prg._startidx = _startidx; prg._idx = _idx
       prg._stats = _stats
       prg._depth = _depth+1
-      prg._scope = _scope
-      prg._src = this
+      prg._scope = _scope; prg._src = this
+      prg._acts = _acts; prg._defs = _defs
+      prg._myacts = []
       ++_stats.copies
       return prg
-    }
-    get clear() {
-      this._vardefs = {}; this._getvars = {}; this._gettypes = {}
-      return this
-    }
-    get info() {
-      const {_src} = this
-      if (!_src) return this
-      this._vardefs = copyinfo(_src._vardef,_src._vardefs)
-      this._getvars = copyinfo(_src._getvar,_src._getvars)
-      this._gettypes = copyinfo(_src._gettype,_src._gettypes)
-      return this
     }
     output(input) {
       const {copy} = this
       copy._output = input
-      return copy.info
+      return copy
     }
     error(...error) {
       const {copy} = this
       copy._error = error
-      return copy.info
+      return copy
     }
     get resolveget() {
-      return this
-    }
-    scope(prg) {
-      this._scope = prg
-      return this
+      const {_myacts,_stats:{acts}} = this, error = ['Unfound gets']
+      for (const i in _myacts) {
+        const actid = _myacts[i], [tok,op] = acts[actid]
+        if (tok == 'Getvar' || tok == 'Gettype') {
+          error.push(acts[actid])
+        }
+      }
+      if (error.length > 1) return this.error(...error)
+      else return this
     }
     get split() {
-      const prg = this.copy.clear
-
-      return this.info
+      return this.copy.clear
     }
     get join() {
-
+      this._myacts = this._acts
+      this._mydefs = this._defs
       return this
     }
     get endsplit() {
-      log('endsplit')
+      log('endsplit',this._defs)
+      this._myacts = this._acts
+      this._mydefs = {}
       return this
+    }
+    get myacts() {
+      const {_acts,_stats:{acts}} = this, myacts = {}
+      for (const i in _acts) myacts[_acts[i]] = acts[_acts[i]]
+      return myacts
+    }
+    scope(prg) {
+      const {_defs,_acts} = prg, {_myacts,_stats:{acts}} = this
+      this._scope = prg
+      this._acts = _acts.slice()
+      const flags = {}
+      for (const i in _myacts) {
+        let actid = _myacts[i], [tok,op,...args] = acts[actid]
+        if (tok == 'Getvar' || tok == 'Gettype') {
+          if (_defs[op] != null) actid = flags[actid] = _defs[op]
+          this._acts.push(actid)
+        }
+        else {
+          let flag = false, act = [tok,op]
+
+          for (const j in args) {
+            let arg = args[j], [tok,actid] = arg
+            if (tok == 'Act' && flags[actid] != null) {
+              arg = ['Act',flags[actid]]
+              flag = true
+            }
+            act.push(arg)
+          }
+
+          if (flag) {
+            actid = flags[actid] = acts.length;
+            acts.push(act)
+          }
+          this._acts.push(actid)
+        }
+      }
+      this._defs = Object.assign({},prg._defs,this._mydefs)
+      return this
+    }
+    newact(...args) {
+      const {acts} = this._stats, actid = acts.length
+      acts.push(args)
+      const prg = this.output(['Act',actid])
+      prg._acts = [...prg._acts, actid]
+      return prg
     }
     getvar(name) {
       log('getvar',name)
-      const getvar = { name: name, }
-      let prg = this.output(getvar)
-      prg._getvar = getvar
-      return prg.info
+      return this.newact('Getvar',name)
     }
     settype(rawval,typename,...ops) {
       return this.output(['Settype',rawval,typename,...ops])
     }
     gettype(typename,...ops) {
-      log('gettype',typename,ops)
-      return this.output(['Gettype',typename,...ops])
+      log('Gettype',typename,ops)
+      return this.newact('Gettype',typename,...ops)
     }
     typedef(name,input) {
       log('typedef',name,input)
-      return this.output(['Typedef',name,input])
+      const prg = this.newact('Typedef',name,input)
+      const [act,actid] = prg._output
+      prg._defs = Object.assign({},prg._defs,{[name]:actid})
+      return prg
     }
-    vardef(gottype,varname) {
-      log('vardef',gottype,varname)
-      return this.output(['Vardef',gottype,varname])
+    vardef(gottype,name) {
+      log('vardef',name,gottype)
+      const prg = this.newact('Vardef',name,gottype)
+      const [act,actid] = prg._output
+      prg._defs = Object.assign({},prg._defs,{[name]:actid})
+      return prg
     }
     getop(op,...args) {
       log('getop',op,...args)
-      return this.output(['Getop',op,...args])
+      return this.newact('Getop',op,...args)
     }
     filter(filter,...args) {
       if (this[filter]) return this[filter](...args)
@@ -113,7 +155,6 @@ module.exports = Circuit => {
       const {_idx,_stats} = this
       this._tok = tok
       this._startidx = idx
-      // if (!this._error && this._output) log('map',tok,_stats.string.slice(idx,_idx))
       _stats.map[idx][tok] = this
       return this.scope(scope)
     }
@@ -142,7 +183,7 @@ module.exports = Circuit => {
     }
 
     get empty() {
-      if (this._output || this._error) return this.copy.info
+      if (this._output || this._error) return this.copy
       else return this
     }
 
@@ -561,7 +602,7 @@ module.exports = Circuit => {
             const string = _stats.string.slice(_idx)
             return prg.error('unexpected char at', _idx, string)
           }
-          else return prg.output(input).resolveget
+          else return prg.output(input)
         }
       }
     }
