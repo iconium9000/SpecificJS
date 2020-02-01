@@ -9,48 +9,58 @@ module.exports = Circuit => {
     },
   }
 
-  const _opmap = {
-    "+": (prg,argA,argB) => {
-
-    },
-    "-": {},
-    "%": {},
-    "/": {},
-    "*": {},
-    "!": {},
-    "~": {},
-    "&": {},
-    "|": {},
-    "Pre+": {},
-    "Pre-": {},
-    "Pre*": {},
-    "Pre&": {},
-    "Pre++": {},
-    "Pre--": {},
-    "Post++": {},
-    "Post--": {},
-    "?": {},
-    "<": {},
-    ">": {},
-    "<=": {},
-    ">=": {},
-    "==": {},
-    "!=": {},
-    "<=>": {},
-    "=": {},
-    "&&": {},
-    "||": {},
-    "if": {},
-    "else": {},
-    "while": {},
-    "do": {},
-    ",": {},
-    ";": {},
-    "{}": {},
-    "()": {},
-    "[]": {},
-    "Array": {}
+  function gettype([tok,type]) {
+    return type[0] == '_Getact' ? type[1] : type
   }
+
+  const _def = (prg,...args) => {
+    const type = ['Badtype','Defop']
+
+    for (const i in args) type.push(gettype(args[i]))
+
+    return type
+  }
+  const _opmap = {
+    '+': null,
+    '-': null,
+    '%': null,
+    '/': null,
+    '*': null,
+    '!': null,
+    '~': null,
+    '&': null,
+    '|': null,
+    'Pre+': null,
+    'Pre-': null,
+    'Pre*': null,
+    'Pre&': null,
+    'Pre++': null,
+    'Pre--': null,
+    'Post++': null,
+    'Post--': null,
+    '?': null,
+    '<': null,
+    '>': null,
+    '<=': null,
+    '>=': null,
+    '==': null,
+    '!=': null,
+    '<=>': null,
+    '=': null,
+    '&&': null,
+    '||': null,
+    'if': null,
+    'else': null,
+    'while': null,
+    'do': null,
+    ',': null,
+    ';': null,
+    '{}': null,
+    '()': null,
+    '[]': null,
+    'Array': null,
+  }
+  for (const i in _opmap) if (_opmap[i] == null) _opmap[i] = _def
 
   const opmap = {
     Newact: (prg,actid) => {
@@ -106,14 +116,13 @@ module.exports = Circuit => {
       let flag = false; type = []
       const _args = []
       for (const i in args) {
-        const arg = Operator(prg,...args[i])
-        const _type = arg[1]
+        const arg = Operator(prg,...args[i]), _type = gettype(arg)
         flag = flag || _type[0] == 'Badtype'
         type.push(_type)
         _args.push(arg)
       }
       if (flag) return ['Op',['Badtype',...type],op,..._args]
-      return ['Op',['Optype',...type],op,..._args]
+      return ['Op',_opmap[op](prg,..._args),op,..._args]
     },
   }
   for (const op in _opmap) {
