@@ -102,29 +102,47 @@ module.exports = Circuit => {
       getvar1: { str: 'comp _getvar1 tuplevar', },
       getval1: { str: 'comp num string getvar1 array tupleval', },
 
-      repref: {
-        str: 'regx space* $* [repf regx space* $*]',
-        fun: (prg, [op,{length}]) => prg.output([op,1+length])
+      addrop: {
+        str: 'regx space* [comp $* $&]',
+        fun: (prg,op) => prg.output(op)
       },
-      repadd: {
-        str: 'regx space* & [repf regx space* &]',
-        fun: (prg, [op,{length}]) => prg.output([op,1+length])
+      arrayop: {
+        str: 'regx space* $[ space* getvar16 space * $]',
+        fun: (prg, [p,gotvar]) => prg.output(['[]',gotvar])
       },
-      _repsub: {
-        str: 'regx space* $[ space* int space* $]',
-        fun: (prg, [a,i,b]) => prg.output(i),
+      voidfun: {
+        str: 'regx space* ( space* )',
+        fun: prg => prg.output(['()'])
       },
-      repsub: {
-        str: 'regx _repsub [rept _repsub]',
-        fun: (prg, [int,ints]) => prg.output(['[]',int,...ints]),
+      _funop: {
+        str: 'regx space* , space* gettype',
+        fun: (prg, [c,gottype]) => prg.output(gottype)
+      },
+      funop: {
+        str: 'regx space* ( space* gettype [rept _funop] space* )',
+        fun: (prg, [p,gottype,reptypes]) => {
+          return prg.output(['()',gottype,...reptypes])
+        }
       },
       gettype: {
-        str: 'regx var [comp repref repadd repsub space+]',
-        fun: (prg, [typename, ...ops]) => prg.gettype(typename, ...ops)
+        str: 'regx var [repf comp addrop voidfun funop arrayop]',
+        fun: (prg, [typename,ops]) => {
+          prg = prg.newact('Gettype',typename)
+          for (const i in ops) {
+            const [op,...info] = ops[i]
+            prg = prg.newact('Nativecomp',op,prg._output,...info)
+          }
+          return prg
+        }
       },
       vardef: {
         str: 'regx gettype space* var',
-        fun: (prg, [gottype,varname]) => prg.vardef(gottype,varname),
+        fun: (prg, [gottype,varname]) => {
+          prg = prg.newact('Vardef',gottype,varname)
+          const [newact,actid] = prg._output
+          prg._defs = Object.assign({},prg._defs,{[varname]:actid})
+          return prg
+        },
       }
     },
 

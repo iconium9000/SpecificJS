@@ -97,26 +97,6 @@ module.exports = Circuit => {
     settype(rawval,typename) {
       return this.newact('Settype',['Nativetype',typename],rawval)
     }
-    gettype(typename,...ops) {
-      switch (typename) {
-        case 'Boolean': case 'String': case 'Void':
-        case 'Int': case 'Float': case 'Char':
-          return this.output(['Nativetype',typename,...ops])
-        default: return this.newact('Gettype',typename,...ops)
-      }
-    }
-    typedef(name,input) {
-      const prg = this.newact('Typedef',name,input)
-      const [act,actid] = prg._output
-      prg._defs = Object.assign({},prg._defs,{[name]:actid})
-      return prg
-    }
-    vardef(gottype,name) {
-      const prg = this.newact('Vardef',gottype,name)
-      const [act,actid] = prg._output
-      prg._defs = Object.assign({},prg._defs,{[name]:actid})
-      return prg
-    }
     getop(op,...args) {
       return this.newact(op,...args)
     }

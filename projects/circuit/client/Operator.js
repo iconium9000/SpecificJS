@@ -1,12 +1,22 @@
 module.exports = Circuit => {
 
   const nativetypes = {
-    Int: {
-
+    Int: {},
+    Float: {},
+    Void: {},
+    String: {},
+    Boolean: {},
+    '*': {},
+    '&': {},
+  }
+  const nativecomps = {
+    '*': (prg) => {},
+    '&': (prg) => {},
+    '()': (prg,type,...info) => {
+      
+      throw ['()',type,...info]
     },
-    Float: {
-
-    },
+    '[]': (prg,type,info) => {},
   }
 
   function gettype([tok,type]) {
@@ -78,10 +88,6 @@ module.exports = Circuit => {
       type = act[1]
       return ['_Getact',type,actid]
     },
-    Nativetype: (prg,typename,...ops) => {
-      // TODO
-      return ['Nativetype',typename,...ops]
-    },
     Settype: (prg,type,rawval) => ['Settype',type,rawval],
     Badop: (prg,...args) => ['Badop',...args],
     Vardef: (prg,type,varname) => Operator(prg,'_Vardef',null,type,varname),
@@ -90,15 +96,23 @@ module.exports = Circuit => {
       if (tok == '_Getact') type = toktype
       return ['_Vardef',type,gettype,varname]
     },
-    Gettype: (prg,typename,...ops) => {
-      return Operator(prg,'_Gettype',['Badtype','Gettype',typename],ops)
+    Gettype: (prg,typename) => {
+      if (nativetypes[typename]) return ['Nativetype',typename]
+      throw ['Gettype',typename]
     },
-    _Gettype: (prg,type,ops) => {
-      const [badtype,gettype,typename] = type
-      const actid = prg._defs[typename]
-      if (actid == null) return ['_Gettype',type,ops]
-      throw 'wtf'
+    Nativetype: (prg,typename) => ['Nativetype',typename],
+    Nativecomp: (prg,compname,type,...info) => {
+      return nativecomps[compname](prg,type,...info)
     },
+    // Gettype: (prg,typename,...ops) => {
+    //   return Operator(prg,'_Gettype',['Badtype','Gettype',typename],ops)
+    // },
+    // _Gettype: (prg,type,ops) => {
+    //   const [badtype,gettype,typename] = type
+    //   const actid = prg._defs[typename]
+    //   if (actid == null) return ['_Gettype',type,ops]
+    //   throw 'wtf'
+    // },
     Getvar: (prg,varname) => {
       return Operator(prg,'_Getvar',['Badtype','Getvar',varname])
     },
@@ -132,7 +146,7 @@ module.exports = Circuit => {
 
   function Operator(prg,tok,...args) {
     if (opmap[tok]) return opmap[tok](prg,...args)
-    throw 'badop'
+    throw ['badop',tok,...args]
     return Operator(prg,'Badop',['Badtype',tok,...args])
   }
   return Operator
