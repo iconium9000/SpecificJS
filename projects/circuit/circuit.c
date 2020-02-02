@@ -1,6 +1,17 @@
-a = 3;
-Int(Float,String) a = 1;
-Temp a = 1;
+// Void a = null;
+// Int(String,Float) k = "Int(String,Float)";
+// String[2][5](Int,Float) a = "Int[2][5]";
+// Int p = a = "Int";
+// Temp a = 1;
+
+do {
+  Int a = 0xa;
+} while (a < 1)
+
+// if (1 <=> 2 > 0) {
+//   Int a = 0xa;
+//   Int b = 0xb;
+// }
 
 
 //

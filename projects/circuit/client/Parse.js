@@ -75,6 +75,7 @@ module.exports = Circuit => {
       this._scope = prg; this._defs = prg._defs
       this._acts = Object.assign({},_acts)
       this._defs = Object.assign({},prg._defs,this._mydefs)
+      // log('scope',_myacts)
       for (const actid in _myacts) {
         this._acts[actid] = Operator(this,..._myacts[actid])
       }
@@ -89,13 +90,13 @@ module.exports = Circuit => {
     getvar(name) {
       switch (name) {
         case 'true': case 'false':
-          return this.settype(name == 'true','Boolean')
-        case 'null': return this.settype('null','Void')
+          return this.rawval(name == 'true','Boolean')
+        case 'null': return this.rawval('null','Void')
         default: return this.newact('Getvar',name)
       }
     }
-    settype(rawval,typename) {
-      return this.newact('Settype',['Nativetype',typename],rawval)
+    rawval(rawval,typename) {
+      return this.newact('Rawval',['Nativetype',typename],rawval)
     }
     filter(filter,...args) {
       if (this[filter]) return this[filter](...args)

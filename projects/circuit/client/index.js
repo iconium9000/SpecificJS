@@ -239,9 +239,11 @@ function Circuit() {
 
   })
 
+	Circuit.locked = false
   socket.on('update', string => {
 
-		log(Circuit.Parse(string))
+		if (!Circuit.locked) log(Circuit.Parse(string))
+		Circuit.locked = true
 
 		// test(string)
   })
