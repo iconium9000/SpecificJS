@@ -97,9 +97,6 @@ module.exports = Circuit => {
     settype(rawval,typename) {
       return this.newact('Settype',['Nativetype',typename],rawval)
     }
-    getop(op,...args) {
-      return this.newact(op,...args)
-    }
     filter(filter,...args) {
       if (this[filter]) return this[filter](...args)
       else return this.error('filter error',filter)

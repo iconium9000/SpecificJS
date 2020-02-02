@@ -130,7 +130,7 @@ module.exports = Circuit => {
           prg = prg.newact('Gettype',typename)
           for (const i in ops) {
             const [op,...info] = ops[i]
-            prg = prg.newact('Nativecomp',op,prg._output,...info)
+            prg = prg.newact('Nativetemp',op,prg._output,...info)
           }
           return prg
         }
@@ -167,12 +167,12 @@ module.exports = Circuit => {
       _getvar2: {
         str: 'regx getval1 [comp _sub _mem] [repf comp _sub _mem]',
         fun: (prg, [gotvar, [op,...args], repop]) => {
-          prg = prg.newact(op,gotvar,...args)
+          prg = prg.newact('Op',op,gotvar,...args)
           if (prg._error) return prg
           else gotvar = prg._output
           for (const i in repop) {
             const [op,...args] = repop[i]
-            prg = prg.newact(op,gotvar,...args)
+            prg = prg.newact('Op',op,gotvar,...args)
             if (prg._error) return prg
             else gotvar = prg._output
           }
@@ -187,7 +187,7 @@ module.exports = Circuit => {
         fun: (prg, [gotval, repop]) => {
           for (const i in repop) {
             const [op,...args] = repop[i]
-            prg = prg.newact(op,gotval,...args)
+            prg = prg.newact('Op',op,gotval,...args)
             if (prg._error) return prg
             else gotval = prg._output
           }
@@ -280,19 +280,19 @@ module.exports = Circuit => {
 
       ternval: {
         str: 'regx getval15 space* ? space* getval16 space* : space* getval16',
-        fun: (prg, [bool,op,a,c,b]) => prg.newact(op,bool,a,b)
+        fun: (prg, [bool,op,a,c,b]) => prg.newact('Op',op,bool,a,b)
       },
 
       ternvar: {
         str: 'regx getval15 space* ? space* getvar16 space* : space* getvar16',
-        fun: (prg, [bool,op,a,c,b]) => prg.newact(op,bool,a,b),
+        fun: (prg, [bool,op,a,c,b]) => prg.newact('Op',op,bool,a,b),
       },
 
       _opassign: { str: 'regx [comp $+ - $* / % << >> & ^ $|] =' },
       opassign: {
         str: 'regx getvar3 space* _opassign space* getval16',
         fun: (prg,[gotvar,[op,eq],gotval]) => {
-          prg = prg.newact(op,gotvar,gotval)
+          prg = prg.newact('Op',op,gotvar,gotval)
           return prg.newact(eq,gotvar,prg._output)
         }
       },
@@ -300,11 +300,11 @@ module.exports = Circuit => {
 
       varassign: {
         str: 'regx getvar3 space* = space* getval16',
-        fun: (prg,[gotvar,op,gotval]) => prg.newact(op,gotvar,gotval),
+        fun: (prg,[gotvar,op,gotval]) => prg.newact('Op',op,gotvar,gotval),
       },
       defassign: {
         str: 'regx vardef space* = space* getval16',
-        fun: (prg,[gotdef,op,gotval]) => prg.newact(op,gotdef,gotval),
+        fun: (prg,[gotdef,op,gotval]) => prg.newact('Op',op,gotdef,gotval),
       },
 
 
@@ -316,7 +316,7 @@ module.exports = Circuit => {
 
       valspread: {
         str: 'regx ... space* getval16',
-        fun: (prg,[op,gotval]) => prg.newact(op,gotval),
+        fun: (prg,[op,gotval]) => prg.newact('Op',op,gotval),
       },
 
       _getval17: { str: 'comp valspread getval16', },
@@ -332,15 +332,15 @@ module.exports = Circuit => {
 
       ifop: {
         str: 'regx if space* ( space* getval16 space* ) space* scope',
-        fun: (prg,[op,p,gotval,q,scope]) => prg.newact(op,gotval,scope)
+        fun: (prg,[op,p,gotval,q,scope]) => prg.newact('Op',op,gotval,scope)
       },
       ifelse: {
         str: 'regx ifop space* else space* scope',
-        fun: (prg,[ifop,op,scope]) => prg.newact(op,ifop,scope)
+        fun: (prg,[ifop,op,scope]) => prg.newact('Op',op,ifop,scope)
       },
       whileop: {
         str: 'regx while space* ( space* getval16 space* ) space* scope',
-        fun: (prg,[op,p,gotval,q,scope]) => prg.newact(op,gotval,scope),
+        fun: (prg,[op,p,gotval,q,scope]) => prg.newact('Op',op,gotval,scope),
       },
 
       _statement: {
@@ -411,7 +411,7 @@ module.exports = Circuit => {
         }
         while (stack.length) {
           const [op,repval] = stack.pop()
-          prg = prg.newact(op,gotval,repval)
+          prg = prg.newact('Op',op,gotval,repval)
           if (prg._error) return prg
           else gotval = prg._output
         }

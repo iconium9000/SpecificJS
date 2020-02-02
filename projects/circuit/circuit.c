@@ -1,8 +1,8 @@
+a = 3;
 Int(Float,String) a = 1;
+Temp a = 1;
 
 
-// Int a = 1;
-// a = 3;
 //
 // a += b;
 // //

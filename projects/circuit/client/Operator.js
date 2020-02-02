@@ -9,12 +9,18 @@ module.exports = Circuit => {
     '*': {},
     '&': {},
   }
-  const nativecomps = {
+  const nativetemps = {
     '*': (prg) => {},
     '&': (prg) => {},
-    '()': (prg,type,...info) => {
-      
-      throw ['()',type,...info]
+    '()': (prg,returntype,...argtypes) => {
+      const _returntype = Operator(prg,...returntype)
+      const _argtypes = []
+      for (const i in argtypes) {
+        const _argtype = Operator(prg,...argtypes[i])
+        _argtypes.push(_argtype)
+      }
+      log(prg._acts, prg._stats.acts)
+      throw ['Nativetype','()',_returntype,_argtypes,returntype,argtypes]
     },
     '[]': (prg,type,info) => {},
   }
@@ -78,16 +84,27 @@ module.exports = Circuit => {
       if (act[0] == 'Newact') return ['Badop',['Badtype',...act]]
       return prg._acts[actid] = Operator(prg,...act)
     },
-    Getact: (prg,actid) => Operator(prg,'_Getact',null,actid),
-    _Getact: (prg,type,actid) => {
+    Getact: (prg,actid) => {
       let act = prg._acts[actid]
       if (act == null) {
         act = prg._stats.acts[actid]
         act = prg._acts[actid] = Operator(prg,...act)
       }
-      type = act[1]
-      return ['_Getact',type,actid]
+      log('Getact',act)
+      return act
     },
+    // Getact: (prg,actid) => Operator(prg,'_Getact',null,actid),
+    // _Getact: (prg,type,actid) => {
+    //   let act = prg._acts[actid]
+    //   if (act == null) {
+    //     act = prg._stats.acts[actid]
+    //     act = prg._acts[actid] = Operator(prg,...act)
+    //   }
+    //   log('_Getact',act)
+    //   return act
+    //   type = act[1]
+    //   return ['_Getact',type,actid]
+    // },
     Settype: (prg,type,rawval) => ['Settype',type,rawval],
     Badop: (prg,...args) => ['Badop',...args],
     Vardef: (prg,type,varname) => Operator(prg,'_Vardef',null,type,varname),
@@ -101,18 +118,9 @@ module.exports = Circuit => {
       throw ['Gettype',typename]
     },
     Nativetype: (prg,typename) => ['Nativetype',typename],
-    Nativecomp: (prg,compname,type,...info) => {
-      return nativecomps[compname](prg,type,...info)
+    Nativetemp: (prg,compname,type,...info) => {
+      return nativetemps[compname](prg,type,...info)
     },
-    // Gettype: (prg,typename,...ops) => {
-    //   return Operator(prg,'_Gettype',['Badtype','Gettype',typename],ops)
-    // },
-    // _Gettype: (prg,type,ops) => {
-    //   const [badtype,gettype,typename] = type
-    //   const actid = prg._defs[typename]
-    //   if (actid == null) return ['_Gettype',type,ops]
-    //   throw 'wtf'
-    // },
     Getvar: (prg,varname) => {
       return Operator(prg,'_Getvar',['Badtype','Getvar',varname])
     },
@@ -126,7 +134,9 @@ module.exports = Circuit => {
     Getdef: (prg,type,actid) => {
       return ['Getdef',type,actid]
     },
-    Op: (prg,type,op,...args) => {
+    Op: (prg,op,...args) => Operator(prg,'_Op',null,op,...args),
+    _Op: (prg,type,op,...args) => {
+      // throw [type,op,...args]
       let flag = false; type = []
       const _args = []
       for (const i in args) {
@@ -135,12 +145,9 @@ module.exports = Circuit => {
         type.push(_type)
         _args.push(arg)
       }
-      if (flag) return ['Op',['Badtype',...type],op,..._args]
-      return ['Op',_opmap[op](prg,..._args),op,..._args]
+      if (flag) return ['_Op',['Badtype',...type],op,..._args]
+      return ['_Op',_opmap[op](prg,..._args),op,..._args]
     },
-  }
-  for (const op in _opmap) {
-    opmap[op] = (prg,...args) => Operator(prg,'Op',null,op,...args)
   }
 
 
