@@ -1,13 +1,17 @@
+Int a = 1;
+a[1] = 3;
+// Int[4] = [1,2];
+
 // Void a = null;
 // Int(String,Float) k = "Int(String,Float)";
-// String[2][5](Int,Float) a = "Int[2][5]";
+// String[10][15](Int,Float) a = "Int[2][5]";
 // Int p = a = "Int";
 // Temp a = 1;
-
-do {
-  Int a = 0xa;
-} while (a < 1)
-
+//
+// do {
+//   Int a = 0xa;
+// } while (a < 1)
+//
 // if (1 <=> 2 > 0) {
 //   Int a = 0xa;
 //   Int b = 0xb;
@@ -62,6 +66,10 @@ do {
 // //
 // // i += 5;
 // // Int[10] f = [1,2,3,4];
+// Int[4] a4 = [1,2,3,4];
+// Bool f = false;
+// Int m = f ? f : 10;
+// Bool k = m;
 // Int[6][45] a = 1243 + 3 ? 10 : f ? a = 654 : 65 / 4 + 2;
 // a = "Int[6][45]";
 //

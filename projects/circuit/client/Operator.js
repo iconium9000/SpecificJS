@@ -1,169 +1,151 @@
 module.exports = Circuit => {
 
-  function matchtypes(...types) {
-    const _types = {}, {length} = types
-    for (const i in types) _types[i] = JSON.stringify(types[i])
+  function matchtypes(prg,op,...types) {
+    const _types = {}, {length} = types; let flag = false
+    for (const i in types) {
+      _types[i] = JSON.stringify(types[i] = Operator(prg,types[i]))
+      flag = flag || types[i][0] == 'Badget'
+    }
+    if (flag) return ['Badget',op,...types]
     for (let i = 0; i < length-1; ++i) {
       for (let j = i+1; j < length; ++j) {
-        if (_types[i] != _types[j]) return false
+        if (_types[i] != _types[j]) return ['Matcherror',op,...types]
       }
     }
-    return true
+    return types[0]
   }
 
   const nativetypes = {
-    Int: {},
-    Float: {},
-    Void: {},
-    String: {},
-    Boolean: {},
-    '*': {},
-    '&': {},
-  }
-  const nativetemps = {
-    '*': (prg) => {},
-    '&': (prg) => {},
-    '()': (prg,...gottypes) => {
-      const type = ['Nativetype','()']
-      for (const i in gottypes) type.push(gottypes[i][1])
-      return type
-    },
-    '[]': (prg,[got,type],[tok,sizetype,actid]) => {
-      if (type[0] == 'Badtype') return ['Badtype','[]',type]
-      else if (sizetype != 'Nativetype,Int') {
-        return ['Badtype','[]','sizetype',sizetype]
-      }
-      else if (tok != '_Getact') return ['Badtype','[]','getact',tok]
-      const [_tok,_sizetype,rawval] = prg._acts[actid]
-      if (_tok != 'Rawval') return ['Badtype','[]','getsize',_tok]
-      else if (rawval > 0) return ['Nativetype','[]',type,rawval]
-      else return ['Badtype','[]','sizeerror',rawval]
-    },
-  }
+    Int: {
 
-  const _def = (prg,...args) => {
-    const type = ['Badtype','Defop',...args]
-    return type
+    },
+    Float: {
+
+    },
+    Void: {
+
+    },
+    String: {
+
+    },
+    Bool: {
+
+    },
   }
-  function boolmatch(prg,bool,scope) {
-    if (bool == 'Nativetype,Boolean') return ['Nativetype','Boolean']
-    else return ['Badtype','typematch',bool]
-  }
-  function match1(nativetype) {
-    return (prg,a) => nativetype ? ['Nativetype',nativetype] : a
-  }
-  function match2(nativetype) {
-    return (prg,a,b) => {
-      if (matchtypes(a,b)) return nativetype ? ['Nativetype',nativetype] : a
-      else return ['Badtype','typematch',a,b]
+  function boolcomp(op) {
+    return (prg,aid,bid) => {
+      const atype = Operator(prg,aid)
+      const btype = Operator(prg,bid)
+      if (atype[0] == 'Badget' || btype[0] == 'Badget') {
+        return ['Badget',op,atype,btype]
+      }
+      else return ['Nativetype','Bool']
     }
   }
-  const _opmap = {
-    '+': match2(),
-    '-': match2(),
-    '%': match2(),
-    '/': match2(),
-    '*': match2(),
-    '!': match1('Boolean'),
-    '~': match1(),
-    '&': match2(),
-    '|': match2(),
-    'Pre+': match1(),
-    'Pre-': match1(),
+  function boolmatch(op) {
+    return (prg,bool,scope) => {
+      bool = Operator(prg,bool)
+      if (bool == 'Nativetype,Bool') return ['Nativetype','Bool']
+      else return ['Badget',op,'typematch',bool]
+    }
+  }
+  function match1(nativetype) {
+    return (prg,a) => nativetype ? ['Nativetype',nativetype] : Operator(prg,a)
+  }
+  function matchall(op,nativetype) {
+    return (prg,...args) => {
+      const type = matchtypes(prg,op,...args)
+      if (type[0] == 'Badget' || type[0] == 'Matcherror') return type
+      else if (nativetype) return ['Nativetype',nativetype]
+      else return type
+    }
+  }
+
+  const opmap = {
+    Getvar: (prg,varname) => {
+      const actid = prg._defs[varname]
+      if (actid == null) return ['Badget','Getvar',varname]
+      else return Operator(prg,actid)
+    },
+    Gettype: (prg,typename) => {
+      if (nativetypes[typename]) return ['Nativetype',typename]
+      const actid = prg._defs[typename]
+      if (actid == null) return ['Badget','Gettype',typename]
+      const type = Operator(prg,actid)
+      if (type[0] == 'Typedef') return type[1]
+      else return ['Badget','Gettype',type]
+    },
+    Vardef: (prg,actid,varname) => Operator(prg,actid),
+    Rawval: (prg,typename,rawval) => ['Nativetype',typename],
+    '+': null,
+    '-': null,
+    '%': null,
+    '/': null,
+    '*': null,
+    '!': null,
+    '~': null,
+    '&': null,
+    '|': null,
+    'Pre+': null,
+    'Pre-': null,
     'Pre*': null,
     'Pre&': null,
-    'Pre++': match1(),
-    'Pre--': match1(),
-    'Post++': match1(),
-    'Post--': match1(),
+    'Pre++': null,
+    'Pre--': null,
+    'Post++': null,
+    'Post--': null,
     '?': null,
-    '<': match2('Boolean'),
-    '>': match2('Boolean'),
-    '<=': match2('Boolean'),
-    '>=': match2('Boolean'),
-    '==': match2('Boolean'),
-    '!=': match2('Boolean'),
-    '<=>': match2('Int'),
-    '=': match2(),
-    '&&': match2(),
-    '||': match2(),
-    'if': boolmatch,
-    'else': boolmatch,
-    'while': boolmatch,
-    'do': boolmatch,
-    'for': boolmatch,
+    '<': null,
+    '>': null,
+    '<=': null,
+    '>=': null,
+    '==': null,
+    '!=': null,
+    '<=>': null,
+    '=': null,
+    '&&': null,
+    '||': null,
+    'if': null,
+    'else': null,
+    'while': null,
+    'do': null,
+    'for': null,
     ',': null,
-    'Scope': match1('Void'),
+    'Scope': null,
     'Callfun': null,
     'Subscrpt': null,
     'Array': null,
-  }
-  for (const i in _opmap) if (_opmap[i] == null) _opmap[i] = _def
-
-  const opmap = {
-    Newact: (prg,actid) => {
-      const act = prg._stats.acts[actid]
-      if (act[0] == 'Newact') return ['Badop',['Badtype',...act]]
-      return prg._acts[actid] = Operator(prg,...act)
+    'Funtype': (prg,...args) => {
+      const type = ['Funtype']
+      for (const i in args) type.push(Operator(prg,args[i]))
+      return type
     },
-    Getact: (prg,actid) => Operator(prg,'_Getact',null,actid),
-    _Getact: (prg,nulltype,actid) => {
-      let act = prg._acts[actid]
-      if (act == null) {
-        act = prg._stats.acts[actid]
-        act = prg._acts[actid] = Operator(prg,...act)
+    'Arraytype': (prg,typeid,sizeid) => {
+      const [tok,typename,rawval] = prg._stats.acts[sizeid]
+      if (tok == 'Rawval' && typename == 'Int' && rawval > 0) {
+        const type = Operator(prg,typeid)
+        if (type[0] == 'Badget') return ['Badget','Arraytype',type]
+        return ['Arraytype',type,rawval]
       }
-      return ['_Getact',act[1],actid]
-    },
-    Rawval: (prg,type,rawval) => ['Rawval',type,rawval],
-    Badop: (prg,...args) => ['Badop',...args],
-    Vardef: (prg,type,varname) => Operator(prg,'_Vardef',null,type,varname),
-    _Vardef: (prg,nulltype,gettype,varname) => {
-      return ['_Vardef',Operator(prg,...gettype)[1],gettype,varname]
-    },
-    Gettype: (prg,typename) => {
-      if (nativetypes[typename]) return ['Gottype',['Nativetype',typename]]
-
-      throw ['Gettype',typename]
-    },
-    Nativetype: (prg,typename) => ['Gottype',['Nativetype',typename]],
-    Gottype: (prg,type) => ['Gottype',type],
-    Nativetemp: (prg,tempname,...info) => {
-      return Operator(prg,'_Nativetemp',null,tempname,...info)
-    },
-    _Nativetemp: (prg,nulltype,tempname,...info) => {
-      const _info = []
-      for (const i in info) _info.push(Operator(prg,...info[i]))
-      const type = nativetemps[tempname](prg,..._info)
-      return ['_Nativetemp',type,tempname,...info]
-    },
-    Getvar: (prg,varname) => {
-      return Operator(prg,'_Getvar',['Badtype','Getvar',varname])
-    },
-    _Getvar: (prg,type) => {
-      const [badtype,getvar,varname] = type
-      const actid = prg._defs[varname]
-      if (actid == null) return ['_Getvar',type]
-      const [tok,_type] = Operator(prg,'Getact',actid)
-      return Operator(prg,'Getdef',_type,actid)
-    },
-    Getdef: (prg,type,actid) => ['Getdef',type,actid],
-    Op: (prg,op,...args) => Operator(prg,'_Op',null,op,...args),
-    _Op: (prg,type,op,...args) => {
-      // throw [type,op,...args]
-      let flag = false; type = []
-      const _args = []
-      for (const i in args) _args.push(Operator(prg,...args[i])[1])
-      return ['_Op',_opmap[op](prg,..._args),op,...args]
-    },
+      else return ['Badget','sizeerror',sizeact]
+    }
+  }
+  for (const op in opmap) if (opmap[op] == null) {
+    opmap[op] = (prg,...args) => {
+      log(...args)
+      throw op
+    }
   }
 
 
-  function Operator(prg,tok,...args) {
-    log('Operator',tok,...args)
-    if (opmap[tok]) return opmap[tok](prg,...args)
-    throw ['badop',tok,...args]
-    return Operator(prg,'Badop',['Badtype',tok,...args])
+  function Operator(prg,actid,nulltype) {
+    const type = nulltype || prg._acts[actid]
+    if (type && type[0] != 'Badget') return type
+
+    const [tok,...args] = prg._stats.acts[actid]
+    if (opmap[tok]) return prg._acts[actid] = opmap[tok](prg,...args)
+    log('Operator',actid,type,tok,...args)
+    throw 'Operator'
   }
   return Operator
 }

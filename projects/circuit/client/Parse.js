@@ -7,17 +7,27 @@ module.exports = Circuit => {
     static init(
       string,tok, // String
     ) {
-      const _prg = new this
-      _prg._startidx = 0
-      _prg._idx = 0
-      _prg._depth = 0
-      _prg._stats = {
+      let prg = new this
+      prg._startidx = 0
+      prg._idx = 0
+      prg._depth = 0
+      prg._stats = {
         map: {},
         acts: [],
         string: string,
         copies: 0,
       }
-      return _prg.clear.tok(tok).resolveget
+      prg = prg.clear.tok(tok)
+
+      const {_acts} = prg, badacts = {}
+      for (const i in _acts) {
+        const [tok] = _acts[i]
+        if (tok == 'Badget' || tok == 'Matcherror') {
+          badacts[i] = _acts[i]
+        }
+      }
+      for (const i in badacts) return prg.error('Badacts',badacts)
+      return prg
     }
     get string() {
       return this._stats.string.slice(this._startidx,this._idx)
@@ -49,10 +59,6 @@ module.exports = Circuit => {
       copy._error = error
       return copy
     }
-    get resolveget() {
-      // TODO check for dangling Getvar's
-      return this
-    }
     get split() {
       return this.copy.clear
     }
@@ -77,26 +83,25 @@ module.exports = Circuit => {
       this._defs = Object.assign({},prg._defs,this._mydefs)
       // log('scope',_myacts)
       for (const actid in _myacts) {
-        this._acts[actid] = Operator(this,..._myacts[actid])
+        this._acts[actid] = Operator(this,actid,_myacts[actid])
       }
       return this
     }
     newact(...args) {
-      const {acts} = this._stats, actid = acts.length
-      acts.push(args)
-      Operator(this,'Newact',actid)
-      return this.output(['Getact',actid])
+      const {acts} = this._stats, actid = acts.length; acts.push(args)
+      Operator(this,actid,['Badget','Getact'])
+      return this.output(actid)
     }
     getvar(name) {
       switch (name) {
         case 'true': case 'false':
-          return this.rawval(name == 'true','Boolean')
+          return this.rawval(name == 'true','Bool')
         case 'null': return this.rawval('null','Void')
         default: return this.newact('Getvar',name)
       }
     }
     rawval(rawval,typename) {
-      return this.newact('Rawval',['Nativetype',typename],rawval)
+      return this.newact('Rawval',typename,rawval)
     }
     filter(filter,...args) {
       if (this[filter]) return this[filter](...args)
@@ -117,7 +122,7 @@ module.exports = Circuit => {
     }
 
     get empty() {
-      if (this._output || this._error) return this.copy
+      if (this._output != null || this._error) return this.copy
       else return this
     }
 
@@ -183,7 +188,7 @@ module.exports = Circuit => {
         else prg = prg.filter(...arg)
 
         if (prg._error) return prg.error('regx error', arg, prg._error)
-        else if (prg._output) output.push(prg._output)
+        else if (prg._output != null) output.push(prg._output)
       }
       return prg.output(output)
     }
@@ -194,7 +199,7 @@ module.exports = Circuit => {
         const _prg = prg.tok(tok)
         if (_prg._error) break
         else prg = _prg
-        if (prg._output) output.push(prg._output)
+        if (prg._output != null) output.push(prg._output)
       }
       return prg.output(output)
     }
@@ -205,7 +210,7 @@ module.exports = Circuit => {
         const _prg = prg.filter(tok,...args)
         if (_prg._error) break
         else prg = _prg
-        if (prg._output) output.push(prg._output)
+        if (prg._output != null) output.push(prg._output)
       }
       return prg.output(output)
     }
@@ -214,11 +219,11 @@ module.exports = Circuit => {
   function Parse(string) {
     let prg = Prg.init(string,'start')
 
-    if (prg._error) console.error('\n\n\nerror',prg._idx, prg._error)
-    else if (prg._output) log('\n\n\noutput',prg._output)
+    if (prg._error) error('\n\n\nerror',prg._idx, prg._error)
+    else if (prg._output != null) log('\n\n\noutput',prg._output)
     if (prg._stats.string.length > prg._idx) console.error('_idx error')
     log(prg)
-    log(prg._acts)
+    log(prg._acts,prg._stats.acts)
   }
   return Parse
 }
