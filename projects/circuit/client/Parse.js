@@ -22,7 +22,7 @@ module.exports = Circuit => {
       const {_acts} = prg, badacts = {}
       for (const i in _acts) {
         const [tok] = _acts[i]
-        if (tok == 'Badget' || tok == 'Matcherror') {
+        if (tok == 'Badget' || tok == 'Typeerror') {
           badacts[i] = _acts[i]
         }
       }

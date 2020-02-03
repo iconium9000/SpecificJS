@@ -1,20 +1,5 @@
 module.exports = Circuit => {
 
-  function matchtypes(prg,op,...types) {
-    const _types = {}, {length} = types; let flag = false
-    for (const i in types) {
-      _types[i] = JSON.stringify(types[i] = Operator(prg,types[i]))
-      flag = flag || types[i][0] == 'Badget'
-    }
-    if (flag) return ['Badget',op,...types]
-    for (let i = 0; i < length-1; ++i) {
-      for (let j = i+1; j < length; ++j) {
-        if (_types[i] != _types[j]) return ['Matcherror',op,...types]
-      }
-    }
-    return types[0]
-  }
-
   const nativetypes = {
     Int: {
 
@@ -32,36 +17,13 @@ module.exports = Circuit => {
 
     },
   }
-  function boolcomp(op) {
-    return (prg,aid,bid) => {
-      const atype = Operator(prg,aid)
-      const btype = Operator(prg,bid)
-      if (atype[0] == 'Badget' || btype[0] == 'Badget') {
-        return ['Badget',op,atype,btype]
-      }
-      else return ['Nativetype','Bool']
-    }
-  }
-  function boolmatch(op) {
-    return (prg,bool,scope) => {
-      bool = Operator(prg,bool)
-      if (bool == 'Nativetype,Bool') return ['Nativetype','Bool']
-      else return ['Badget',op,'typematch',bool]
-    }
-  }
-  function match1(nativetype) {
-    return (prg,a) => nativetype ? ['Nativetype',nativetype] : Operator(prg,a)
-  }
-  function matchall(op,nativetype) {
-    return (prg,...args) => {
-      const type = matchtypes(prg,op,...args)
-      if (type[0] == 'Badget' || type[0] == 'Matcherror') return type
-      else if (nativetype) return ['Nativetype',nativetype]
-      else return type
-    }
-  }
 
-  const opmap = {
+  const oparray = [
+    '+','-','%','/','*','!','~','&','|',
+    'Pre+','Pre-','Pre*','Pre&','Pre++','Pre--','Post++','Post--',
+    '?','<','>','<=','>=','==','!=','<=>','=','&&','||','Callfun','Subscrpt',
+  ]
+  const opmap = {}, actmap = {
     Getvar: (prg,varname) => {
       const actid = prg._defs[varname]
       if (actid == null) return ['Badget','Getvar',varname]
@@ -77,34 +39,7 @@ module.exports = Circuit => {
     },
     Vardef: (prg,actid,varname) => Operator(prg,actid),
     Rawval: (prg,typename,rawval) => ['Nativetype',typename],
-    '+': null,
-    '-': null,
-    '%': null,
-    '/': null,
-    '*': null,
-    '!': null,
-    '~': null,
-    '&': null,
-    '|': null,
-    'Pre+': null,
-    'Pre-': null,
-    'Pre*': null,
-    'Pre&': null,
-    'Pre++': null,
-    'Pre--': null,
-    'Post++': null,
-    'Post--': null,
-    '?': null,
-    '<': null,
-    '>': null,
-    '<=': null,
-    '>=': null,
-    '==': null,
-    '!=': null,
-    '<=>': null,
-    '=': null,
-    '&&': null,
-    '||': null,
+
     'if': null,
     'else': null,
     'while': null,
@@ -112,11 +47,11 @@ module.exports = Circuit => {
     'for': null,
     ',': null,
     'Scope': null,
-    'Callfun': null,
-    'Subscrpt': null,
     'Array': null,
+    'Pntrtype': null,
+    'Addrtype': null,
     'Funtype': (prg,...args) => {
-      const type = ['Funtype']
+      const type = ['Temptype','Fun']
       for (const i in args) type.push(Operator(prg,args[i]))
       return type
     },
@@ -125,25 +60,46 @@ module.exports = Circuit => {
       if (tok == 'Rawval' && typename == 'Int' && rawval > 0) {
         const type = Operator(prg,typeid)
         if (type[0] == 'Badget') return ['Badget','Arraytype',type]
-        return ['Arraytype',type,rawval]
+        return ['Temptype','Array',type,rawval]
       }
       else return ['Badget','sizeerror',sizeact]
     }
   }
-  for (const op in opmap) if (opmap[op] == null) {
-    opmap[op] = (prg,...args) => {
+  for (const op in actmap) if (actmap[op] == null) {
+    actmap[op] = (prg,...args) => {
       log(...args)
       throw op
     }
   }
+  for (const i in oparray) opmap[oparray[i]] = true
 
-
+  function doop(prg,tok,...args) {
+    const types = []
+    for (const i in args) types.push(Operator(prg,args[i]))
+    const roottype = types[0]
+    for (const i in types) if (types[i][0] == 'Badget') {
+      return ['Badget',tok,...types]
+    }
+    let opfun
+    switch (roottype[0]) {
+      case 'Nativetype':
+        opfun = nativetypes[roottype[1]][tok]
+        if (opfun) return opfun(prg,args,types)
+        else return ['Typeerror',tok,...types]
+      case 'Typeerror': return ['Typeerror',tok,...types]
+      default:
+        log('doop',tok,args,types)
+        throw 'doop'
+    }
+  }
+  
   function Operator(prg,actid,nulltype) {
     const type = nulltype || prg._acts[actid]
     if (type && type[0] != 'Badget') return type
 
     const [tok,...args] = prg._stats.acts[actid]
-    if (opmap[tok]) return prg._acts[actid] = opmap[tok](prg,...args)
+    if (actmap[tok]) return prg._acts[actid] = actmap[tok](prg,...args)
+    else if (opmap[tok]) return prg._acts[actid] = doop(prg,tok,...args)
     log('Operator',actid,type,tok,...args)
     throw 'Operator'
   }
