@@ -14,39 +14,38 @@ module.exports = Circuit => {
       prg._stats = {
         map: {},
         acts: [],
+        types: {},
+        acttypes: {},
+        actscopes: {},
+        typemap: {},
+        realacts: [],
+        scopes: [],
+        scope: {},
         string: string,
         copies: 0,
       }
-      prg = prg.clear.tok(tok)
-
-      const {_acts} = prg, badacts = {}
-      for (const i in _acts) {
-        const [tok] = _acts[i]
-        if (tok == 'Badget' || tok == 'Typeerror') {
-          badacts[i] = _acts[i]
-        }
+      prg = prg.tok(tok)
+      try {
+        Operator(prg._stats,prg._output)
       }
-      for (const i in badacts) return prg.error('Badacts',badacts)
+      catch (e) {
+        return prg.error(e)
+      }
       return prg
     }
     get string() {
       return this._stats.string.slice(this._startidx,this._idx)
     }
-    get clear() {
-      this._acts = {}
-      this._defs = {}
-      return this
-    }
     get copy() {
-      const {_stats,_idx,_depth,_scope,_startidx,_acts,_defs} = this
+      const {_stats,_idx,_depth,_scope,_startidx} = this
       const prg = new Prg
-      prg._startidx = _startidx; prg._idx = _idx
+      ++_stats.copies
+      prg._startidx = _startidx
+      prg._idx = _idx
       prg._stats = _stats
       prg._depth = _depth+1
-      prg._scope = _scope; prg._src = this
-      prg._acts = _acts; prg._defs = _defs
-      prg._myacts = {}
-      ++_stats.copies
+      prg._scope = _scope
+      prg._src = this
       return prg
     }
     output(input) {
@@ -59,46 +58,13 @@ module.exports = Circuit => {
       copy._error = error
       return copy
     }
-    get split() {
-      return this.copy.clear
-    }
-    get join() {
-      this._myacts = this._acts
-      this._mydefs = this._defs
-      return this
-    }
-    get endsplit() {
-      this._defs = {}
-      return this
-    }
-    get myacts() {
-      const {_acts,_stats:{acts}} = this, myacts = {}
-      for (const i in _acts) myacts[_acts[i]] = acts[_acts[i]]
-      return myacts
-    }
     scope(prg) {
-      const {_defs,_acts} = prg, {_myacts,_stats:{acts}} = this
-      this._scope = prg; this._defs = prg._defs
-      this._acts = Object.assign({},_acts)
-      this._defs = Object.assign({},prg._defs,this._mydefs)
-      // log('scope',_myacts)
-      for (const actid in _myacts) {
-        this._acts[actid] = Operator(this,actid,_myacts[actid])
-      }
+      this._scope = prg
       return this
     }
     newact(...args) {
-      const {acts} = this._stats, actid = acts.length; acts.push(args)
-      Operator(this,actid,['Badget','Getact'])
+      const actid = this._stats.acts.push(args) - 1
       return this.output(actid)
-    }
-    getvar(name) {
-      switch (name) {
-        case 'true': case 'false':
-          return this.rawval(name == 'true','Bool')
-        case 'null': return this.rawval('null','Void')
-        default: return this.newact('Getvar',name)
-      }
     }
     rawval(rawval,typename) {
       return this.newact('Rawval',typename,rawval)
@@ -118,39 +84,32 @@ module.exports = Circuit => {
       const {_idx,_stats:{map},_depth} = this
       if (!map[_idx]) map[_idx] = {}
       else if (map[_idx][tok]) return map[_idx][tok].scope(this)
-      return Tok(this.split,tok).map(this,_idx,tok)
+      return Tok(this,tok).map(this,_idx,tok)
     }
-
     get empty() {
       if (this._output != null || this._error) return this.copy
       else return this
     }
-
     idx(idx) {
       this._startidx = this._idx
       this._idx = idx
       return this
     }
-
     match(match) {
       const {_idx,_stats:{string}} = this, off = _idx + match.length
       if (string.slice(_idx,off) == match) return this.output(match).idx(off)
       else return this.error('no match',match)
     }
-
-
     range(low, upr) {
       const c = this._stats.string[this._idx]
       if (low <= c && c <= upr) return this.output(c).idx(this._idx+1)
       else return this.error('range error',c,low,upr)
     }
-
     not(not) {
       const _prg = this.match(not)
       if (_prg._error) return this.empty
       else return this.error('not error',not)
     }
-
     endat(tok,skip) {
       let output = '', {_idx, _stats:{string}} = this
     	while (_idx < string.length) {
@@ -162,7 +121,6 @@ module.exports = Circuit => {
     	}
       return this.error('endat error',tok)
     }
-
     comp(...args) {
       const errors = []
       for (const i in args) {
@@ -177,7 +135,6 @@ module.exports = Circuit => {
       }
       return this.error('comp error',...errors)
     }
-
     regx(...args) {
       let prg = this; const output = []
 
@@ -192,7 +149,6 @@ module.exports = Circuit => {
       }
       return prg.output(output)
     }
-
     rept(tok) {
       let prg = this; const output = [], {length} = this._stats.string
       while (prg._idx < length) {
@@ -203,7 +159,6 @@ module.exports = Circuit => {
       }
       return prg.output(output)
     }
-
     repf(tok, ...args) {
       let prg = this; const output = [], {length} = this._stats.string
       while (prg._idx < length) {
@@ -219,11 +174,14 @@ module.exports = Circuit => {
   function Parse(string) {
     let prg = Prg.init(string,'start')
 
-    if (prg._error) error('\n\n\nerror',prg._idx, prg._error)
+    if (prg._error) error('\n\n\nerror',prg._idx, ...prg._error)
     else if (prg._output != null) log('\n\n\noutput',prg._output)
     if (prg._stats.string.length > prg._idx) console.error('_idx error')
+    for (const i in prg._stats.acttypes) {
+      log(i,prg._stats.acts[i],prg._stats.acttypes[i])
+    }
     log(prg)
-    log(prg._acts,prg._stats.acts)
+
   }
   return Parse
 }

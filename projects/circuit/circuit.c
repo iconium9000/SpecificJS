@@ -1,5 +1,25 @@
-Int[3] a = [1,2,3];
-a[1] = 3;
+
+Int k = -1.94;
+Int[3] a = true ? [1,false,k] : [1,2.6,0];
+Int i = (Int) a;
+
+if (123 < 3 || i > 3) {
+  i = 5;
+}
+else if (4 > 3) {
+  Int i = 9;
+  i = null;
+}
+else while (i-- > 10.6);
+
+// const oparray = [
+//   '+','-','%','/','*','!','~','&','|',
+//   'Pre+','Pre-','Pre*','Pre&','Pre++','Pre--','Post++','Post--',
+//   '<','>','<=','>=','==','!=','<=>','=','&&','||',
+//   'Callfun','Subscript','Typecast',
+// ]
+
+// a[1] = 3;
 // Int[4] = [1,2];
 
 // Void a = null;
@@ -37,14 +57,6 @@ a[1] = 3;
 // //
 // // String i = " asdf ";
 //
-// if (123 < 3 || i > 3) {
-//   log("bad");
-// }
-// else if (fun(1)) {
-//   Int a = 3;
-//   catch("good");
-// }
-// else while (i-- > 10.6);
 // //
 // ;
 // //
