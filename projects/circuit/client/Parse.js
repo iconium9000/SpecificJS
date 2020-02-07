@@ -1,6 +1,6 @@
 module.exports = Circuit => {
 
-  const {Tok,Operator} = Circuit
+  const {Tok,Scope,Stats} = Circuit
 
   class Prg {
 
@@ -11,26 +11,13 @@ module.exports = Circuit => {
       prg._startidx = 0
       prg._idx = 0
       prg._depth = 0
-      prg._stats = {
-        map: {},
-        acts: [],
-        types: {},
-        acttypes: {},
-        actscopes: {},
-        typemap: {},
-        realacts: [],
-        scopes: [],
-        scope: {},
-        string: string,
-        copies: 0,
-      }
-      prg = prg.tok(tok)
+      prg._stats = new Stats(string)
+      prg._stats.scope = prg._stats.rootscope
       try {
-        Operator(prg._stats,prg._output)
+        prg = prg.tok(tok)
+        prg._stats._doact(prg._output)
       }
-      catch (e) {
-        return prg.error(e)
-      }
+      catch (e) { return prg.error(e) }
       return prg
     }
     get string() {
@@ -176,11 +163,12 @@ module.exports = Circuit => {
 
     if (prg._error) error('\n\n\nerror',prg._idx, ...prg._error)
     else if (prg._output != null) log('\n\n\noutput',prg._output)
-    if (prg._stats.string.length > prg._idx) console.error('_idx error')
-    for (const i in prg._stats.acttypes) {
-      log(i,prg._stats.acts[i],prg._stats.acttypes[i])
-    }
     log(prg)
+    const {rootscope,acts,acttypes} = prg._stats
+    for (const i in rootscope.acts) {
+      const actid = rootscope.acts[i]
+      log(actid, acts[actid], acttypes[actid])
+    }
 
   }
   return Parse
