@@ -5,43 +5,60 @@ module.exports = Circuit => {
       this.parent = parent
       this.vardefs = {}
       this.typedefs = {}
-      this.acts = []
+      this.valdefs = []
     }
+
+    getvardef(varname) {
+      throw ['getvardef',varname]
+    }
+    gettypedef(typename) {
+      throw ['gettypedef',typename]
+    }
+
   }
 
-  class Type {
-    static init() { throw 'Bad Type Init' }
+  const nativetypes = {}
+  nativetypes.Type = class Type {
+    static init(stat) { throw 'Bad Type Init' }
+    static _rawval(stat,rawval) { throw 'Bad Type _rawval' }
   }
-  class Void extends Type {
-    static init() { return this }
-    static ['Pre-'] (s,actid,valid) {
-      s.acts.push(actid)
-      return this
-    }
+  nativetypes.Void = class Void extends nativetypes.Type {
+    static init(stat) { return this }
+    static _rawval(stat,rawval) { return stat._newval(this) }
   }
-  class Bool extends Void {}
-  class Char extends Bool {}
-  class Int extends Char {}
-  class Float extends Int {}
-  class Tuple extends Type {
-    static init(...types) {
-      const _tuple = Object.create(this.prototype)
-      _tuple.types = types
-      return _tuple
-    }
-  }
-  class Array extends Tuple {
-    static init(...types) {
-      throw ['Array',...types]
-    }
-  }
-  class String extends Array {}
+  nativetypes.Bool = class Bool extends nativetypes.Void {
+    static _rawval(stat,rawval) {
+      const valin = stat._newval(this)
 
-  const nativetypes = {
-    Type:Type, Void:Void, Bool:Bool, Char:Char, Int:Int, Float:Float,
-    String:String, Tuple:Tuple, Array:Array,
+    }
   }
+  nativetypes.Char = class Char extends nativetypes.Bool {}
+  nativetypes.Int = class Int extends nativetypes.Char {}
+  nativetypes.Float = class Float extends nativetypes.Int {}
+  nativetypes.Tuple = class Tuple extends nativetypes.Type {
+    static init(stat,...types) {
+      throw ['Tuple init',...types]
 
+      // const _tuple = Object.create(this.prototype)
+      // _tuple.types = types
+      // return _tuple
+    }
+  }
+  nativetypes.Array = class Array extends nativetypes.Void {
+    static init(stat,type,size) {
+      throw ['Array',type,size]
+    }
+  }
+  nativetypes.String = class String extends nativetypes.Array {
+    static init(stat,size) {
+      super(stat,nativetypes.Char,size)
+    }
+    static _rawval(stat,rawval) {
+      const type = this.init(stat,rawval.length)
+      const valin = stat._newval(type)
+      
+    }
+  }
 
   class Stats {
     constructor(string) {
@@ -50,19 +67,16 @@ module.exports = Circuit => {
       this.string = string
       this.copies = 0
 
-      this.acttypes = {}
       this.scope = this.rootscope = new Scope
     }
 
+    _getintype(valin) {
+      throw ['_gettype',valin]
+    }
     _doact(actid) {
-      const type = this.acttypes[actid]
-      if (type) return type
-
       const [tok,...args] = this.acts[actid]
       try {
-        if (this[tok]) {
-          return this.acttypes[actid] = this[tok](actid,...args)
-        }
+        if (this[tok]) return this[tok](actid,...args)
         else throw ['_doact tok error',tok,...args]
       }
       catch (e) {
@@ -70,40 +84,37 @@ module.exports = Circuit => {
         throw e
       }
     }
-
-    _gettypedef(typename) {
-      const typedef = this.typedefs[typename]
-      if (typedef != undefined) return typedef
-      else if (this.parent) return this.parent._gettypedef(typename)
-      else return null
+    _doacts(...actids) {
+      for (const i in actids) actids[i] = this._doact(actids[i])
+      return actids
     }
-    _gettypes(...actids) {
-      const types = []
-      for (const i in actids) types.push(this._doact(actids[i]))
-      return types
+    _newvar(type,varname) {
+      throw ['_newvar',type]
+    }
+    _newval(type) {
+      throw ['_newval',type]
+    }
+    _setval(dstid,srcid) {
+      throw ['_setval',dstid,srcid]
+    }
+
+    _singleop(actid) {
+      const [tok,aid] = this.acts[actid]
+      const ain = this._doact(aid)
+      const type = this._getintype(ain)
+      if (type[tok]) return type[tok](this,ain)
+      else throw ['_singleop bad tok',type,tok]
+    }
+    _doubleop(actid,typename) {
+      const [tok,aid,bid] = this.acts[actid]
+      throw ['_doubleop',actid,tok,aid,bid,typename]
     }
 
     // Getvar () {}
-    Gettype (actid,typename,...args) {
-      if (nativetypes[typename]) {
-        const types = this._gettypes(...args)
-        return nativetypes[typename].init(...types)
-      }
-      const typedef = this._gettypedef(typename)
-      if (typedef != null) return this.acttypes[typedef]
-      else throw ['Gettype bad get',actid,typename]
-    }
-    Vardef (actid,typeid,varname) {
-      const {vardefs} = this.scope
-      if (vardefs[varname] != null) {
-        throw ['Vardef bad def',varname,vardefs[varname]]
-      }
-      this.scope.acts.splice(0,0,typeid)
-      return vardefs[varname] = this._doact(typeid)
-    }
+    // Gettype (actid,typename,...args) {}
+    // Vardef (actid,typeid,varname) {}
     Rawval (actid,typename,rawval) {
-      this.scope.acts.push(actid)
-      return nativetypes[typename].init()
+      return nativetypes[typename]._rawval(this,rawval)
     }
     // tern () {}
     // if () {}
@@ -113,12 +124,11 @@ module.exports = Circuit => {
     // for () {}
     // Tuple () {}
     Scope (actid,...argids) {
-      const {scope,acttypes} = this, act = this.acts[actid]
+      const {scope} = this
       this.scope = new Scope(scope)
-      this._gettypes(...argids)
-      scope.acts = scope.acts.concat(actid,scope.acts)
+      this._doacts(...argids)
       this.scope = scope
-      return _newtype('Void')
+      return this._newval(nativetypes.Void)
     }
     // Array () {}
     // Pntrtype () {}
@@ -129,42 +139,39 @@ module.exports = Circuit => {
     // Subscript () {}
     // Typecast () {}
 
-    // ['+'] () {}
-    // ['-'] () {}
-    // ['%'] () {}
-    // ['/'] () {}
-    // ['*'] () {}
-    // ['!'] () {}
-    // ['~'] () {}
-    // ['&'] () {}
-    // ['|'] () {}
+    ['+'] (actid) { return this._doubleop(actid) }
+    ['-'] (actid) { return this._doubleop(actid) }
+    ['%'] (actid) { return this._doubleop(actid) }
+    ['/'] (actid) { return this._doubleop(actid) }
+    ['*'] (actid) { return this._doubleop(actid) }
+    ['!'] (actid) { return this._doubleop(actid) }
+    ['~'] (actid) { return this._doubleop(actid) }
+    ['&'] (actid) { return this._doubleop(actid) }
+    ['|'] (actid) { return this._doubleop(actid) }
 
-    // ['Pre+'] () {}
-    ['Pre-'] (actid,valid) {
-      const valtype = this._doact(valid)
-      
-    }
-    // ['Pre*'] () {}
-    // ['Pre&'] () {}
-    // ['Pre++'] () {}
-    // ['Pre--'] () {}
-    // ['Post++'] () {}
-    // ['Post--'] () {}
+    ['Pre+'] (actid) { return this._singleop(actid) }
+    ['Pre-'] (actid) { return this._singleop(actid) }
+    ['Pre*'] (actid) { return this._singleop(actid) }
+    ['Pre&'] (actid) { return this._singleop(actid) }
+    ['Pre++'] (actid) { return this._singleop(actid) }
+    ['Pre--'] (actid) { return this._singleop(actid) }
+    ['Post++'] (actid) { return this._singleop(actid) }
+    ['Post--'] (actid) { return this._singleop(actid) }
 
-    // ['<'] () {}
-    // ['>'] () {}
-    // ['<='] () {}
-    // ['>='] () {}
-    // ['=='] () {}
-    // ['!='] () {}
-    // ['<=>'] () {}
+    ['<'] (actid) { return this._doubleop(actid,'Bool') }
+    ['>'] (actid) { return this._doubleop(actid,'Bool') }
+    ['<='] (actid) { return this._doubleop(actid,'Bool') }
+    ['>='] (actid) { return this._doubleop(actid,'Bool') }
+    ['=='] (actid) { return this._doubleop(actid,'Bool') }
+    ['!='] (actid) { return this._doubleop(actid,'Bool') }
+    ['<=>'] (actid) { return this._doubleop(actid,'Int') }
+    ['&&'] (actid) { return this._doubleop(actid) }
+    ['||'] (actid) { return this._doubleop(actid) }
     ['='] (actid,varid,valid) {
-      const [vartype,valtype] = this._gettypes(varid,valid)
-
-      throw "TODO ['=']"
+      const valin = this._doact(valid)
+      const varin = this._doact(varid)
+      return this._setvar(varin,valin)
     }
-    // ['&&'] () {}
-    // ['||'] () {}
   }
 
   return Stats

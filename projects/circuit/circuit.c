@@ -3,14 +3,14 @@ Int k = -1.94;
 Int[3] a = true ? [1,false,k] : [1,2.6,0];
 Int i = (Int) a;
 
-if (123 < 3 || i > 3) {
-  i = 5;
-}
-else if (4 > 3) {
-  Int i = 9;
-  i = null;
-}
-else while (i-- > 10.6);
+// if (123 < 3 || i > 3) {
+//   i = 5;
+// }
+// else if (4 > 3) {
+//   Int i = 9;
+//   i = null;
+// }
+// else while (i-- > 10.6);
 
 // const oparray = [
 //   '+','-','%','/','*','!','~','&','|',

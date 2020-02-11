@@ -165,10 +165,11 @@ module.exports = Circuit => {
     else if (prg._output != null) log('\n\n\noutput',prg._output)
     log(prg)
     const {rootscope,acts,acttypes} = prg._stats
-    for (const i in rootscope.acts) {
-      const actid = rootscope.acts[i]
-      log(actid, acts[actid], acttypes[actid])
-    }
+    log(acts)
+    // for (const i in acts) {
+    //   const actid = acts[i]
+    //   log(i, acts[i])
+    // }
 
   }
   return Parse
