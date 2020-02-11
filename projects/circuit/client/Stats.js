@@ -1,62 +1,90 @@
 module.exports = Circuit => {
 
   class Scope {
-    constructor(parent) {
-      this.parent = parent
-      this.vardefs = {}
-      this.typedefs = {}
-      this.valdefs = []
+    static init(parent) {
+      const _scope = new this
+      _scope.parent = parent
+      _scope.typedefs = Object.create(parent.typedefs)
+      _scope._typedefs = {}
+      _scope.vardefs = Object.create(parent.vardefs)
+      _scope._vardefs = {}
+      _scope.indefs = []
+      return _scope
     }
-
-    getvardef(varname) {
-      throw ['getvardef',varname]
+    static initraw() {
+      const _scope = new this
+      _scope._typedefs = _scope.typedefs = {}
+      _scope._vardefs = _scope.vardefs = {}
+      _scope.indefs = []
+      return _scope
     }
-    gettypedef(typename) {
-      throw ['gettypedef',typename]
-    }
-
   }
 
   const nativetypes = {}
-  nativetypes.Type = class Type {
-    static init(stat) { throw 'Bad Type Init' }
-    static _rawval(stat,rawval) { throw 'Bad Type _rawval' }
-  }
-  nativetypes.Void = class Void extends nativetypes.Type {
-    static init(stat) { return this }
-    static _rawval(stat,rawval) { return stat._newval(this) }
-  }
-  nativetypes.Bool = class Bool extends nativetypes.Void {
-    static _rawval(stat,rawval) {
-      const valin = stat._newval(this)
-
+  {
+    nativetypes.Type = class Type {
+      static get _size() { throw 'Bad Type _size' }
+      static _init(stat) { throw 'Bad Type _init' }
+      static _rawval(stat,rawval) { throw 'Bad Type _rawval' }
     }
-  }
-  nativetypes.Char = class Char extends nativetypes.Bool {}
-  nativetypes.Int = class Int extends nativetypes.Char {}
-  nativetypes.Float = class Float extends nativetypes.Int {}
-  nativetypes.Tuple = class Tuple extends nativetypes.Type {
-    static init(stat,...types) {
-      throw ['Tuple init',...types]
-
-      // const _tuple = Object.create(this.prototype)
-      // _tuple.types = types
-      // return _tuple
+    nativetypes.Void = class Void extends nativetypes.Type {
+      static get _size() { return 0 }
+      static _init(stat) { return this }
+      static _rawval(stat,rawval) { return stat._newval(this) }
     }
-  }
-  nativetypes.Array = class Array extends nativetypes.Void {
-    static init(stat,type,size) {
-      throw ['Array',type,size]
+    nativetypes.Bool = class Bool extends nativetypes.Void {
+      static get _size() { return 1 }
+      static _rawval(stat,rawval) {
+        throw ['Bool _rawval',rawval]
+      }
     }
-  }
-  nativetypes.String = class String extends nativetypes.Array {
-    static init(stat,size) {
-      super(stat,nativetypes.Char,size)
+    nativetypes.Char = class Char extends nativetypes.Bool {
+      static get _size() { return 8 }
+      static _rawval(stat,rawval) {
+        throw ['Char _rawval',rawval]
+      }
     }
-    static _rawval(stat,rawval) {
-      const type = this.init(stat,rawval.length)
-      const valin = stat._newval(type)
-      
+    nativetypes.Int = class Int extends nativetypes.Char {
+      static get _size() { return 32 }
+      static _rawval(stat,rawval) {
+        throw ['Int _rawval',rawval]
+      }
+    }
+    nativetypes.Float = class Float extends nativetypes.Int {
+      static _rawval(stat,rawval) {
+        throw ['Float _rawval',rawval]
+      }
+    }
+    nativetypes.Tuple = class Tuple extends nativetypes.Type {
+      static get _size() {
+        let size = 0
+        for (const i in this.types) size += this.types[i]
+        return size
+      }
+      static _init(stat,...types) {
+        const _tuple = Object.create(this)
+        _tuple.types = types
+        return _tuple
+      }
+    }
+    nativetypes.Array = class Array extends nativetypes.Void {
+      static get _size() {
+        return nativetypes.Int._size + this.size * this.type._size
+      }
+      static _init(stat,type,size) {
+        const _array = Object.create(this)
+        _array.type = type
+        _array.size = size
+        return _array
+      }
+    }
+    nativetypes.String = class String extends nativetypes.Array {
+      static _init(stat,size) {
+        throw ['String',size]
+      }
+      static _rawval(stat,rawval) {
+        throw ['_rawval',rawval]
+      }
     }
   }
 
@@ -67,12 +95,11 @@ module.exports = Circuit => {
       this.string = string
       this.copies = 0
 
-      this.scope = this.rootscope = new Scope
+      this.indefs = []
+      this.intypes = []
+      this.scope = this.rootscope = Scope.initraw()
     }
 
-    _getintype(valin) {
-      throw ['_gettype',valin]
-    }
     _doact(actid) {
       const [tok,...args] = this.acts[actid]
       try {
@@ -88,26 +115,12 @@ module.exports = Circuit => {
       for (const i in actids) actids[i] = this._doact(actids[i])
       return actids
     }
-    _newvar(type,varname) {
-      throw ['_newvar',type]
-    }
-    _newval(type) {
-      throw ['_newval',type]
-    }
-    _setval(dstid,srcid) {
-      throw ['_setval',dstid,srcid]
-    }
 
     _singleop(actid) {
-      const [tok,aid] = this.acts[actid]
-      const ain = this._doact(aid)
-      const type = this._getintype(ain)
-      if (type[tok]) return type[tok](this,ain)
-      else throw ['_singleop bad tok',type,tok]
+      throw ['_singleop',actid]
     }
     _doubleop(actid,typename) {
-      const [tok,aid,bid] = this.acts[actid]
-      throw ['_doubleop',actid,tok,aid,bid,typename]
+      throw ['_doubleop',actid,typename]
     }
 
     // Getvar () {}
@@ -125,10 +138,11 @@ module.exports = Circuit => {
     // Tuple () {}
     Scope (actid,...argids) {
       const {scope} = this
-      this.scope = new Scope(scope)
+      this.scope = Scope.init(scope)
       this._doacts(...argids)
       this.scope = scope
-      return this._newval(nativetypes.Void)
+
+      throw ['Scope',...argids]
     }
     // Array () {}
     // Pntrtype () {}
@@ -168,9 +182,7 @@ module.exports = Circuit => {
     ['&&'] (actid) { return this._doubleop(actid) }
     ['||'] (actid) { return this._doubleop(actid) }
     ['='] (actid,varid,valid) {
-      const valin = this._doact(valid)
-      const varin = this._doact(varid)
-      return this._setvar(varin,valin)
+      throw ['=',actid,varid,valid]
     }
   }
 

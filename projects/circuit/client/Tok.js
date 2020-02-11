@@ -80,6 +80,13 @@ module.exports = Circuit => {
           // TODO parse string
           return prg.rawval(string,'String')
         },
+      },
+      char: {
+        str: "regx ' [endat ' \\]",
+        fun: (prg, [q,string]) => {
+          // TODO parse string
+          return prg.rawval(string,'Char')
+        },
       }
     },
 
