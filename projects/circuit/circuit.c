@@ -1,4 +1,4 @@
-
+Int[3] l;
 Int k = -1.94;
 Int[3] a = true ? [1,false,k] : [1,2.6,0];
 Int i = (Int) a;
