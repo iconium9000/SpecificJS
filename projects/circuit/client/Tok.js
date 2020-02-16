@@ -1,513 +1,274 @@
+const TOK = `
+
+### Space ###
+
+linecom // $\n!
+multlncom /$* $*/!
+space $ | $\n | linecom | multlncom
+
+### Num ###
+dig [0 : 9]
+char [a : z] | [A : Z]
+
+float dig* $. dig+
+[Float (sum @0 . @2)]
+
+oct 0 [0 : 7]*
+[Oct (sum 0 @1)]
+
+hex 0 (x|X) (dig | char)+
+[Hex (sum 0x @2)]
+
+int dig+
+[Int (sum @0)]
+
+sci (float|int) (e|E) ($+|-|) dig+
+[Float (sum %0.1 %1 %2 @3)]
+
+num hex | oct | sci | float | int
+
+### Var ###
+
+_var _ | char
+var _var (_var | dig)*
+(sum %0 @1)
+
+start space* num space*
+[Start %1]
+
+`
+
 module.exports = Circuit => {
 
-  const _tokmap = {
+  const tokmap = {}, funmap = {}
+  let state = ['start']
+  let stringidx = 0
 
-    // operator precedence 0 ---------------------------------------------------
-
-    space: {
-      _commentsl: { str: 'regx // [endat \n]', empty: true, },
-      _commentml: { str: 'regx /$* [endat $*/]', empty: true, },
-      _space: { str: 'comp _commentsl _commentml $  \t \n', empty: true, },
-      'space*': { str: 'rept _space', empty: true, },
-      'space+': { str: 'regx _space space*', empty: true, },
+  const toks = {
+    'start': c => {
+      if (' \t\n'.includes(c)) ++stringidx
+      else if (c == '#') return ['comment',state]
+      else return ['tok',state,'']
     },
-    nativetypes: {
-      _intdig: { str: 'range 0 9', val: true, },
-      _octdig: { str: 'range 0 7', val: true, },
-      _hexlow: { str: 'range a f', val: true, },
-      _hexupr: { str: 'range A F', val: true, },
-      _hexdig: { str: 'comp _intdig _hexlow _hexupr', val: true, },
-      _int: {
-        str: 'regx _intdig [rept _intdig]',
-        fun: (prg, [dig, digs]) => {
-          for (const i in digs) dig += digs[i]
-          return prg.output(dig)
-        },
-      },
-      _float: {
-        str: 'regx [rept _intdig] . _int',
-        fun: (prg, [repdig, d, int]) => {
-          let str = ''; for (const i in repdig) str += repdig[i]
-          return prg.output(str+d+int)
-        },
-      },
-      hex: {
-        str: 'regx 0 [comp x X] _hexdig [rept _hexdig]',
-        fun: (prg,[z, x, dig, digs]) => {
-          for (const i in digs) dig += digs[i]
-          return prg.rawval(parseInt(dig,16),'Int')
-        },
-      },
-      _sci: {
-        str: 'regx [comp $+ -] _int',
-        fun: (prg, [op, int]) => prg.output(op+int)
-      },
-      sci: {
-        str: 'regx [comp _float _int] e [comp _sci _int]',
-        fun: (prg,[float,e,pow]) => prg.rawval(parseFloat(float+e+pow),'Float')
-      },
-      float: {
-        str: 'comp _float',
-        fun: (prg, float) => prg.rawval(parseFloat(float),'Float')
-      },
-      oct: {
-        str: 'regx 0 [rept _octdig]',
-        fun: (prg,[z, digs]) => {
-          for (const i in digs) z += digs[i]
-          return prg.rawval(parseInt(z,8),'Int')
-        },
-      },
-      int: {
-        str: 'comp _int',
-        fun: (prg, int) => prg.rawval(parseInt(int),'Int')
-      },
-      num: { str: 'comp hex sci float oct int', },
-
-      _ltrlow: { str: 'range a z', val: true, },
-      _ltrupr: { str: 'range A Z', val: true, },
-      _ltr: { str: 'comp _ _ltrlow _ltrupr', val: true, },
-      var: {
-        str: 'regx _ltr [repf comp _intdig _ltr]',
-        fun: (prg,[ltrA,ltrB]) => {
-          for (const i in ltrB) ltrA += ltrB[i]
-          return prg.output(ltrA)
-        },
-      },
-
-      string: {
-        str: 'regx " [endat " \\]',
-        fun: (prg, [q,string]) => {
-          // TODO parse string
-          return prg.rawval(string,'String')
-        },
-      },
-      char: {
-        str: "regx ' [endat ' \\]",
-        fun: (prg, [q,string]) => {
-          // TODO parse string
-          return prg.rawval(string,'Char')
-        },
+    'comment': c => {
+      ++stringidx
+      if (c == '\n') return state[1]
+    },
+    'tok': c => {
+      ++stringidx
+      if (c == ' ') {
+        state[0] = '_tok'
+        return ['list',state]
+      }
+      else state[2] += c
+    },
+    '_tok': c => {
+      ++stringidx
+      if (c == '\n' || c == ' ');
+      else if (c == '#') return ['comment',state]
+      else if (c == '(') return ['simplefun',state]
+      else if (c == '[') return ['fun',state]
+      else {
+        const [tok,parent,name,val,fun] = state
+        tokmap[name] = val
+        funmap[name] = fun || ['pass']
+        --stringidx
+        return parent
       }
     },
-
-    getval1: {
-
-      array: {
-        str: 'regx $[ space* tuple space* $]',
-        fun: (prg, [q,gotval]) => prg.newact('Array',gotval)
-      },
-      tupleval: {
-        str: 'regx ( space* getval16 space* )',
-        fun: (prg, [p,gotval]) => prg.output(gotval)
-      },
-      tuplevar: {
-        str: 'regx ( space* getvar16 space* )',
-        fun: (prg, [p,gotvar]) => prg.output(gotvar)
-      },
-
-      floatnative: {
-        str: 'comp Infinity NaN',
-        fun: (prg,input) => prg.newact('Rawval','Float',parseFloat(input))
-      },
-      boolnative: {
-        str: 'comp true false',
-        fun: (prg,input) => prg.newact('Rawval','Bool',input == 'true')
-      },
-      voidnative: {
-        str: 'comp null nullptr NULL',
-        fun: (prg,input) => prg.newact('Rawval','Void',0)
-      },
-      native: { str: 'comp boolnative voidnative' },
-      _getvar1: {
-        str: 'comp var',
-        fun: (prg, name) => prg.newact('Getvar',name)
-      },
-      getvar1: { str: 'comp _getvar1 tuplevar', },
-      getval1: { str: 'comp num string native getvar1 array tupleval' },
-
-      addrop: {
-        str: 'regx space* [comp $* $&]',
-        fun: (prg,op) => prg.output(op == '*' ? 'Pntrtype' : 'Addrtype')
-      },
-      arrayop: {
-        str: 'regx space* $[ space* getval16 space* $]',
-        fun: (prg, [p,gotvar]) => prg.output(['Arraytype',gotvar])
-      },
-      voidfun: {
-        str: 'regx space* ( space* )',
-        fun: prg => prg.output(['Funtype'])
-      },
-      _funop: {
-        str: 'regx space* , space* gettype',
-        fun: (prg, [c,gottype]) => prg.output(gottype)
-      },
-      funop: {
-        str: 'regx space* ( space* gettype [rept _funop] space* )',
-        fun: (prg, [p,gottype,reptypes]) => {
-          return prg.output(['Funtype',gottype,...reptypes])
-        }
-      },
-      gettype: {
-        str: 'regx var [repf comp addrop arrayop voidfun funop]',
-        fun: (prg, [typename,ops]) => {
-          prg = prg.newact('Gettype',typename)
-          for (const i in ops) {
-            const [op,...info] = ops[i]
-            prg = prg.newact(op,prg._output,...info)
-          }
-          return prg
-        }
-      },
-      vardef: {
-        str: 'regx gettype space* var',
-        fun: (prg, [gottype,varname]) => prg.newact('Vardef',gottype,varname)
-      }
-    },
-
-    getval2: {
-      memop: { str: 'comp . ->' },
-      incop: { str: 'comp $+$+ --', },
-
-      postinc: {
-        str: 'regx space* getvar2 space* incop',
-        fun: (prg, [gotvar, op]) => prg.newact('Post'+op,gotvar),
-      },
-      // _callfun: {
-      //   str: 'regx space* tuple space*'
-      // },
-      // callfun: {
-      //   str: 'regx space* ( [comp _callfun space*] )',
-      callfun: {
-        str: 'regx space* ( space* tuple space* )',
-        fun: (prg, input) => prg.output(['Callfun',input[1]])
-      },
-      subspt: {
-        str: 'regx space* $[ space* getval16 space* $]',
-        fun: (prg, input) => prg.output(['Subscript',input[1]])
-      },
-      _mem: { str: 'regx memop space* var', },
-
-      _getvar2: {
-        str: 'regx getval1 [comp subspt _mem] [repf comp subspt _mem]',
-        fun: (prg,[gotval,op,ops]) => {
-          ops = [op,...ops]
-          for (const i in ops) {
-            const [op,...args] = ops[i]
-            prg = prg.newact(op,gotval,...args)
-            if (prg._error) return prg
-            else gotval = prg._output
-          }
-          return prg.output(gotval)
-        }
-      },
-
-      getvar2: { str: 'comp _getvar2 getvar1' },
-
-      getval2: {
-        str: 'regx [comp postinc getval1] [repf comp callfun subspt _mem]',
-        fun: (prg, [gotval, repop]) => {
-          for (const i in repop) {
-            const [op,...args] = repop[i]
-            prg = prg.newact(op,gotval,...args)
-            if (prg._error) return prg
-            else gotval = prg._output
-          }
-          return prg.output(gotval)
-        }
-      },
-    },
-
-    getval3: {
-
-      preinc: {
-        str: 'regx incop space* getvar3',
-        fun: (prg,[op,gotvar]) => prg.newact('Pre'+op,gotvar)
-      },
-
-      _val3op: { str: 'comp $+ - ~' },
-      _getval3: {
-        str: 'regx _val3op space* getval3',
-        fun: (prg,[op,gotval]) => prg.newact('Pre'+op,gotval)
-      },
-
-      _bool3op: {
-        str: 'regx $! space* getval3',
-        fun: (prg,gotval) => {
-          prg = prg.newact('Gettype','Bool')
-          prg = prg.newact('Typecast',gotval,prg._output)
-          return prg.newact('Pre!',prg._output)
-        }
-      },
-
-      typecast: {
-        str: 'regx ( space* gettype space* ) space* getval3',
-        fun: (prg,[p,gottype,q,gotval]) => prg.newact('Typecast',gotval,gottype)
-      },
-
-      _refop: { str: 'comp $* &' },
-      ref: {
-        str: 'regx _refop space* getval3',
-        fun: (prg,[op,gotvar]) => prg.newact('Pre'+op,gotvar)
-      },
-
-      getval3: { str: 'comp preinc typecast ref _getval3 getval2'},
-      getvar3: { str: 'comp ref getvar2' },
-    },
-
-    getval4_15: {
-      _val4op: { str: 'regx memop $*', fun: (prg,[op,s]) => prg.output(op+s) },
-      getval4: {
-        str: 'regx [repf regx getval3 space* _val4op space*] getval3',
-        midfx: true,
-      },
-      _val5op: { str: 'comp $* / %' },
-      getval5: {
-        str: 'regx [repf regx getval4 space* _val5op space*] getval4',
-        midfx: true,
-      },
-      _val6op: { str: 'comp $+ -' },
-      getval6: {
-        str: 'regx [repf regx getval5 space* _val6op space*] getval5',
-        midfx: true,
-      },
-      _val7op: { str: 'comp << >>' },
-      getval7: {
-        str: 'regx [repf regx getval6 space* _val7op space*] getval6',
-        midfx: true,
-      },
-      getval8: {
-        str: 'regx [repf regx getval7 space* <=> space*] getval7',
-        midfx: true,
-      },
-      _val9op: { str: 'comp < <= >= >' },
-      getval9: {
-        str: 'regx [repf regx getval8 space* _val9op space*] getval8',
-        midfx: true,
-      },
-      _val10op: { str: 'comp == $!=' },
-      getval10: {
-        str: 'regx [repf regx getval9 space* _val10op space*] getval9',
-        midfx: true,
-      },
-      getval11: {
-        str: 'regx [repf regx getval10 space* & [not &] space*] getval10',
-        midfx: true,
-      },
-      getval12: {
-        str: 'regx [repf regx getval11 space* ^ space*] getval11',
-        midfx: true,
-      },
-      getval13: {
-        str: 'regx [repf regx getval12 space* $| [not $|] space*] getval12',
-        midfx: true,
-      },
-      getval14: {
-        str: 'regx [repf regx getval13 space* && space*] getval13',
-        midfx: true,
-      },
-      getval15: {
-        str: 'regx [repf regx getval14 space* $|$| space*] getval14',
-        midfx: true,
-      },
-
-      getbool: {
-        str: 'comp getval15',
-        fun: (prg,gotval) => {
-          prg = prg.newact('Gettype','Bool')
-          return prg.newact('Typecast',gotval,prg._output)
-        }
-      },
-    },
-
-    getval16: {
-
-      ternval: {
-        str: 'regx getbool space* ? space* getval16 space* : space* getval16',
-        fun: (prg, [bool,op,a,c,b]) => prg.newact('tern',bool,a,b)
-      },
-
-      ternvar: {
-        str: 'regx getbool space* ? space* getvar16 space* : space* getvar16',
-        fun: (prg, [bool,op,a,c,b]) => prg.newact('tern',bool,a,b),
-      },
-
-      _opassign: { str: 'regx [comp $+ - $* / % << >> & ^ $|] =' },
-      opassign: {
-        str: 'regx getvar3 space* _opassign space* getval16',
-        fun: (prg,[gotvar,[op,eq],gotval]) => {
-          prg = prg.newact(op,gotvar,gotval)
-          return prg.newact(eq,gotvar,prg._output)
-        }
-      },
-
-      varassign: {
-        str: 'regx getvar3 space* = space* getval16',
-        fun: (prg,[gotvar,op,gotval]) => prg.newact(op,gotvar,gotval),
-      },
-      defassign: {
-        str: 'regx vardef space* = space* getval16',
-        fun: (prg,[gotdef,op,gotval]) => prg.newact(op,gotdef,gotval),
-      },
-
-
-      getval16: { str: 'comp ternval varassign opassign getval15' },
-      getvar16: { str: 'comp ternvar getvar3' },
-
-      valspread: {
-        str: 'regx ... space* getval16',
-        fun: (prg,[op,gotval]) => prg.newact(op,gotval),
-      },
-
-      _tuple: { str: 'comp valspread getval16', },
-      _reptuple: { str: 'regx space* _tuple space* ,', val: true, },
-      tuple: {
-        str: 'comp [regx [rept _reptuple] space* _tuple] space*',
-        fun: (prg,input) => {
-          if (input == null) return prg.newact('Tuple')
-          const [reptup,gotval] = input
-          return prg.newact('Tuple',...reptup,gotval)
-        }
-      },
-    },
-
-    scope: {
-
-      ifop: {
-        str: 'regx if space* ( space* getbool space* ) space* scope',
-        fun: (prg,[op,p,gotval,q,scope]) => prg.newact(op,gotval,scope)
-      },
-      ifelse: {
-        str: 'regx ifop space* else space* scope',
-        fun: (prg,[ifop,op,scope]) => prg.newact(op,ifop,scope)
-      },
-      whileop: {
-        str: 'regx while space* ( space* getbool space* ) space* scope',
-        fun: (prg,[op,p,gotval,q,scope]) => {
-          prg = prg.newact(op,gotval,scope)
-          return prg.newact('Scope',prg._output)
-        },
-      },
-      _loopscope: {
-        str: 'regx space* { space* [rept _repscope] space* }',
-        fun: (prg,[p,repscope]) => prg.output(repscope)
-      },
-      _doop: {
-        str: 'regx while space* ( space* getbool space* )',
-        fun: (prg,[op,p,gotval]) => prg.output(gotval)
-      },
-      doop: {
-        str: 'regx do _loopscope space* _doop',
-        fun: (prg,[op,_loopscope,bool]) => {
-          prg = prg.newact(op,bool,..._loopscope)
-          return prg.newact('Scope',prg._output)
-        }
-      },
-      _forbool: { str: 'regx space* getbool space*', val: true },
-      _forinc: { str: 'regx space* getval16 space*', val: true },
-      forop: {
-        str: 'regx for space* ( statement _forbool ; _forinc ) _loopscope',
-        fun: (prg,[op,p,stat,bool,itr,q,loopscope]) => {
-          prg = prg.newact(op,bool,stat,itr,...loopscope)
-          return prg.newact('Scope',prg._output)
-        }
-      },
-      loop: { str: 'comp ifelse ifop whileop forop doop', },
-
-      _statement: {
-        str: 'comp varassign defassign vardef typedef getval16',
-      },
-      statement: {
-        str: 'regx [comp [regx space* _statement space*] space*] ;',
-        fun: (prg,arg) => {
-          if (arg.length == 1) return prg.rawval(0,'Void')
-          else return prg.output(arg[0][0])
-        }
-      },
-      scope: { str: 'comp loop subscope statement' },
-      _repscope: { str: 'regx space* scope', val: true, },
-      repscope: {
-        str: 'rept _repscope',
-        fun: (prg,rept) => prg.newact('Scope',...rept)
-      },
-      subscope: {
-        str: 'regx { space* repscope space* }',
-        fun: (prg, [p,gotscope]) => prg.output(gotscope),
-      },
-      start: {
-        str: 'regx repscope space*',
-        fun: (prg, [input]) => {
-          const {_stats,_idx} = prg, {length} = prg._stats.string
-          if (_idx < length) {
-            const string = _stats.string.slice(_idx)
-            return prg.error('unexpected char at', _idx, string)
-          }
-          else return prg.output(input)
+    'list': c => {
+      ++stringidx
+      if (c == ' ');
+      else if ('\n|)'.includes(c)) {
+        const [tok,parent,...args] = state
+        if (args.length == 0) state = ['empty']
+        else if (args.length == 1) state = args[0]
+        else state = [tok,...args]
+        if (c == '|') return ['list',['|',parent,state]]
+        else {
+          parent.push(state)
+          return parent
         }
       }
+      else if ('*+!'.includes(c)) state.push([c,state.pop()])
+      else if (c == '[') return ['range',state]
+      else if (c == '(') return ['list',state]
+      else {
+        --stringidx
+        return ['string',state,'']
+      }
+    },
+    '|': c => {
+      const [tok,parent,arga,argb] = state
+      if (arga[0] == '|') state = arga
+      else state = [tok,arga]
+      if (argb[0] == '|') state = state.concat(argb.slice(1))
+      else state.push(argb)
+      parent.push(state)
+      return parent
+    },
+    'range': c => {
+      ++stringidx
+      if (c == ' ' || c == ':');
+      else if (c == ']') {
+        const [tok,parent,low,high] = state
+        parent.push([tok,low,high])
+        return parent
+      }
+      else state.push(c)
+    },
+    'string': c => {
+      if (c == '$') {
+        state[2] += TOK[++stringidx]
+        ++stringidx
+      }
+      else if (' \n*+!|])'.includes(c)) {
+        const [tok,parent,arg] = state
+        parent.push([tok,arg])
+        return parent
+      }
+      else {
+        ++stringidx
+        state[2] += c
+      }
+    },
+    'simplefun': c => {
+      ++stringidx
+      if (c == ')') {
+        const [tok,parent,...args] = state
+        parent.push([tok,...args])
+        return parent
+      }
+      else if (c == ' ');
+      else if (c == '(') return ['simplefun',state]
+      else if (c == '@' || c == '%') return ['lookup',state,c,'']
+      else {
+        --stringidx
+        return ['string',state,'']
+      }
+    },
+    'lookup': c => {
+      if (' \n)]'.includes(c)) {
+        const [tok,parent,info,...args] = state
+        for (const i in args) args[i] = parseInt(args[i])
+        parent.push([tok,info,...args])
+        return parent
+      }
+      else if (c == '.') {
+        ++stringidx
+        state.push('')
+      }
+      else {
+        ++stringidx
+        state.push(state.pop() + c)
+      }
+    },
+    'fun': c => {
+      ++stringidx
+      if (c == ']') {
+        const [tok,parent,...args] = state
+        if (args.length == 0) state = ['empty']
+        else if (args.length == 1) state = args[0]
+        else state = [tok,...args]
+        parent.push(state)
+        return parent
+      }
+      else if (c == ' ');
+      else if (c == '(') return ['simplefun',state]
+      else {
+        --stringidx
+        return ['string',state,'']
+      }
+    },
+  }
+
+  class Prg {
+    static init(string) {
+      const prg = new this
+      prg._map = []
+      prg._string = string
+      prg._startidx = 0
+      prg._endidx = 0
+      return prg
+    }
+    get copy() {
+      return Object.create(this)
+    }
+    get nextidx() {
+      ++prg._endidx; const {_map,_endidx} = this
+      while (_map.length < _endidx) _map.push({})
+      return _endidx
+    }
+    output(arg) {
+      const {copy} = this
+      copy._output = arg
+      return copy
+    }
+    parse(tok,...args) {
+      if (!this[tok]) throw `string tok error "${tok}"`
+      return this[tok](...args)
+    }
+    string(arg) {
+      const {_map,_endidx} = this
+      const ans = _map[_endidx][arg]
+      if (ans) return ans
+
+      if (tokmap[arg]) return _map[_endidx][arg] = this.parse(...tokmap[arg])
+      else {
+        const {copy} = this
+        _map[_endidx][arg] = copy
+        for (const i in arg) {
+          if (copy._string[copy.nextidx] != arg[i]) {
+            return copy.error(`string match err "${arg}"`)
+          }
+        }
+        copy._output = arg
+        return copy
+      }
+    }
+    list(...args) {
+      let {copy} = this
+      for (const i in args) {
+        copy = copy.parse(...args[i])
+        args[i] = copy._output
+      }
+      copy.output(args)
+      return copy
+    }
+    ['*'] (arg) {
+      const args = []
+      let {copy} = this
+      try {
+        copy = copy.parse(...arg)
+        args.push(copy._output)
+      }
+      finally { return copy.output(args) }
     }
   }
 
-  const tokmap = {}
-  for (const i in _tokmap) {
-    const toks = _tokmap[i]
-
-    for (const tok in toks) {
-      let {str,fun,val,empty,midfx,scope} = toks[tok]
-
-      if (!str) throw tok
-
-      let stack = [], filter = [], word = ''
-      for (let j = 0; j < str.length; ++j) switch (str[j]) {
-        case ' ': if (word) filter.push(word); word = ''; break
-        case '[':
-        if (word) filter.push(word); word = ''
-        stack.push(filter); filter = []; break
-        case ']':
-        if (word) filter.push(word); word = ''
-        const temp = stack.pop(); temp.push(filter); filter = temp
-        break
-        case '$': ++j
-        default: word += str[j]; break
-      }
-      if (word) filter.push(word)
-
-      if (fun);
-      else if (val) fun = (prg,input) => prg.output(input[0])
-      else if (empty) fun = prg => prg.empty
-      else if (midfx) fun = (prg,[rept, gotval]) => {
-        const stack = []
-        while (rept.length) {
-          const [repval,op] = rept.pop()
-          stack.push([op,gotval])
-          gotval = repval
-        }
-        while (stack.length) {
-          const [op,repval] = stack.pop()
-          prg = prg.newact(op,gotval,repval)
-          if (prg._error) return prg
-          else gotval = prg._output
-        }
-        return prg.output(gotval)
-      }
-      else fun = (prg,input) => prg.output(input)
-
-      tokmap[tok] = [fun,filter,scope]
+  try {
+    let previdx = -1, prevstate = null
+    while (stringidx < TOK.length || prevstate != state) {
+      if (previdx == stringidx && prevstate == state) throw 'REPEAT'
+      previdx = stringidx; prevstate = state
+      state = toks[state[0]](TOK[stringidx]) || state
     }
+    do {
+      prevstate = state = toks[state[0]](TOK[stringidx]) || state
+    } while (state != prevstate)
   }
+  catch (e) { error(e) }
+  log(state,tokmap,funmap)
 
-  let count = 0
-  return function Tok(prg,tok) {
-    if (!tokmap[tok]) return prg.match(tok)
+  return function Tok(string) {
+    const prg = Prg.init(string)
 
-    const [fun,filter] = tokmap[tok]
-
-    prg = prg.filter(...filter)
-    if (prg._error) return prg
-
-    prg = fun(prg, prg._output)
-    if (prg._error) return prg
-
-    return prg
-
+    try {
+      log(prg.string('start'))
+    }
+    catch (e) {
+      error(e)
+    }
+    log(prg)
   }
 }
