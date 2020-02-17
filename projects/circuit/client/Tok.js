@@ -1,46 +1,54 @@
+// `; test = `
 const TOK = `
 
 ### Space ###
 
-linecom // $\n!
-multlncom /$* $*/!
-space $ | $\n | linecom | multlncom
+linecom // $\n!;
+multlncom /$* $*/!;
+space $ | $\n | linecom | multlncom;
 
 ### Num ###
-dig [0 : 9]
-char [a : z] | [A : Z]
+dig [0 : 9];
+char [a : z] | [A : Z];
 
-float dig* $. dig+
-[Float (sum @0 . @2)]
+float (dig* $. dig+) {ary Float (txtsum @0 . @2)};
 
-oct 0 [0 : 7]*
-[Oct (sum 0 @1)]
+oct (0 [0 : 7]*) {ary Oct (txtsum 0 @1)};
 
-hex 0 (x|X) (dig | char)+
-[Hex (sum 0x @2)]
+hex (0 (x|X) (dig | char)+) {
+  ary Hex (txtsum 0x @2)
+};
 
-int dig+
-[Int (sum @0)]
+int dig+ { ary Int (txtsum @) };
 
-sci (float|int) (e|E) ($+|-|) dig+
-[Float (sum %0.1 %1 %2 @3)]
+sci ( (float|int) (e|E) ($+|-|) dig+ ) {
+  ary Float (txtsum %0.1 %1 %2 @3)
+};
 
-num hex | oct | sci | float | int
+num (hex | oct | sci | float | int) {act Rawnum @};
 
 ### Var ###
+_var _ | char;
+var ( _var (_var | dig)* ) { txtsum %0 @1 };
 
-_var _ | char
-var _var (_var | dig)*
-(sum %0 @1)
+var1 var { act Var @ };
+val1 var1 | num | ( $( space* val3 space* $) ) { ary @2 };
 
-start space* num space*
-[Start %1]
+_val2 $* | $/ | $%;
+val2 (val1 (space* _val2 space* val1){ary %1 %3}*) { stack };
+_val3 $+ | $-;
+val3 (val2 (space* _val3 space* val2){ary %1 %3}*) { stack };
+
+### Start ###
+start ( space* ( val3 space* $; space* ){ ary @0 }+ ) {
+  act Start @1
+};
 
 `
 
 module.exports = Circuit => {
 
-  const tokmap = {}, funmap = {}
+  const Tok = {name:'Tok'}, stringmap = {}
   let state = ['start']
   let stringidx = 0
 
@@ -48,38 +56,36 @@ module.exports = Circuit => {
     'start': c => {
       if (' \t\n'.includes(c)) ++stringidx
       else if (c == '#') return ['comment',state]
-      else return ['tok',state,'']
+      else return ['regx',state,'']
     },
     'comment': c => {
       ++stringidx
       if (c == '\n') return state[1]
     },
-    'tok': c => {
+    'regx': c => {
       ++stringidx
-      if (c == ' ') {
-        state[0] = '_tok'
+      if (' \t\n'.includes(c)) {
+        state[0] = 'regxnext'
         return ['list',state]
       }
       else state[2] += c
     },
-    '_tok': c => {
+    'regxnext': c => {
       ++stringidx
-      if (c == '\n' || c == ' ');
+      if (' \t\n'.includes(c));
       else if (c == '#') return ['comment',state]
-      else if (c == '(') return ['simplefun',state]
-      else if (c == '[') return ['fun',state]
       else {
-        const [tok,parent,name,val,fun] = state
-        tokmap[name] = val
-        funmap[name] = fun || ['pass']
         --stringidx
+        const [tok,parent,key,arg] = state
+        Tok[key] = arg
         return parent
       }
     },
     'list': c => {
       ++stringidx
-      if (c == ' ');
-      else if ('\n|)'.includes(c)) {
+      if (' \t\n'.includes(c));
+      else if (c == '#') return ['comment',state]
+      else if (';|)'.includes(c)) {
         const [tok,parent,...args] = state
         if (args.length == 0) state = ['empty']
         else if (args.length == 1) state = args[0]
@@ -93,6 +99,7 @@ module.exports = Circuit => {
       else if ('*+!'.includes(c)) state.push([c,state.pop()])
       else if (c == '[') return ['range',state]
       else if (c == '(') return ['list',state]
+      else if (c == '{') return ['fun',['funnext',state]]
       else {
         --stringidx
         return ['string',state,'']
@@ -109,7 +116,7 @@ module.exports = Circuit => {
     },
     'range': c => {
       ++stringidx
-      if (c == ' ' || c == ':');
+      if (' \n:'.includes(c));
       else if (c == ']') {
         const [tok,parent,low,high] = state
         parent.push([tok,low,high])
@@ -117,12 +124,12 @@ module.exports = Circuit => {
       }
       else state.push(c)
     },
-    'string': c => {
+    'txt': c => {
       if (c == '$') {
         state[2] += TOK[++stringidx]
         ++stringidx
       }
-      else if (' \n*+!|])'.includes(c)) {
+      else if (' \n)'.includes(c)) {
         const [tok,parent,arg] = state
         parent.push([tok,arg])
         return parent
@@ -132,23 +139,42 @@ module.exports = Circuit => {
         state[2] += c
       }
     },
-    'simplefun': c => {
-      ++stringidx
-      if (c == ')') {
-        const [tok,parent,...args] = state
-        parent.push([tok,...args])
+    'string': c => {
+      if (c == '$') {
+        state[2] += TOK[++stringidx]
+        ++stringidx
+      }
+      else if (' \n*+!|])};'.includes(c)) {
+        const [tok,parent,arg] = state
+        parent.push(stringmap[arg] || (stringmap[arg] = [tok,arg]))
         return parent
       }
-      else if (c == ' ');
-      else if (c == '(') return ['simplefun',state]
-      else if (c == '@' || c == '%') return ['lookup',state,c,'']
       else {
-        --stringidx
-        return ['string',state,'']
+        ++stringidx
+        state[2] += c
       }
     },
+    'fun': c => {
+      ++stringidx
+      if (c == ')' || c == '}') {
+        const [tok,parent,name,...args] = state
+        parent.push([name[1],...args])
+        return parent
+      }
+      else if (' \t\n'.includes(c));
+      else if (c == '#') return ['comment',state]
+      else if (c == '(') return ['fun',state]
+      else if (c == '@' || c == '%') return ['lookup',state,c]
+      else return ['txt',state,c]
+    },
+    'funnext': c => {
+      const [tok,parent,fun] = state
+      const arg = parent.pop()
+      parent.push(['fun',arg,fun])
+      return parent
+    },
     'lookup': c => {
-      if (' \n)]'.includes(c)) {
+      if (' \n)]}'.includes(c)) {
         const [tok,parent,info,...args] = state
         for (const i in args) args[i] = parseInt(args[i])
         parent.push([tok,info,...args])
@@ -160,90 +186,10 @@ module.exports = Circuit => {
       }
       else {
         ++stringidx
+        if (state.length == 3) state.push('')
         state.push(state.pop() + c)
       }
     },
-    'fun': c => {
-      ++stringidx
-      if (c == ']') {
-        const [tok,parent,...args] = state
-        if (args.length == 0) state = ['empty']
-        else if (args.length == 1) state = args[0]
-        else state = [tok,...args]
-        parent.push(state)
-        return parent
-      }
-      else if (c == ' ');
-      else if (c == '(') return ['simplefun',state]
-      else {
-        --stringidx
-        return ['string',state,'']
-      }
-    },
-  }
-
-  class Prg {
-    static init(string) {
-      const prg = new this
-      prg._map = []
-      prg._string = string
-      prg._startidx = 0
-      prg._endidx = 0
-      return prg
-    }
-    get copy() {
-      return Object.create(this)
-    }
-    get nextidx() {
-      ++prg._endidx; const {_map,_endidx} = this
-      while (_map.length < _endidx) _map.push({})
-      return _endidx
-    }
-    output(arg) {
-      const {copy} = this
-      copy._output = arg
-      return copy
-    }
-    parse(tok,...args) {
-      if (!this[tok]) throw `string tok error "${tok}"`
-      return this[tok](...args)
-    }
-    string(arg) {
-      const {_map,_endidx} = this
-      const ans = _map[_endidx][arg]
-      if (ans) return ans
-
-      if (tokmap[arg]) return _map[_endidx][arg] = this.parse(...tokmap[arg])
-      else {
-        const {copy} = this
-        _map[_endidx][arg] = copy
-        for (const i in arg) {
-          if (copy._string[copy.nextidx] != arg[i]) {
-            return copy.error(`string match err "${arg}"`)
-          }
-        }
-        copy._output = arg
-        return copy
-      }
-    }
-    list(...args) {
-      let {copy} = this
-      for (const i in args) {
-        copy = copy.parse(...args[i])
-        args[i] = copy._output
-      }
-      copy.output(args)
-      return copy
-    }
-    ['*'] (arg) {
-      const args = []
-      let {copy} = this
-      try {
-        copy = copy.parse(...arg)
-        args.push(copy._output)
-      }
-      finally { return copy.output(args) }
-    }
   }
 
   try {
@@ -256,19 +202,12 @@ module.exports = Circuit => {
     do {
       prevstate = state = toks[state[0]](TOK[stringidx]) || state
     } while (state != prevstate)
+
+    for (const string in stringmap) {
+      stringmap[string][0] = Tok[string] ? 'tok' : 'match'
+    }
   }
   catch (e) { error(e) }
-  log(state,tokmap,funmap)
-
-  return function Tok(string) {
-    const prg = Prg.init(string)
-
-    try {
-      log(prg.string('start'))
-    }
-    catch (e) {
-      error(e)
-    }
-    log(prg)
-  }
+  log(state,Tok)
+  return Tok
 }
