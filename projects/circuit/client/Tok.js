@@ -3,9 +3,9 @@ const TOK = `
 
 ### Space ###
 
-linecom // $\n!;
-multlncom /$* $*/!;
-space $ | $\n | linecom | multlncom;
+linecom // $\n.;
+multlncom /$* $*/.;
+pad $ | $\n | linecom | multlncom;
 
 ### Num ###
 dig [0 : 9];
@@ -31,18 +31,61 @@ num (hex | oct | sci | float | int) {act Rawnum @};
 _var _ | char;
 var ( _var (_var | dig)* ) { txtsum %0 @1 };
 
-var1 var { act Var @ };
-val1 var1 | num | ( $( space* val3 space* $) ) { ary @2 };
+var1
+  var { act Var @ }; # |
+  # ($( var16?? $)) { strip @2 };
+val1 var1 | num |
+  ( $( pad* val16 pad* $) ) { strip @2 } |
+  ( $( $). ) { err @1 };
 
-_val2 $* | $/ | $%;
-val2 (val1 (space* _val2 space* val1){ary %1 %3}*) { stack };
-_val3 $+ | $-;
-val3 (val2 (space* _val3 space* val2){ary %1 %3}*) { stack };
+### op level 2 ###
+inc $+$+ | --;
 
-### Start ###
-start ( space* ( val3 space* $; space* ){ ary @0 }+ ) {
-  act Start @1
-};
+val2 (val1 (
+  (pad* inc) {ary (txtsum Post @1)} |
+  (pad* ($. | ->) pad* var) {ary (txtsum Mem @1) @3} |
+  (pad* $( pad* comma pad* ($) {ary} | $). {err @}) )
+    {ary Callfun @3 @5} |
+  (pad* $[ pad*
+    ( (val16 pad* $]){strip @0} | $]. {err @}) )
+    {ary Subscript @3}
+)*) {stack};
+
+### op level 3 ###
+val3_pfx inc | $+ | - | $! | ~ | $* | &;
+val3
+  (val3_pfx pad* val3) {act (txtsum Pre @0) %2} |
+  # TODO sizeof
+  # TODO typecast
+  # TODO new
+  # TODO delete
+  val2;
+
+val4 (val3 (pad* ($.$* | ->$*) pad* val3){ary %1 %3}*) { stack };
+val5 (val4 (pad* ($* | / | $%) pad* val4){ary %1 %3}*) { stack };
+val6 (val5 (pad* ($+ | -) pad* val5){ary %1 %3}*) { stack };
+val7 (val6 (pad* (<< | >>) pad* val6){ary %1 %3}*) { stack };
+val8 (val7 (pad* <=> pad* val7){ary %1 %3}*) { stack };
+val9 (val8 (pad* (< | > | <= | >=) pad* val8){ary %1 %3}*) { stack };
+val10 (val9 (pad* (== | $!=) pad* val9){ary %1 %3}*) { stack };
+val11 (val10 (pad* (& &!){ary @0} pad* val10){ary %1 %3}*) { stack };
+val12 (val11 (pad* ^^ pad* val11){ary %1 %3}*) { stack };
+val13 (val12 (pad* ($| $|!){ary @0} pad* val12){ary %1 %3}*) { stack };
+val14 (val13 (pad* && pad* val13){ary %1 %3}*) { stack };
+val15 (val14 (pad* $|$| pad* val14){ary %1 %3}*) { stack };
+val16 val15;
+
+### Scope ###
+comma ( (val16 pad* , pad*){strip @0}* (val16|)){ary @0 @1};
+
+statement
+  ( comma pad* $; ) { act Comma @0 } |
+  $;. {err @};
+scope (
+  ( statement (pad* statement){strip @1}* ) {ary %0 @1} |
+) {act Scope @};
+
+start (pad* scope pad*) {strip @1};
 
 `
 
@@ -96,7 +139,7 @@ module.exports = Circuit => {
           return parent
         }
       }
-      else if ('*+!'.includes(c)) state.push([c,state.pop()])
+      else if ('*+.!'.includes(c)) state.push([c,state.pop()])
       else if (c == '[') return ['range',state]
       else if (c == '(') return ['list',state]
       else if (c == '{') return ['fun',['funnext',state]]
@@ -129,7 +172,7 @@ module.exports = Circuit => {
         state[2] += TOK[++stringidx]
         ++stringidx
       }
-      else if (' \n)'.includes(c)) {
+      else if (' \n)}'.includes(c)) {
         const [tok,parent,arg] = state
         parent.push([tok,arg])
         return parent
@@ -144,7 +187,7 @@ module.exports = Circuit => {
         state[2] += TOK[++stringidx]
         ++stringidx
       }
-      else if (' \n*+!|])};'.includes(c)) {
+      else if (' \n*+.!|])};'.includes(c)) {
         const [tok,parent,arg] = state
         parent.push(stringmap[arg] || (stringmap[arg] = [tok,arg]))
         return parent

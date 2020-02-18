@@ -10,8 +10,10 @@ module.exports = Circuit => {
       prg._endidx = 0
       return prg
     }
+    get endidx() { return this._endidx }
     get acts() { return this._acts.slice() }
     get map() { return this._map }
+    get slice() { return this._string.slice(this._startidx,this._endidx) }
     get copy() {
       const copy = Object.create(this)
       return copy
@@ -73,25 +75,31 @@ module.exports = Circuit => {
     }
     fun(test,fun) { return this.parse(...test).parse(...fun) }
     ary(...args) {
-      const {copy} = this, ary = []
+      let {copy} = this, ary = []
       for (const i in args) {
         const {_output} = this.parse(...args[i])
-        ary.push(..._output)
+        ary = ary.concat(_output)
       }
       return copy.output(ary)
     }
     act(...args) {
-      const act = []
+      let act = []
       for (const i in args) {
         const {_output} = this.parse(...args[i])
-        act.push(..._output)
+        act = act.concat(_output)
       }
       return this.dumbact(...act)
     }
-    dumbact(...args) {
-      const {copy} = this
-      return copy.output(['Getact',copy._acts.push(args)-1])
+    err(...args) {
+      const [txt] = this.txtsum(...args)._output
+      return this.dumbact('Error',txt,this._endidx)
     }
+    dumbact(...args) {
+      const {copy,_endidx} = this
+      copy._startidx = _endidx
+      return copy.output(copy._acts.push(args)-1)
+    }
+    idx() { return this.output([this._endidx]) }
     txt(txt) { return this.copy.output([txt]) }
     txtsum(...args) {
       let txt = ''
@@ -102,6 +110,7 @@ module.exports = Circuit => {
       return this.copy.output([txt])
     }
     lookup(tok,...args) {
+      // log('lookup')
       let {_output} = this
       for (const i in args) _output = _output[args[i]]
       return this.copy.output(tok == '@' ? _output : [_output])
@@ -110,12 +119,12 @@ module.exports = Circuit => {
       const [val,opvals] = this._output
       let copy = this.copy.output(val)
       for (const i in opvals) {
-        const [op,next] = opvals[i]
-        copy = copy.dumbact(op,copy._output,next)
+        const [op,...next] = opvals[i]
+        copy = copy.dumbact(op,copy._output,...next)
       }
       return copy
     }
-    empty() { return this.copy.output('') }
+    empty() { return this.copy.output([]) }
     range(low,high) {
       const c = this._string[this._endidx]
       const {copy} = this
@@ -125,6 +134,10 @@ module.exports = Circuit => {
       }
       else throw copy.error('range',low,high)
     }
+    strip(toparse) {
+      const {_output} = this.parse(...toparse)
+      return this.copy.output(_output)
+    }
 
     ['*'] (toparse) {
       let idx, prg = this, args = []
@@ -132,9 +145,14 @@ module.exports = Circuit => {
         do {
           idx = prg._endidx
           prg = prg.parse(...toparse)
+          // args = args.concat(prg._output)
+          // log('*',args,prg._output)
           args.push(prg._output)
         } while (prg._endidx > idx)
       }
+      // catch (e) {
+      //   error('*',e)
+      // }
       finally {
         return prg.copy.output(args)
       }
@@ -159,7 +177,12 @@ module.exports = Circuit => {
       }
       throw this.copy.error('|',...args)
     }
-    ['!'] (endkey) {
+    ['!'] (toparse) {
+      try { this.parse(...toparse) }
+      catch (e) { return this.copy.output([]) }
+      throw this.copy.error('!',...toparse)
+    }
+    ['.'] (endkey) {
       let {copy} = this, string = ''
       do {
         const c = copy._string[copy._endidx]
@@ -184,8 +207,10 @@ module.exports = Circuit => {
     catch (e) {
       error(e)
     }
-    log(prg,prg.acts)
-    if (prg._error) error(...prg._error)
-    else log(prg._output)
+    log(prg)
+    const {acts,_error,_output} = prg
+    if (_error) error(..._error)
+    else log(_output)
+    for (const i in acts) log(i,acts[i])
   }
 }
