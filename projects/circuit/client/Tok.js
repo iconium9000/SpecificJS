@@ -78,14 +78,21 @@ val16 val15;
 ### Scope ###
 comma ( (val16 pad* , pad*){strip @0}* (val16|)){ary @0 @1};
 
-statement
-  ( comma pad* $; ) { act Comma @0 } |
-  $;. {err @};
-scope (
-  ( statement (pad* statement){strip @1}* ) {ary %0 @1} |
-) {act Scope @};
+# statement
+  # (pad* val16 (,{ary}|$;{break}))*;
+  # ( comma pad* $; ) { act Comma @0 } |
+  # $;. {err @};
 
-start (pad* scope pad*) {strip @1};
+# scope ((pad* val16 pad* $;){strip @1}* pad*) {act Scope @0};
+
+
+# scope (
+  # ( statement (pad* statement){strip @1}* ) {ary %0 @1} |
+# ) {act Scope @};
+
+start (
+  (pad* val16 pad* $;) {strip @1}
+)* {act Scope @} | pad* {act Scope};
 
 `
 

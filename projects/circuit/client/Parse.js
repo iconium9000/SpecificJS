@@ -94,6 +94,11 @@ module.exports = Circuit => {
       const [txt] = this.txtsum(...args)._output
       return this.dumbact('Error',txt,this._endidx)
     }
+    // break(...args) {
+    //   const {copy,_output} = this.parse(...args)
+    //   copy._break = true
+    //   throw copy.error(_output)
+    // }
     dumbact(...args) {
       const {copy,_endidx} = this
       copy._startidx = _endidx
@@ -145,17 +150,14 @@ module.exports = Circuit => {
         do {
           idx = prg._endidx
           prg = prg.parse(...toparse)
-          // args = args.concat(prg._output)
-          // log('*',args,prg._output)
           args.push(prg._output)
         } while (prg._endidx > idx)
       }
       // catch (e) {
-      //   error('*',e)
+      //   if (e._break) args.push(e._error)
+      //   return
       // }
-      finally {
-        return prg.copy.output(args)
-      }
+      finally { return prg.copy.output(args) }
     }
     ['+'] (toparse) {
       let idx, prg = this, args = []
@@ -168,6 +170,10 @@ module.exports = Circuit => {
           args.push(prg._output)
         } while (prg._endidx > idx)
       }
+      // catch (e) {
+      //   if (e._break) args.push(e._error)
+      //   return
+      // }
       finally { return prg.copy.output(args) }
     }
     ['|'] (...args) {
@@ -211,6 +217,7 @@ module.exports = Circuit => {
     const {acts,_error,_output} = prg
     if (_error) error(..._error)
     else log(_output)
+    // console.table(acts)
     for (const i in acts) log(i,acts[i])
   }
 }
