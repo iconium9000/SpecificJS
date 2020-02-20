@@ -23,7 +23,7 @@ fun str | txt | out | par | ary;
 regop parop | $. | $* | $+ | $| | $& | $@ | $: | $; ;
 match str : (mch .);
 
-char $@ : (ary char);
+char $@ : [char];
 range {$< pad* @ pad* $: pad* @ pad* $>}:(rng .2 .6);
 block {
   ( \$( pad* or pad* $) ) |

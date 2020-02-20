@@ -81,7 +81,83 @@ regx [out [lst [rep0 [
 
 module.exports = Circuit => {
 
+  function pad(idx) {
+    if (' \n\t'.includes(TOK2[idx])) return [idx+1]
+    else throw 'no pad'
+  }
+  function txt(idx) {
+    let txt = ''
+    while (idx < TOK2.length) {
+      const c = TOK2[idx]
+      if ('[] \n'.includes(c)) break
+      txt += c; ++idx
+    }
+    if (txt.length) return [idx, txt]
+    else throw 'bad txt'
+  }
+  function str(idx) {
+    const start = TOK2[idx]
+    if ('\'\"\`'.includes(start)) {
+      let str = ''
+      while (++idx < TOK2.length) {
+        const c = TOK2[idx]
+        if (c == start) return [idx+1,str]
+        else str += c
+      }
+      throw `str no close at ${idx}`
+    }
+    throw `bad str`
+  }
+  function rep0(idx,fun) {
+    const out = []
+    try {
+      while (idx < TOK2.length) {
+        const [_idx,_out] = fun(idx)
+        idx = _idx; out.push(_out)
+      }
+    }
+    // catch (e) { error('rep0',e)}
+    finally { return [idx,out] }
+  }
+  function or(idx,...funs) {
+    for (const i in funs) {
+      try { return funs[i](idx) }
+      catch (e) {}
+    }
+    throw 'bad or'
+  }
+  function cmp(idx) {
+    const [sidx,name] = str(idx)
+    return [sidx,['cmp',name]]
+  }
+  function mch(idx) {
+    const [sidx,name] = txt(idx)
+    return [sidx,['cmp',name]]
+  }
+  function list(idx) {
+    if (TOK2[idx++] != '[') throw 'bad list'
+    const [_idx,name] = txt(rep0(idx,pad)[0])
+    const [aidx,ary] = rep0(_idx,idx => or(rep0(idx,pad)[0],cmp,list,mch))
+    idx = rep0(aidx,pad)[0]
+    if (TOK2[idx++] != ']') throw 'bad list'
+    else return [idx,[name].concat(ary)]
+  }
 
+  function start() {
+    const match = {}
+    let [idx] = rep0(0,idx => {
+      idx = rep0(idx,pad)[0]
+      const [nidx,name] = txt(idx)
+      idx = rep0(nidx,pad)[0]
+      const [aidx,ary] = list(idx)
+      match[name] = ary
+      return [aidx]
+    })
+    idx = rep0(idx,pad)[0]
+    return [idx,match]
+  }
+  const [idx,match] = start()
+  log(match)
 
   return function Tok2 () { return TOK2 }
 }
