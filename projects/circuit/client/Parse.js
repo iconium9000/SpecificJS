@@ -1,223 +1,106 @@
 module.exports = Circuit => {
 
   class Prg {
-    static init(string) {
-      const prg = new this
-      prg._map = []
-      prg._acts = []
-      prg._string = string
-      prg._startidx = 0
-      prg._endidx = 0
-      return prg
-    }
-    get endidx() { return this._endidx }
-    get acts() { return this._acts.slice() }
-    get map() { return this._map }
-    get slice() { return this._string.slice(this._startidx,this._endidx) }
-    get copy() {
-      const copy = Object.create(this)
-      return copy
-    }
-    error(...args) {
-      // error('error',...args)
-      this._error = args
-      return this
-    }
-    output(arg) {
-      // log('output',arg)
-      this._output = arg
-      return this
+
+    constructor(string) {
+      this._string = string
+      this._acts = []
+      this._match = {}
+      this._map = {}
     }
 
-    parse(key,...args) {
-      // log('parse',key,...args)
-      if (this[key]) return this[key](...args)
-      else throw this.copy.error(`list key '${key}'`,...args)
-    }
+    get copy() { return Object.create(this) }
 
-    tok(tok) {
-      const {_map,_endidx} = this
-      while (_map.length <= _endidx) _map.push({})
-      const prg = _map[_endidx][tok]
-      if (prg != undefined) {
-        if (prg._error) throw prg
-        else return prg
-      }
-      try {
-        if (!Circuit.Tok[tok]) throw `tok ${tok}`
-        return _map[_endidx][tok] = this.parse(...Circuit.Tok[tok])
-      }
-      catch (e) { throw _map[_endidx][tok] = e._error ? e : this.error(e) }
-    }
-    match(string) {
-      const {_string,_map,_endidx} = this
-      while (_map.length <= _endidx) _map.push({})
-      let prg = _map[_endidx][string]
-      if (prg != undefined) {
-        if (prg._error) throw prg
-        else return prg
-      }
-      const newidx = _endidx + string.length
-      if (_string.slice(_endidx,newidx) == string) {
-        prg = this.copy
-        prg._endidx = newidx
-        return _map[_endidx][string] = prg.output(string)
-      }
-      else throw _map[_endidx][string] = this.copy.error('match',string)
-    }
-    list(...args) {
-      let prg = this
-      for (const i in args) {
-        prg = prg.parse(...args[i])
-        args[i] = prg._output
-      }
-      return prg.copy.output(args)
-    }
-    fun(test,fun) { return this.parse(...test).parse(...fun) }
-    ary(...args) {
-      let {copy} = this, ary = []
-      for (const i in args) {
-        const {_output} = this.parse(...args[i])
-        ary = ary.concat(_output)
-      }
-      return copy.output(ary)
-    }
-    act(...args) {
-      let act = []
-      for (const i in args) {
-        const {_output} = this.parse(...args[i])
-        act = act.concat(_output)
-      }
-      return this.dumbact(...act)
-    }
-    err(...args) {
-      const [txt] = this.txtsum(...args)._output
-      return this.dumbact('Error',txt,this._endidx)
-    }
-    // break(...args) {
-    //   const {copy,_output} = this.parse(...args)
-    //   copy._break = true
-    //   throw copy.error(_output)
-    // }
-    dumbact(...args) {
-      const {copy,_endidx} = this
-      copy._startidx = _endidx
-      return copy.output(copy._acts.push(args)-1)
-    }
-    idx() { return this.output([this._endidx]) }
-    txt(txt) { return this.copy.output([txt]) }
-    txtsum(...args) {
-      let txt = ''
-      for (const i in args) {
-        const {_output} = this.parse(...args[i])
-        for (const j in _output) txt += _output[j]
-      }
-      return this.copy.output([txt])
-    }
-    lookup(tok,...args) {
-      // log('lookup')
-      let {_output} = this
-      for (const i in args) _output = _output[args[i]]
-      return this.copy.output(tok == '@' ? _output : [_output])
-    }
-    stack() {
-      const [val,opvals] = this._output
-      let copy = this.copy.output(val)
-      for (const i in opvals) {
-        const [op,...next] = opvals[i]
-        copy = copy.dumbact(op,copy._output,...next)
-      }
-      return copy
-    }
-    empty() { return this.copy.output([]) }
-    range(low,high) {
-      const c = this._string[this._endidx]
-      const {copy} = this
-      if (low <= c && c <= high) {
-        ++copy._endidx
-        return copy.output(c)
-      }
-      else throw copy.error('range',low,high)
-    }
-    strip(toparse) {
-      const {_output} = this.parse(...toparse)
-      return this.copy.output(_output)
-    }
+    mch(str) {}
+    txt(arg) {}
+    str(...args) {}
+    ary(...args) {}
+    lst(...args) {}
+    fout(...args) {}
+    out(...args) {}
+    char() {}
+    rng(low,hgh) {}
+    fun(reg,fun) {}
+    rep0(arg) {}
+    rep1(arg) {}
+    not(arg) {}
+    or(...args) {}
+    and(...args) {}
 
-    ['*'] (toparse) {
-      let idx, prg = this, args = []
-      try {
-        do {
-          idx = prg._endidx
-          prg = prg.parse(...toparse)
-          args.push(prg._output)
-        } while (prg._endidx > idx)
-      }
-      // catch (e) {
-      //   if (e._break) args.push(e._error)
-      //   return
-      // }
-      finally { return prg.copy.output(args) }
-    }
-    ['+'] (toparse) {
-      let idx, prg = this, args = []
-      prg = prg.parse(...toparse)
-      args.push(prg._output)
-      try {
-        do {
-          idx = prg._endidx
-          prg = prg.parse(...toparse)
-          args.push(prg._output)
-        } while (prg._endidx > idx)
-      }
-      // catch (e) {
-      //   if (e._break) args.push(e._error)
-      //   return
-      // }
-      finally { return prg.copy.output(args) }
-    }
-    ['|'] (...args) {
-      for (const i in args) {
-        try { return this.parse(...args[i]) }
-        catch (e) { continue }
-      }
-      throw this.copy.error('|',...args)
-    }
-    ['!'] (toparse) {
-      try { this.parse(...toparse) }
-      catch (e) { return this.copy.output([]) }
-      throw this.copy.error('!',...toparse)
-    }
-    ['.'] (endkey) {
-      let {copy} = this, string = ''
-      do {
-        const c = copy._string[copy._endidx]
-        if (c == '\\') string += c + copy._string[++copy._endidx] // TODO \\
-        else try {
-          return copy.parse(...endkey).copy.output(string)
-        } catch (e) { string += c }
-      } while (++copy._endidx < copy._string.length)
-
-      throw copy.error('!',endkey)
-    }
   }
+
+  const qfa = new Prg(Circuit.Tok())
+  // {
+  //   const sgl = {}
+  //   const ops = [' \t\n','(){}[]<>', '."\'`;', '.*+|&@:;','#$']
+  //   const mchs = []
+  //   for (const i in ops) {
+  //     const op = ops[i]
+  //     const mch = []; mchs.push(mch)
+  //     for (const j in op) mch.push(sgl[op[j]] = ['txt',op[j]])
+  //   }
+  //   const [_padop,_parop,_funop,_regop] = mchs
+  //   const pad = ['mch','pad'], parop = ['mch','parop'], funop = ['mch','funop']
+  //   const str = ['mch','str'], txt = ['mch','txt'], out = ['mch','out']
+  //   const par = ['mch','par'], ary = ['mch','ary'], fun = ['mch','fun']
+  //   const regop = ['mch','regop'], match = ['mch','match']
+  //   const char = ['mch','char'], range = ['mch','range']
+  //   const block = ['mch','block'], _post = ['mch','_post']
+  //   const post = ['mch','post'], _or = ['mch','_or'], or = ['mch','or']
+  //   const _and = ['mch','_and'], and = ['mch','and'], regx = ['mch','regx']
+  //   const pad0 = ['rep0',pad]
+  //   function makeblock(char,fun) {
+  //     return [
+  //       'lst',
+  //       sgl[char],
+  //       ['rep0',['out',['lst',pad0,['and',['not',sgl['"']],fun],],'1']],
+  //     ]
+  //   }
+  //
+  //   const toks = {
+  //     pad: [
+  //       'fun',
+  //       ['or',..._padop,['lst',sgl['#'],['rep0',['not',sgl['\n']]]]],
+  //       ['ary']
+  //     ],
+  //     parop: ['or',pad,..._parop],
+  //     funop: ['or',parop,..._funop],
+  //     str: [
+  //       'fun',
+  //       ['rep1',[
+  //         'or',
+  //         ['lst',sgl['$'],char],
+  //         ['and',['not',funop],char]
+  //       ]],
+  //       ['str',['out']]
+  //     ],
+  //     txt: [
+  //       'fun',
+  //       ['or', makeblock('"',fun),makeblock("'",fun),makeblock('`',fun)],
+  //       ['str',['out',1]]
+  //     ],
+  //     out: [
+  //       'or',
+  //       [ 'fun', ['lst', sgl['.'], pad0, str, [
+  //         'rep0', [ 'out', ['lst',pad0,sgl['.'],pad0,str ], 3 ]
+  //       ]], [ 'ary','fout', ['ary',['fout',2]], ['fout',3] ]],
+  //       [ 'fun',sgl['.'],['fout'] ]
+  //     ],
+  //
+  //     fun: ['or',str,txt,out,par,ary],
+  //   }
+  //   Object.assign(qfa._match,sgl,toks)
+  // }
+
+
+
+
+  // log(qfa)
 
 
   return function Parse(string) {
-    log('Parse')
-    let prg = Prg.init(string)
+    const prg = new Prg(string)
 
-    try {
-      prg = prg.tok('start')
-    }
-    catch (e) {
-      error(e)
-    }
-    log(prg)
-    const {acts,_error,_output} = prg
-    if (_error) error(..._error)
-    else log(_output)
-    // console.table(acts)
-    for (const i in acts) log(i,acts[i])
+    // log(prg)
   }
 }
