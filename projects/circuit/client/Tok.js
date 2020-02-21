@@ -13,7 +13,7 @@ txt {
   (\' [pad* {\'! & fun}].1* pad* \') |
   (\` [pad* {\`! & fun}].1* pad* \`)
 }:[str .1];
-out {$. pad* str (pad* $. pad* str).3*}:[fout [.2] .3] | { $.:[fout] };
+out {$. pad* str (pad* $. pad* str).3*}:[fout -.2 .3] | { $.:[fout] };
 par {$( pad* str [pad* {$)! & fun}].1* pad* $)}:[.2 .4];
 ary {$[ [pad* {$]! & fun}].1* pad* $]}:(ary ary .2);
 fun str | txt | out | par | ary;
@@ -21,7 +21,7 @@ fun str | txt | out | par | ary;
 ### REGX ###
 
 regop parop | $. | $* | $+ | $| | $& | $@ | $: | $; ;
-match str : (mch .);
+match str : [mch .];
 
 char $@ : [char];
 range {$< pad* @ pad* $: pad* @ pad* $>}:(rng .2 .6);
@@ -37,10 +37,10 @@ post {
     ($. pad* str):[out .2] |
     ($: pad* fun):[fun .2]
   ]).1*
-}:(stk [] [.0] .1);
-list (post (pad* post).1+):[[.0] .1] | post;
-and {list (pad* $& pad* list).3+}:(and [.0] .1) | list;
-or {and (pad* $| pad* and).3+}:(or [.0] .1) | and;
+}:(stk [] -.0 .1);
+list (post (pad* post).1+):(lst -.0 .1) | post;
+and {list (pad* $& pad* list).3+}:(and -.0 .1) | list;
+or {and (pad* $| pad* and).3+}:(or -.0 .1) | and;
 
 regx {[pad* str pad* or pad* $;]:[.1 .3]* pad*}.0;
 

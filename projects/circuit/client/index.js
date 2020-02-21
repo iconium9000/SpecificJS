@@ -24,9 +24,24 @@ function Circuit() {
 
 		if (Circuit.locked) return
 		else Circuit.locked = true
-		log(Circuit.Parse(string))
 
-		// test(string)
+		let {time} = Circuit.Lib
+		try {
+			const {Parse,Tok,Tok2} = Circuit
+			const prg1 = Tok2().mch('start')
+			log(prg1)
+		}
+		catch (e) {
+			error(e)
+			// if (e._error) {
+			// 	log(e)
+			// 	// error(e._error)
+			// }
+			// else error(e)
+		}
+
+		log('time',Circuit.Lib.time - time)
+
   })
 
 }
