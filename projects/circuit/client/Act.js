@@ -1,4 +1,4 @@
-module.exports = Circuit => function Act(vals,start,ary) {
+module.exports = Circuit => function Act(vals,start,ary,strs) {
   const map = {}
   const mch = {}
 
@@ -28,5 +28,8 @@ module.exports = Circuit => function Act(vals,start,ary) {
     return idx
   }
 
+  for (const name in map) strs[map[name]] = name
+  log(strs)
+  for (const name in mch) strs[map[mch[name]]] = name
   return map[start]
 }

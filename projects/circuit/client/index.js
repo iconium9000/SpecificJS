@@ -28,8 +28,8 @@ function Circuit() {
 		let {time} = Circuit.Lib
 		try {
 			const {Parse,Tok,Tok2,Act} = Circuit
-			const ary = [], start = Act(TOK3,'start',ary)
-			const prs1 = Parse.init(TOK2,ary).inst(start)
+			const ary = [], map = {}, start = Act(TOK3,'start',ary,map)
+			const prs1 = Parse.init(TOK2,ary,map).inst(start)
 			log('index.js',prs1)
 		}
 		catch (e) {
