@@ -37,7 +37,7 @@ match {
 char {'@' [ary char]}
 range {
   [lst '<' pad0 [char] pad0 ':' pad0 [char] pad0 '>']
-  [rng [fout 2] [fout 6]]
+  [ary rng [fout 2] [fout 6]]
 }
 block ([or
   [lst '(' pad0 or pad0 ')']
@@ -55,24 +55,27 @@ post {[
     {[lst '.' pad0 word] [ary out [fout 2]]}
     {[lst ':' pad0 fun] [ary fun [fout 2]]}
   ]] 1)]
-] [stk [pad ary] [pad [fout 0]] [fout 1]]}
+] [stk [fout] [fout 0] [fout 1]]}
 
 list [or {
-  [lst post [rep1 ([pad0 post] 1)]]
-  [ary lst [ary [fout 0]] [fout 1]]
+  [lst post [rep1 ([lst pad0 post] 1)]]
+  [ary lst [pad [fout 0]] [fout 1]]
 } post]
 and [or {
   [lst list [rep1 ([lst pad0 '&' pad0 list] 3)]]
-  [ary and [ary [fout 0]] [fout 1]]
+  [ary and [pad [fout 0]] [fout 1]]
 } list]
 or [or {
   [lst and [rep1 ([lst pad0 '|' pad0 and] 3)]]
-  [ary or [ary [fout 0]] [fout 1]]
+  [ary or [pad [fout 0]] [fout 1]]
 } and]
 regx ([lst [rep0 {
   [lst pad0 word pad0 or pad0 ';']
   [map [fout 1] [fout 3]]
 }] pad0] 0)
+
+start list
+
 `
 
 const TOK3 = JSON.parse(`{
@@ -136,11 +139,7 @@ const TOK3 = JSON.parse(`{
       ["cmp","["],
       ["mch","pad"],
       ["mch","txt"],
-      ["rep0",[
-        "fun",
-        ["lst",["mch","pad"],["mch","top"]],
-        ["fout",["txt","1"]]
-      ]],
+      ["rep0",["out",["lst",["mch","pad"],["mch","top"]],["txt","1"]]],
       ["mch","pad"],
       ["cmp","]"]
     ],[
@@ -155,11 +154,7 @@ const TOK3 = JSON.parse(`{
       ["cmp","["],
       ["mch","pad"],
       ["mch","txt"],
-      ["rep0",[
-        "out",
-        ["lst",["mch","pad"],["mch","mid"]],
-        ["txt","1"]
-      ]],
+      ["rep0",["out",["lst",["mch","pad"],["mch","mid"]],["txt","1"]]],
       ["mch","pad"],
       ["cmp","]"]
     ],[
@@ -175,6 +170,4 @@ const TOK3 = JSON.parse(`{
   ]]
 }`)
 
-module.exports = Circuit => {
-  return function Tok2 () { return Circuit.Parse.init(TOK2,TOK3) }
-}
+module.exports = Circuit => function Tok2 () {}
