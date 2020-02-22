@@ -22,6 +22,7 @@ module.exports = Circuit => {
   return class Parse {
     static init(string,match) {
       const prg = new this
+      prg._time = null
       prg._slice = null
       prg._error = null
       prg._ret = null
@@ -30,9 +31,12 @@ module.exports = Circuit => {
         par:[],acts:[],map:{},tbl:{},
         dup:0,skip:0
       }
+      prg._copies = []
+      prg._srtidx = 0
       prg._endidx = 0
       return prg
     }
+    get slice() { return this._string.slice(this._srtidx,this._endidx) }
     get _parent() { return this._const.par }
     set _parent(p) { this._const.par = p }
     get _string() { return this._const.str }
@@ -45,7 +49,14 @@ module.exports = Circuit => {
     set dup(d) { this._dup = this._const.dup = d }
     get skip() { return this._const.skip }
     set skip(k) { this._skip = this._const.skip = k }
-    get copy() { ++this.dup; return Object.assign(new Parse,this) }
+    get copy() {
+      const copy = Object.assign(new Parse,this)
+      ++copy.dup
+      this._copies.push(copy)
+      copy._copies = []
+      copy._scp = this
+      return copy
+    }
     get endidx() { return this._endidx }
     get count() {
       let map = {}, {_map} = this, total = 0
@@ -75,8 +86,17 @@ module.exports = Circuit => {
       }
       return map
     }
-    idx(idx) {
-      this._endidx = idx;
+    srtidx(srtidx) {
+      this._srtidx = srtidx
+      return this
+    }
+    endidx(endidx) {
+      this._endidx = endidx
+      return this
+    }
+    idx(srtidx,endidx) {
+      this._srtidx = srtidx
+      this._endidx = endidx
       return this
     }
     ret(ret) {
@@ -93,6 +113,7 @@ module.exports = Circuit => {
       // log('prs',tok,...arg)
       const {_parent,_endidx,_string,_map} = this
       this._parent = []
+      this._trace = _parent
 
       // const str = JSON.stringify(args)
       // if (_map[str]) {
@@ -112,19 +133,13 @@ module.exports = Circuit => {
       }
       catch (e) { throw ret = e._error ? e : this.copy.error(e) }
       finally {
-        ret = ret.copy
+        ret = ret.copy//.srtidx(_endidx)
         ret._args = args
         ret._time = Circuit.Lib.time - time
-        ret._slice = _string.slice(_endidx,ret._endidx)
+        ret._slice = ret.slice
         ret._children = this._parent
         _parent.push(ret)
         this._parent = _parent
-        // stack.push(new Stack(
-        //   args,ret,this.stack,
-        //   _string.slice(_endidx,ret._endidx),
-        //   Circuit.Lib.time - time
-        // ))
-        // this.stack = stack
       }
       // finally { _map[str][_endidx] = ret }
     }
@@ -141,14 +156,11 @@ module.exports = Circuit => {
       else _map[str] = {}
       let ret, mch = _match[str] || ['cmp',str]
       try { return ret = this.prs(...mch) }
-      catch (e) {
-        // error('mch',e)
-        throw ret = e._error ? e : this.copy.error(e)
-      }
-      finally { _map[str][_endidx] = ret }
+      catch (e) { throw ret = e._error ? e : this.copy.error(e) }
+      finally { _map[str][_endidx] = ret.srtidx(_endidx) }
     }
     rep0(arg) {
-      let prg = this, {length} = prg._string, ret = []
+      let prg = this, ret = [], {length} = this._string
       try {
         while (prg._endidx < length) {
           prg = prg.prs(...arg)
@@ -156,21 +168,23 @@ module.exports = Circuit => {
         }
       }
       // catch (e) { error(e._error || e) }
-      finally { return prg.copy.ret(ret) }
+      finally { return prg.copy.ret(ret).srtidx(this._endidx) }
     }
     rep1(arg) {
-      let prg = this.prs(...arg), ret = [prg._ret], {length} = prg._string
+      let prg = this.prs(...arg), ret = [prg._ret], {length} = this._string
       try {
         while (prg._endidx < length) {
           prg = prg.prs(...arg)
           ret.push(prg._ret)
         }
       }
-      finally { return prg.copy.ret(ret) }
+      finally { return prg.copy.ret(ret).srtidx(this._endidx) }
     }
     fun(top,mid) {
-      const prg = this.prs(...top).prs(...mid)
-      return prg.copy.ret(prg._ret)
+      let prg = this.prs(...top)
+      // log('fun',mid)
+      prg = prg.prs(...mid)
+      return prg.copy.ret(prg._ret).srtidx(this._endidx)
     }
     lst(...args) {
       let prg = this
@@ -208,31 +222,31 @@ module.exports = Circuit => {
         const sc = special_chars[c]
         if (sc != undefined) c = sc
       }
-      return copy.ret(c).idx(_endidx)
+      return copy.ret(c).idx(this._endidx,_endidx)
     }
     cmp(str) {
       const {copy,_string,_endidx} = this, idx = _endidx + str.length
       if (idx >= _string.length) throw copy.error('cmp overflow')
-      if (_string.slice(_endidx,idx) == str) return copy.ret(str).idx(idx)
+      if (_string.slice(_endidx,idx) == str) {
+        return copy.ret(str).idx(_endidx,idx)
+      }
       else throw copy.error('cmp',str)
     }
-    txt(str) {
-      return this.copy.ret(str)
-    }
+    txt(str) { return this.copy.ret(str) }
     str(...args) {
       let str = '', prg = this.ary(...args), {_ret} = prg;
       for (const i in _ret) str += _ret[i]
-      return prg.copy.ret(str)
+      return prg.copy.ret(str).srtidx(this._endidx)
     }
     ary(...args) {
       let ary = []
       for (const i in args) ary = ary.concat(this.prs(...args[i])._ret)
-      // for (const i in args) ary.push(this.prs(...args[i])._ret)
       return this.copy.ret(ary)
     }
-    pad(arg) {
-      const prg = this.prs(...arg)
-      return prg.copy.ret([prg._ret])
+    pad(...args) {
+      let ary = []
+      for (const i in args) ary = ary.concat(this.prs(...args[i])._ret)
+      return this.copy.ret([ary])
     }
     map(name,fun) {
       name = this.prs(...name)._ret
@@ -242,11 +256,30 @@ module.exports = Circuit => {
     }
     fout(...args) {
       let {_ret} = this
-      for (const i in args) _ret = _ret[args[i]]
+      for (const i in args) _ret = _ret[this.prs(...args[i])._ret]
       return this.copy.ret(_ret)
     }
-    stk(...args) { throw this.copy.error('TODO','stk',...args) }
-    out(...args) { throw this.copy.error('TODO','out',...args) }
-    rng(low,hgh) { throw this.copy.error('TODO','rng',low,hgh) }
+    out(arg,out) {
+      const prg = this.prs(...arg)
+      const {_ret} = this.prs(...out)
+      return prg.copy.ret(prg._ret[_ret]).srtidx(this._endidx)
+    }
+    stk(...args) {
+      let ary = []
+      for (const i in args) ary = ary.concat(this.prs(...args[i])._ret)
+      let [fun,val,...reps] = ary
+      // for (const i in reps) {
+      //   val = this.copy.ret([val,reps[i]])
+      // }
+      error('stk',fun,val,...reps)
+      throw this.copy.error('stk',start,val,rep)
+    }
+    rng(low,hgh) {
+      let {copy,_string,_endidx} = this
+      if (_endidx >= _string.length) throw copy.error('rng overflow')
+      const c = _string[_endidx]
+      if (low <= c && c <= high) return copy.ret(c).idx(_endidx,1+_endidx)
+      else throw copy.error('rng',low,hgh,c)
+    }
   }
 }

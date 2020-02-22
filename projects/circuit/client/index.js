@@ -30,14 +30,13 @@ function Circuit() {
 			const {Parse,Tok,Tok2} = Circuit
 			const prg1 = Tok2().mch('start')
 			log(prg1)
+			log(prg1._table)
+			log(prg1._parent[0])
+			// const prg2 = Parse.init(Tok(),prg1._table).mch('regx')
+			// log(prg2)
 		}
 		catch (e) {
 			error(e)
-			// if (e._error) {
-			// 	log(e)
-			// 	// error(e._error)
-			// }
-			// else error(e)
 		}
 
 		log('time',Circuit.Lib.time - time)
