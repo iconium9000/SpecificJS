@@ -28,8 +28,8 @@ module.exports = Circuit => function Act(vals,start,ary,strs) {
     return idx
   }
 
-  for (const name in map) strs[map[name]] = name
-  log(strs)
+  // for (const name in map) strs[map[name]] = name
   for (const name in mch) strs[map[mch[name]]] = name
+  // log(strs)
   return map[start]
 }

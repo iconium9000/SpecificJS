@@ -38,142 +38,86 @@ module.exports = Circuit => {
     "act":true
   }`)
 
-  const noprint = {
-    // lst:true,
-    or:true,
-    cmp:true,//txt:true,char:true,
-    // rep0:true,rep1:true,fun:true,and:true,not:true,
-  }
-
   return class Parse {
+
     static init(string,insts,strs) {
       const prs = new this
-      prs._err = undefined
+      prs._info = ['start']
       prs._ret = undefined
+      prs._err = false
+      const map = {}
+      for (const i in insts) map[i] = {}
       prs._const = {
-        map:{},act:[],match:{},stack:[],trace:[],strs:strs,
-        string: string,insts:insts,
+        acts:[],mch:{},map:map,
+        string:string,insts:insts,strs:strs,
       }
-      prs._srtidx = 0
-      prs._endidx = 0
       return prs
     }
-    get slice() {
-      const {_srtidx,_endidx,_const:{string}} = this
-      return string.slice(_srtidx,_endidx)
-    }
-    get copy() {
-      const copy = Object.assign(new Parse,this)
-      return copy
-    }
-    srtidx(idx) {
-      this._srtidx = idx
-      return this
-    }
-    endidx(idx) {
-      this._endidx = idx
-      return this
-    }
+
     ret(ret) {
       this._ret = ret
       return this
     }
-    err(...err) {
-      this._err = err
+
+    info(info) {
+      this._info = info
       return this
+    }
+
+    get err() {
+      const copy = Object.assign(new Parse,this)
+      copy._err = true
+      return copy
+    }
+
+    get copy() {
+      const copy = Object.assign(new Parse,this)
+      return copy
     }
 
     inst(instid) {
-      const {_endidx,_const:{map,insts,stack,trace}} = this
-      if (map[instid]) {
-        const ret = map[instid][_endidx]
-        if (ret === undefined);
-        else if (ret._err) throw ret
+      const {_endidx,_const:{insts,map}} = this, inst = insts[instid]
+      let ret = map[instid][_endidx]
+      if (ret != undefined) {
+        if (ret._err) throw ret
         else return ret
       }
-      else map[instid] = {}
-
-      let ret, inst = insts[instid]
-      stack.push(instid)
-      this._const.trace = []
-
       try {
-        if (!special_funs[inst[0]]) throw inst
+        if (!special_funs[inst[0]]) throw ['inst','bad fun',inst]
         return ret = this[inst[0]](inst)
       }
-      catch (e) {
-        throw ret = (e._err ? e.copy : this.copy.err('inst',e)).srtidx(_endidx)
-      }
-      finally {
-        // log('inst',ret,...stack,inst)
-        // if (ret._err) {
-          // error(...ret._err)
-          // const [tok] = ret._err
-          // if (!noprint[tok]) log(inst,instid,...ret._err)
-        // }
-        // else log(ret._ret)
-
-        trace.push(Object.assign(ret.copy,{
-          _inst: inst, _instid: instid,
-          _trace: this._const.trace,
-        }))
-        this._const.trace = trace
-
-        stack.pop()
-        map[instid][_endidx] = ret
-      }
+      catch (e) { throw ret = e._err ? e : this.err.info(e) }
+      finally { map[instid][_endidx] = ret }
     }
 
-    rep0(inst) {
-      const instid = inst[1], ret = []
-      let prs = this, {_endidx} = this
-      try {
-        while (true) {
-          prs = prs.inst(instid)
-          ret.push(prs._ret)
-          if (_endidx >= prs._endidx) throw 'underflow'
-          _endidx = prs._endidx
-        }
-      }
-      finally { return prs.copy.ret(ret) }
-    }
-    rep1(inst) {
-      const prs = this.rep0(inst); prs._inst = inst
-      if (prs._ret.length > 0) return prs
-      else throw prs.err('rep1','underflow')
-    }
     fun(inst) {
-      let prs = this
-      for (let i = 1; i < inst.length; ++i) prs = prs.inst(inst[i])
-      return prs
-    }
-    and(inst) {
-      let prs = this
-      for (let i = 1; i < inst.length; ++i) prs = this.inst(inst[i])
-      return prs
-    }
-    not(inst) {
-      for (let i = 1; i < inst.length; ++i) {
-        try { this.inst(inst[i]) }
-        catch (e) { continue }
-        throw this.copy.err('not',inst)
+      let prs = this, info = ['fun']
+      try {
+        for (let i = 1; i < inst.length; ++i) {
+          prs = prs.inst(inst[i])
+          info.push(prs._info)
+        }
+        return prs.copy.info(info)
       }
-      return this
+      catch (e) {
+        info.push(e._err ? e._info : e)
+        throw prs.err.info(info)
+      }
     }
     lst(inst) {
-      let prs = this, ret = []
-      for (let i = 1; i < inst.length; ++i) {
-        prs = prs.inst(inst[i])
-        ret.push(prs._ret)
+      let prs = this, info = ['lst'], ret = []
+      try {
+        for (let i = 1; i < inst.length; ++i) {
+          prs = prs.inst(inst[i])
+          ret.push(prs._ret)
+          info.push(prs._info)
+        }
+        return prs.copy.ret(ret).info(info)
       }
-      return prs.copy.ret(ret)
-    }
-    or(inst) {
-      for (let i = 1; i < inst.length; ++i) {
-        try { return this.inst(inst[i]) }
-        catch (e) {}
+      catch (e) {
+        info.push(e._err ? e._info : e)
+        throw prs.err.ret(ret).info(info)
       }
-      throw this.copy.err('or','overflow')
     }
     cmp(inst) {
       const word = inst[1]
@@ -181,52 +125,218 @@ module.exports = Circuit => {
       const idx = _endidx + word.length
       const prs = this.copy.endidx(idx)
       if (idx > string.length) throw prs.err('cmp','overflow')
-      if (string.slice(_endidx,idx) == word) {
+      const slice = string.slice(_endidx,idx)
+      if (slice == word) {
         return prs.ret(word)
       }
-      else throw prs.err('cmp',word)
-    }
-    txt(inst) { return this.copy.ret(inst[1]).set(this,inst,[]) }
-    char(inst) {
-      let {copy,_const:{string},_endidx} = this
-      if (_endidx >= string.length) throw copy.err('char','overflow')
-      let c = string[_endidx++]
-      if (c == '\\') {
-        if (_endidx >= string.length) throw copy.err('char','overflow')
-        c = string[_endidx++]
-        const sc = special_chars[c]
-        if (sc != undefined) c = sc
-      }
-      return copy.ret(c).endidx(_endidx)
+      else throw prs.err('cmp',word,slice)
     }
 
-    mch(inst) { throw this.copy.err('TODO mch') }
-    str(inst) {
-      let str = '', prs = this.ary(inst), {_ret} = prs
-      for (const i in _ret) str += _ret[i]
-      return prs.ret(str)
-    }
-    ary(inst) {
-      let ret = []
-      for (let i = 1; i < inst.length; ++i) {
-        ret = ret.concat(this.inst(inst[i])._ret)
-      }
-      return this.copy.ret(ret)
-    }
-    pad(inst) {
-      let prs = this.ary(inst)
-      return prs.ret([prs._ret])
-    }
-    fout(inst) {
-      let {_ret} = this
-      for (let i = 1; i < inst.length; ++i) _ret = _ret[this.inst(inst[i])]
-      return this.copy.ret(_ret)
-    }
-    stk(inst) { throw this.copy.err('TODO stk') }
+    mch(inst) { error('TODO mch'); throw ['TODO',...inst] }
+    rep0(inst) { error('TODO rep0'); throw ['TODO',...inst] }
+    rep1(inst) { error('TODO rep1'); throw ['TODO',...inst] }
 
-    out(inst) { throw this.copy.err('TODO out') }
-    rng(inst) { throw this.copy.err('TODO rng') }
-    map(inst) { throw this.copy.err('TODO map') }
-    act(inst) { throw this.copy.err('TODO act') }
+    or(inst) { error('TODO or'); throw ['TODO',...inst] }
+    and(inst) { error('TODO and'); throw ['TODO',...inst] }
+    not(inst) { error('TODO not'); throw ['TODO',...inst] }
+    char(inst) { error('TODO char'); throw ['TODO',...inst] }
+    txt(inst) { error('TODO txt'); throw ['TODO',...inst] }
+
+    str(inst) { error('TODO str'); throw ['TODO',...inst] }
+    ary(inst) { error('TODO ary'); throw ['TODO',...inst] }
+    pad(inst) { error('TODO pad'); throw ['TODO',...inst] }
+    fout(inst) { error('TODO fout'); throw ['TODO',...inst] }
+    stk(inst) { error('TODO stk'); throw ['TODO',...inst] }
+
+    out(inst) { error('TODO out'); throw ['TODO',...inst] }
+    rng(inst) { error('TODO rng'); throw ['TODO',...inst] }
+    map(inst) { error('TODO map'); throw ['TODO',...inst] }
+    act(inst) { error('TODO act'); throw ['TODO',...inst] }
+
   }
+
+
+
+  // return class Parse {
+  //   static init(string,insts,strs) {
+  //     const prs = new this
+  //     prs._err = undefined
+  //     prs._ret = undefined
+  //     prs._const = {
+  //       map:{},act:[],match:{},
+  //       string: string,insts:insts,
+  //     }
+  //     prs._srtidx = 0
+  //     prs._endidx = 0
+  //     return prs
+  //   }
+  //   get slice() {
+  //     const {_srtidx,_endidx,_const:{string}} = this
+  //     return string.slice(_srtidx,_endidx)
+  //   }
+  //   get copy() {
+  //     const copy = Object.assign(new Parse,this)
+  //     return copy
+  //   }
+  //   srtidx(idx) {
+  //     this._srtidx = idx
+  //     return this
+  //   }
+  //   endidx(idx) {
+  //     this._endidx = idx
+  //     return this
+  //   }
+  //   ret(ret) {
+  //     this._ret = ret
+  //     return this
+  //   }
+  //   err(...err) {
+  //     this._err = err
+  //     return this
+  //   }
+  //
+  //   inst(instid) {
+  //     const {_endidx,_const:{map,insts}} = this
+  //     if (map[instid]) {
+  //       const ret = map[instid][_endidx]
+  //       if (ret === undefined);
+  //       else if (ret._err) throw ret
+  //       else return ret
+  //     }
+  //     else map[instid] = {}
+  //
+  //     let ret, inst = insts[instid]
+  //     try {
+  //       if (!special_funs[inst[0]]) throw inst
+  //       return ret = this[inst[0]](inst)
+  //     }
+  //     catch (e) { throw ret = e._err ? e.copy : this.copy.err('inst',e) }
+  //     finally { map[instid][_endidx] = ret }
+  //   }
+  //
+  //   rep0(inst) {
+  //     const instid = inst[1], ret = []
+  //     let prs = this, {_endidx} = this
+  //     try {
+  //       while (true) {
+  //         prs = prs.inst(instid)
+  //         ret.push(prs._ret)
+  //         if (_endidx >= prs._endidx) throw 'underflow'
+  //         _endidx = prs._endidx
+  //       }
+  //     }
+  //     finally { return prs.copy.ret(ret) }
+  //   }
+  //   rep1(inst) {
+  //     const prs = this.rep0(inst); prs._inst = inst
+  //     if (prs._ret.length > 0) return prs
+  //     else throw prs.err('rep1','underflow')
+  //   }
+  //   fun(inst) {
+  //     let prs = this
+  //     for (let i = 1; i < inst.length; ++i) prs = prs.inst(inst[i])
+  //     return prs
+  //   }
+  //   and(inst) {
+  //     let prs = this
+  //     for (let i = 1; i < inst.length; ++i) prs = this.inst(inst[i])
+  //     return prs
+  //   }
+  //   not(inst) {
+  //     for (let i = 1; i < inst.length; ++i) {
+  //       try { this.inst(inst[i]) }
+  //       catch (e) { continue }
+  //       throw this.copy.err('not',inst)
+  //     }
+  //     return this
+  //   }
+  //   lst(inst) {
+  //     let prs = this, ret = []
+  //     for (let i = 1; i < inst.length; ++i) {
+  //       prs = prs.inst(inst[i])
+  //       ret.push(prs._ret)
+  //     }
+  //     return prs.copy.ret(ret)
+  //   }
+  //   or(inst) {
+  //     for (let i = 1; i < inst.length; ++i) {
+  //       try { return this.inst(inst[i]) }
+  //       catch (e) {}
+  //     }
+  //     throw this.copy.err('or','overflow')
+  //   }
+  //   cmp(inst) {
+  //     const word = inst[1]
+  //     const {_endidx,_const:{string}} = this
+  //     const idx = _endidx + word.length
+  //     const prs = this.copy.endidx(idx)
+  //     if (idx > string.length) throw prs.err('cmp','overflow')
+  //     const slice = string.slice(_endidx,idx)
+  //     if (slice == word) {
+  //       return prs.ret(word)
+  //     }
+  //     else throw prs.err('cmp',word,slice)
+  //   }
+  //   txt(inst) { return this.copy.ret(inst[1]) }
+  //   char(inst) {
+  //     let {copy,_const:{string},_endidx} = this
+  //     if (_endidx >= string.length) throw copy.err('char','overflow')
+  //     let c = string[_endidx++]
+  //     if (c == '\\') {
+  //       if (_endidx >= string.length) throw copy.err('char','overflow')
+  //       c = string[_endidx++]
+  //       const sc = special_chars[c]
+  //       if (sc != undefined) c = sc
+  //     }
+  //     return copy.ret(c).endidx(_endidx)
+  //   }
+  //
+  //   mch(inst) { throw this.copy.err('TODO mch') }
+  //   str(inst) {
+  //     let str = '', prs = this.ary(inst), {_ret} = prs
+  //     for (const i in _ret) str += _ret[i]
+  //     return prs.ret(str)
+  //   }
+  //   ary(inst) {
+  //     let ret = []
+  //     for (let i = 1; i < inst.length; ++i) {
+  //       ret = ret.concat(this.inst(inst[i])._ret)
+  //     }
+  //     return this.copy.ret(ret)
+  //   }
+  //   pad(inst) {
+  //     let prs = this.ary(inst)
+  //     return prs.ret([prs._ret])
+  //   }
+  //   fout(inst) {
+  //     let {_ret} = this
+  //     for (let i = 1; i < inst.length; ++i) {
+  //       _ret = _ret[this.inst(inst[i])._ret]
+  //     }
+  //     return this.copy.ret(_ret)
+  //   }
+  //   out(inst) {
+  //     let {_ret} = this.inst(inst[1])
+  //     for (let i = 2; i < inst.length; ++i) {
+  //       _ret = _ret[this.inst(inst[i])._ret]
+  //     }
+  //     return this.copy.ret(_ret)
+  //   }
+  //   stk(inst) {
+  //     error('TODO stk')
+  //     throw this.copy.err('TODO stk')
+  //   }
+  //   rng(inst) {
+  //     error('TODO rng')
+  //     throw this.copy.err('TODO rng')
+  //   }
+  //   map(inst) {
+  //     error('TODO map')
+  //     throw this.copy.err('TODO map')
+  //   }
+  //   act(inst) {
+  //     error('TODO act')
+  //     throw this.copy.err('TODO act')
+  //   }
+  // }
 }
