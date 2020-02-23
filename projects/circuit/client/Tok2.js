@@ -111,9 +111,9 @@ const TOK3 = JSON.parse(`{
       ["mch","pad"],["cmp",")"]
     ], [
       "ary",
-      ["txt","out"],
+      ["txt","fun"],
       ["pad",["fout",["txt","2"]]],
-      ["pad",["fout",["txt","4"]]]
+      ["pad",["txt","fout"],["fout",["txt","4"]]]
     ]
   ],
   "fun": [
@@ -139,7 +139,7 @@ const TOK3 = JSON.parse(`{
       ["cmp","["],
       ["mch","pad"],
       ["mch","txt"],
-      ["rep0",["out",["lst",["mch","pad"],["mch","top"]],["txt","1"]]],
+      ["rep0",["fun",["lst",["mch","pad"],["mch","top"]],["fout",["txt","1"]]]],
       ["mch","pad"],
       ["cmp","]"]
     ],[
@@ -154,7 +154,7 @@ const TOK3 = JSON.parse(`{
       ["cmp","["],
       ["mch","pad"],
       ["mch","txt"],
-      ["rep0",["out",["lst",["mch","pad"],["mch","mid"]],["txt","1"]]],
+      ["rep0",["fun",["lst",["mch","pad"],["mch","mid"]],["fout",["txt","1"]]]],
       ["mch","pad"],
       ["cmp","]"]
     ],[
