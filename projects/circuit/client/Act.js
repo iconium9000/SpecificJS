@@ -1,6 +1,5 @@
-module.exports = Circuit => function Act(vals,start,ary,strs) {
-  const map = {}
-  const mch = {}
+module.exports = Circuit => function Act(vals,start,ary,src) {
+  const map = {}, strs = {}, mch = {}
 
   for (const name in vals) {
     const strA = mch[name] = JSON.stringify(vals[name])
@@ -18,7 +17,9 @@ module.exports = Circuit => function Act(vals,start,ary,strs) {
     else if (top == 'cmp' || top == 'txt') return push(str,val)
     const ret = val.slice(1)
     for (const i in ret) ret[i] = test(JSON.stringify(ret[i]),ret[i])
-    return push(str,[top].concat(ret))
+    idx = push(str,[top].concat(ret))
+    src[idx] = val
+    return idx
   }
 
   function push(str,ret) {
@@ -30,6 +31,7 @@ module.exports = Circuit => function Act(vals,start,ary,strs) {
 
   // for (const name in map) strs[map[name]] = name
   for (const name in mch) strs[map[mch[name]]] = name
+  // for (const i in map) src[map[i]] = i
   // log(strs)
   return map[start]
 }

@@ -1,5 +1,5 @@
 // `; test = `
-const TOKBAD = `
+const TOK = `
 
 pad { $ .0 | $\t | $\n | $# $\n!* } : [];
 parop pad | $( | $) | \${ | \$} | $[ | $] | $< | $> ;
@@ -45,7 +45,4 @@ or {and (pad* $| pad* and).3+}:(or -.0 .1) | and;
 regx {[pad* str pad* or pad* $;]:[.1 .3]* pad*}.0;
 
 `
-
-const TOK = 'a* b'
-
 module.exports = Circuit => function Tok () { return TOK }

@@ -28,11 +28,16 @@ function Circuit() {
 		let {time} = Circuit.Lib
 		try {
 			const {Parse,Tok,Tok2,Act} = Circuit
-			const ary = [], map = {}, start = Act(TOK3,'ary',ary,map)
-			log(ary,map)
-			const tok = `[or " " "\t" "\n" [lst "#" [rep0 [not "\n"]]]]`
-			const prs1 = Parse.init(tok,ary,map).inst(start)
-			log('index.js',prs1)
+			let ary = [], map = {}, start = Act(TOK3,'start',ary,map)
+			log(ary,start,map)
+			let prs = Parse.init(TOK2,ary,map).parse(start)
+			log(prs)
+			ary = []; map = {}, start = Act(prs._const.mch,'regx',ary,map)
+			log(ary,start,map)
+			prs = Parse.init(TOK,ary,map).parse(start)
+			log(prs)
+			ary = []; map = {}, start = Act(prs._const.mch,'regx',ary,map)
+			log(ary,start,map)
 		}
 		catch (e) {
 			error('index.js',e)
