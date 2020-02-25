@@ -1,20 +1,20 @@
 // `; test = `
 const TOK = `
 
-pad { $ .0 | $\t | $\n | $# $\n!* } : [];
+pad { $ .0 | $\t | $\n | $# ($\n & @)!* } : [];
 parop pad | $( | $) | \${ | \$} | $[ | $] | $< | $> ;
 
 ### FUN ###
 
-funop parop | $. | " | ' | \` | $; ;
-str ($$ @ | funop! & @)+ : [str .];
+funop parop | regop | $. | " | ' | \` | $; ;
+word ($$ @ | funop! @)+ : "."
 txt {
   (\" [pad* {\"! & fun}].1* pad* \") |
   (\' [pad* {\'! & fun}].1* pad* \') |
   (\` [pad* {\`! & fun}].1* pad* \`)
-}:[str .1];
-out {$. pad* str (pad* $. pad* str).3*}:[fout -.2 .3] | { $.:[fout] };
-par {$( pad* str [pad* {$)! & fun}].1* pad* $)}:[.2 .4];
+}:[txt ".1"] | word:[txt .];
+out {$. pad* txt (pad* $. pad* txt).3*}:[fout -.2 .3] | { $.:[fout] };
+par {$( pad* txt [pad* {$)! & fun}].1* pad* $)}:[.2 .3];
 ary {$[ [pad* {$]! & fun}].1* pad* $]}:(ary ary .2);
 fun str | txt | out | par | ary;
 

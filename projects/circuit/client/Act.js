@@ -10,6 +10,10 @@ module.exports = Circuit => function Act(vals,start,ary,src) {
   for (const name in vals) test(mch[name],vals[name],true)
 
   function test(str,val,flag) {
+    if (typeof val == 'string') {
+      throw ['act',val]
+    }
+
     let idx = map[str]
     if (idx != undefined && !flag) return idx
     const [top,txt] = val

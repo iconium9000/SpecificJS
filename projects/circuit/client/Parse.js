@@ -1,8 +1,6 @@
 module.exports = Circuit => {
 
   const special_chars = {
-    '\'': '\'',
-    '"': '\"',
     '\\': '\\',
     'n': '\n',
     'r': '\r',
@@ -12,15 +10,6 @@ module.exports = Circuit => {
     'v': '\v',
     '0': '\0',
   }
-  const map_funs = JSON.parse(`{
-    "str":true,
-    "ary":true,
-    "pad":true,
-    "fout":true,
-    "stk":true,
-    "act":true,
-    "map":true
-  }`)
   const special_funs = JSON.parse(`{
     "mch":true,
     "rep0":true,

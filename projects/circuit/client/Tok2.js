@@ -4,7 +4,7 @@ pad {[or " " "\t" "\n" [lst "#" [rep0 [and [not "\n"] [char]]]]] [ary]}
 pad0 [rep0 pad]
 pad1 [rep1 pad]
 parop [or pad "(" ")" "[" "]" "{" "}" "<" ">" ]
-funop [or parop "." '*' '+' '-' '!' '|' '&' '@' ':' '"' "'" "\`" ";"]
+funop [or parop regop '"' "'" "\`" ";"]
 word {
   [rep1 [or [lst "$" [char]] [and [not funop] [char]]]]
   [str [fout]]
@@ -16,18 +16,21 @@ txt [or {[
   [lst "\`" [rep0 ([lst pad0 [and [not "\`"] fun]] 1)] pad0 "\`"]
 ] [ary txt [str [fout 1]]]} {word [ary txt [fout]]}]
 out [or {
-  [lst "." pad0 word [rep0 ([lst pad0 "." pad0 word] 3)]]
-  [ary fout [pad [fout 2]] [fout 3]]
+  [lst "." txt [rep0 ([lst "." txt] 1)]]
+  [ary fout [pad [fout 1]] [fout 2]]
 } {"." [ary fout]}]
 par {
   [lst "(" pad0 txt [rep0 ([lst pad0 [and [not ")"] fun]] 1)] pad0 ")"]
-  [ary [pad [fout 2]] [fout 3]]
+  [ary [fout 2] [fout 3]]
 }
 ary {
   [lst "[" [rep0 ([lst pad0 [and [not "]"] fun]] 1)] pad0 "]"]
-  [ary ary [fout 2]]
+  [ary ary [fout 1]]
 }
-fpad { [lst "-" pad0 fun] [ary pad [fout 2]] }
+fpad {
+  [lst "{" [rep0 ([lst pad0 [and [not "}"] fun]] 1)] pad0 "}"]
+  [ary pad [fout 1]]
+}
 fun [or txt out fpad par ary]
 regop [or parop '.' '*' '+' '-' '!' '|' '&' '@' ':' ';']
 match {
@@ -109,9 +112,9 @@ const TOK3 = JSON.parse(`{
       ["mch","pad"],["cmp",")"]
     ], [
       "ary",
-      ["txt","fun"],
+      ["txt","out"],
       ["pad",["fout",["txt","2"]]],
-      ["pad",["txt","fout"],["pad",["fout",["txt","4"]]]]
+      ["pad",["txt","txt"],["txt","4"]]
     ]
   ],
   "fun": [
