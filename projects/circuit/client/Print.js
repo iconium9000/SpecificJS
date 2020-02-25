@@ -87,7 +87,9 @@ module.exports = Circuit => {
       if (prc < 1) ++blk
       let str = parse(inst[1],1,blk)
       if (inst.length == 2) return str
-      for (let i = 2; i < inst.length; ++i) str += '.' + parse(inst[i],1,blk)
+      for (let i = 2; i < inst.length; ++i) {
+        str += '.' + parse(inst[i],1,blk)
+      }
       return prc < 1 ? par(str,blk) : str
     },
     lst: (inst,prc,blk) => {
@@ -139,6 +141,8 @@ module.exports = Circuit => {
     }
     return fun(val,prc,blk)
   }
+
+  Circuit.PrintStr = val => parse(val,5,0)
 
   return function Print(mch) {
     let str = ''

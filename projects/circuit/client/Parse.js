@@ -38,7 +38,7 @@ module.exports = Circuit => {
 
   return class Parse {
 
-    static init(string,insts,strs) {
+    static init(string,act) {
       const prs = new this
       prs._instid = -1
       prs._inst = ['start']
@@ -47,14 +47,14 @@ module.exports = Circuit => {
       prs._err = false
       prs._endidx = 0
       const map = {}
-      for (const i in insts) map[i] = {}
+      for (const i in act.ary) map[i] = {}
       prs._const = {
         acts:[],mch:{},map:map,
         string:string,
-        insts:insts,
-        strs:strs,
+        insts:act.ary,
+        strs:act.map,
       }
-      return prs
+      return prs.parse(act.start)
     }
 
     get copy() { return Object.assign(new Parse,this) }
@@ -76,6 +76,9 @@ module.exports = Circuit => {
         else return ret.copy
       }
       const inst = insts[instid], [fun] = inst
+      let str = strs[instid], stre
+      try { str = Circuit.PrintStr(str) }
+      catch (e) { stre = e; str = strs[instid] }
       try {
         if (!special_funs[fun]) throw `!special_funs[${fun}]`
         else return ret = this[fun](inst,arg)
@@ -86,7 +89,7 @@ module.exports = Circuit => {
         ret._inst = inst
         ret._arg = arg
         ret._srtidx = _endidx
-        ret._str = strs[instid]
+        ret._str = str
         ret._slice = string.slice(_endidx,ret._endidx)
         ret._string = string.slice(_endidx)
         if (arg === undefined) map[instid][_endidx] = ret
@@ -136,7 +139,7 @@ module.exports = Circuit => {
       else throw prs.err('fail first case')
     }
     or(inst,arg) {
-      const info = []
+      let prs = this, info = []
       for (let i = 1; i < inst.length; ++i) {
         try {
           const prs = this.parse(inst[i],arg)
@@ -145,7 +148,7 @@ module.exports = Circuit => {
         }
         catch (e) { info.push(e) }
       }
-      const prs = this.err('fail all cases')
+      prs = prs.err('fail all cases')
       delete prs._ret
       prs._info = info
       throw prs
@@ -161,9 +164,9 @@ module.exports = Circuit => {
       catch (e) { info.push(e); throw prs.err(e).info(info) }
     }
     not(inst,arg) {
-      let prs
-      try { prs = this.parse(inst[1],arg) }
-      catch (e) { e = this.err(e); return this.copy.ret(e._err).info([e]) }
+      let prs = this
+      try { prs = prs.parse(inst[1],arg) }
+      catch (e) { e = prs.err(e); return prs.copy.ret(e._err).info([e]) }
       throw prs.err('not').info([prs])
     }
 
@@ -193,17 +196,22 @@ module.exports = Circuit => {
 
     txt(inst,arg) { return this.copy.ret(inst[1]).info([]) }
     ary(inst,arg) {
-      let prs, ret = [], info = []
+      let prs = this, ret = [], info = []
       try {
         for (let i = 1; i < inst.length; ++i) {
           prs = this.parse(inst[i],arg)
           info.push(prs)
           ret = ret.concat(prs._ret)
         }
-        return prs = this.copy
+        return prs = prs.copy
       }
-      catch (e) { info.push(e); throw prs = this.err(e) }
+      catch (e) { info.push(e); throw prs = prs.err(e) }
       finally { prs._ret = ret; prs._info = info }
+    }
+    pad(inst,arg) {
+      const prs = this.ary(inst,arg)
+      prs._ret = [prs._ret]
+      return prs
     }
     str(inst,arg) {
       let str = '', prs = this.ary(inst,arg), {_ret} = prs
@@ -211,47 +219,42 @@ module.exports = Circuit => {
       return prs
     }
     out(inst,arg) {
-      let prs, info = []
+      let prs = this, info = []
       try {
         info.push(prs = this.parse(inst[1],arg)); arg = prs._ret
         for (let i = 2; i < inst.length; ++i) {
-          prs = this.parse(inst[i],arg)
+          const prs = this.parse(inst[i],arg)
           info.push(prs)
           arg = arg[prs._ret]
         }
-        return prs = this.copy
+        return prs = prs.copy
       }
-      catch (e) { info.push(e); throw prs = this.err(e) }
+      catch (e) { info.push(e); throw prs = prs.err(e) }
       finally { prs._ret = arg; prs._info = info }
     }
     fout(inst,arg) {
-      let prs, info = []
+      let prs = this, info = []
       try {
         for (let i = 1; i < inst.length; ++i) {
           prs = this.parse(inst[i],arg)
           info.push(prs)
           arg = arg[prs._ret]
         }
-        return prs = this.copy
+        return prs = prs.copy
       }
-      catch (e) { info.push(e); throw prs = this.err(e) }
+      catch (e) { info.push(e); throw prs = prs.err(e) }
       finally { prs._ret = arg; prs._info = info }
-    }
-    pad(inst,arg) {
-      const prs = this.ary(inst,arg)
-      prs._ret = [prs._ret]
-      return prs
     }
 
     map(inst,arg) {
-      let word,value,prs,info = []
+      let word,value,prs = this,info = []
       try {
         info.push(word = this.parse(inst[1],arg))
         info.push(value = this.parse(inst[2],arg))
         this._const.mch[word._ret] = value._ret
-        return prs = this.copy
+        return prs = prs.copy
       }
-      catch (e) { info.push(e); throw this.err(e) }
+      catch (e) { info.push(e); throw prs.err(e) }
       finally { prs._ret = word && word._ret; prs._info = info }
     }
     mch(inst,arg) {
