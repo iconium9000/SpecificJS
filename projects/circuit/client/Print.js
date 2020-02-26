@@ -134,7 +134,9 @@ module.exports = Circuit => {
   }
 
   function parse(val,prc,blk) {
-    if (typeof val == 'string') throw ['parse string',val]
+    if (!Array.isArray(val)) {
+      throw ['parse',val]
+    }
     const fun = f[val[0]]
     if (fun == undefined) {
       throw ['parse undef fun',val]
@@ -149,7 +151,7 @@ module.exports = Circuit => {
     for (const name in mch) {
       // log(name,mch[name])
       // log(f.txt(['txt',name]))
-      str += `\n${f.txt(['txt',name])} ${parse(mch[name],5,0)};`
+      str += `\n${name} ${parse(mch[name],5,0)};`
     }
     return str + '\n'
   }

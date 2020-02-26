@@ -9,11 +9,20 @@ module.exports = project => {
   project.socket.on('connection', socket => {
 
     socket.on('update', () => {
-      try {
-        socket.emit('update', fs.readFileSync(file_name).toString('utf8'))}
+      try { socket.emit('update', fs.readFileSync(file_name).toString('utf8')) }
       catch (e) {}
     })
 
+    socket.on('readfile', filename => {
+      
+    })
+
+    socket.on('writefile', (filename,string) => {
+      fs.writeFile(__dirname + '/' + filename,string,'utf8',e => {
+        if (e) log('file error',filename,e)
+        else log('wrote file',filename)
+      })
+    })
 
   })
 }

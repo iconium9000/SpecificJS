@@ -27,7 +27,7 @@ function Circuit() {
 
 		let {time} = Circuit.Lib
 		try {
-			const {Parse,Tok,Tok2,Act,Print} = Circuit
+			const {Lib,Parse,Tok,Tok2,Act,Print,PrintStr} = Circuit
 			const json_mch = TOK3
 			const parser_str = TOK2
 			const json = Act(json_mch,'start')
@@ -36,8 +36,17 @@ function Circuit() {
 			// mch = prs._const.mch
 			log(json_prs)
 			const parser_mch = json_prs._const.mch
+			socket.emit('writefile','cfg.json',JSON.stringify(parser_mch))
 			const parser = Act(parser_mch,'regx')
 			log(parser)
+
+			for (let name in parser_mch) {
+				const mch = parser_mch[name]
+				delete parser_mch[name]
+				name = PrintStr(['txt',name])
+				parser_mch[name] = mch
+			}
+
 			const gen_str = Print(parser_mch)
 			log(gen_str)
 			const gen_prs = Parse.init(gen_str,parser)

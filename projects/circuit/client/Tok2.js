@@ -6,7 +6,7 @@ pad1 [rep1 pad]
 parop [or pad "(" ")" "[" "]" "{" "}" "<" ">" ]
 funop [or regop '"' "'" "\`" ";"]
 word {
-  [rep1 [or [lst "$" [char]] [and [not funop] [char]]]]
+  [rep1 [or {[lst "$" [char]] [str [fout]]} [and [not funop] [char]]]]
   [str [fout]]
 }
 txt [or {[
@@ -15,10 +15,7 @@ txt [or {[
   [lst "\'" [rep0 ([lst pad0 [and [not "\'"] fun]] 1)] pad0 "\'"]
   [lst "\`" [rep0 ([lst pad0 [and [not "\`"] fun]] 1)] pad0 "\`"]
 ] [ary str [fout 1]]} {word [ary txt [fout]]}]
-out [or {
-  [lst "." txt [rep0 ([lst "." txt] 1)]]
-  [ary fout [pad [fout 1]] [fout 2]]
-} {"." [ary fout]}]
+out [or {[rep1 ([lst "." txt] 1)] [ary fout [fout]]} {"." [ary fout]}]
 par {
   [lst "(" pad0 txt [rep0 ([lst pad0 [and [not ")"] fun]] 1)] pad0 ")"]
   [ary [fout 2 1] [fout 3]]
