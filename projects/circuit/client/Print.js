@@ -99,6 +99,11 @@ module.exports = Circuit => {
       for (let i = 2; i < inst.length; ++i) str += ' ' + parse(inst[i],2,blk)
       return prc < 2 ? par(str,blk) : str
     },
+    key: (inst,prc,blk) => {
+      if (prc < 5) ++blk
+      let str = parse(inst[1],5,blk) + ' ' + parse(inst[2],5,blk)
+      return prc < 5 ? par(str,blk) : str
+    },
     and: (inst,prc,blk) => {
       if (inst.length == 1) return ''
       if (prc < 3) ++blk
@@ -129,8 +134,13 @@ module.exports = Circuit => {
     stk: (inst,prc,blk) => ary(inst,1,'(stk ',')',prc,blk),
 
     rng: (inst,prc,blk) => inst[1] + '-' + inst[2],
-    map: (inst,prc,blk) => ary(inst,1,'(map ',')',prc,blk),
     act: (inst,prc,blk) => ary(inst,1,'(act ',')',prc,blk),
+    map: (inst,prc,blk) => {
+      if (prc < 6) ++blk
+      let str = ''
+      for (let i = 1; i < inst.length; ++i) str += parse(inst[i],6,blk) + ';\n'
+      return prc < 6 ? par(str,blk) : str
+    },
   }
 
   function parse(val,prc,blk) {
@@ -144,15 +154,7 @@ module.exports = Circuit => {
     return fun(val,prc,blk)
   }
 
-  Circuit.PrintStr = val => parse(val,5,0)
+  Circuit.PrintStr = val => parse(val,6,0)
 
-  return function Print(mch) {
-    let str = ''
-    for (const name in mch) {
-      // log(name,mch[name])
-      // log(f.txt(['txt',name]))
-      str += `\n${name} ${parse(mch[name],5,0)};`
-    }
-    return str + '\n'
-  }
+  return function Print(val) { return parse(val,6,0) }
 }

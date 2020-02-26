@@ -30,40 +30,32 @@ function Circuit() {
 			const {Lib,Parse,Tok,Tok2,Act,Print,PrintStr} = Circuit
 			const json_mch = TOK3
 			const parser_str = TOK2
-			const json = Act(json_mch,'start')
+			log(json_mch)
+			const json = Act(json_mch)
 			log(json)
+			const json_str = Print(json_mch)
+			log(json_str)
 			let json_prs = Parse.init(parser_str,json)
-			// mch = prs._const.mch
 			log(json_prs)
-			const parser_mch = json_prs._const.mch
-			socket.emit('writefile','cfg.json',JSON.stringify(parser_mch))
+			const parser_mch = json_prs._ret
 			const parser = Act(parser_mch,'regx')
 			log(parser)
-
-			for (let name in parser_mch) {
-				const mch = parser_mch[name]
-				delete parser_mch[name]
-				name = PrintStr(['txt',name])
-				parser_mch[name] = mch
-			}
-
 			const gen_str = Print(parser_mch)
 			log(gen_str)
+
+			socket.emit('writefile','cfg/cfg.json',JSON.stringify(parser_mch))
+			socket.emit('writefile','cfg/cfg.cfg',gen_str)
+			socket.emit('writefile','cfg/simp_cfg.json',JSON.stringify(json_mch))
+			socket.emit('writefile','cfg/simp_cfg.cfg',json_str)
+			socket.emit('writefile','cfg/simp_cfg.scfg',parser_str)
+
 			const gen_prs = Parse.init(gen_str,parser)
 			log(gen_prs)
-			const gen_mch = gen_prs._const.mch
+
+			const gen_mch = gen_prs._ret
 			const gen_str2 = Print(gen_mch)
 			log(gen_str2)
-
 			log(gen_str == gen_str2)
-
-			// log(str)
-			// prs = Parse.init(str,ary,map).parse(start)
-			// log(prs)
-			// prs = Parse.init(TOK,ary,map).parse(start)
-			// log(prs)
-			// ary = []; map = {}, start = Act(prs._const.mch,'regx',ary,map)
-			// log(ary,start,map)
 		}
 		catch (e) {
 			error('index.js',e)

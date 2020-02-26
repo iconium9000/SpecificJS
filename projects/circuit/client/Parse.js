@@ -33,6 +33,7 @@ module.exports = Circuit => {
 
     "rng":true,
     "map":true,
+    "key":true,
     "act":true
   }`)
 
@@ -47,12 +48,12 @@ module.exports = Circuit => {
       prs._err = false
       prs._endidx = 0
       const map = {}
-      for (const i in act.ary) map[i] = {}
+      for (const i in act.act) map[i] = {}
       prs._const = {
-        acts:[],mch:{},map:map,
+        acts:[],map:map,
         string:string,
-        insts:act.ary,
-        strs:act.map,
+        insts:act.act,
+        strs:act.val,
       }
       return prs.parse(act.start)
     }
@@ -247,18 +248,23 @@ module.exports = Circuit => {
     }
 
     map(inst,arg) {
-      let word,value,prs = this,info = []
-      try {
-        info.push(word = this.parse(inst[1],arg))
-        info.push(value = this.parse(inst[2],arg))
-        this._const.mch[word._ret] = value._ret
-        return prs = prs.copy
-      }
-      catch (e) { info.push(e); throw prs.err(e) }
-      finally { prs._ret = word && word._ret; prs._info = info }
+      error('TODO map');
+      throw this.err(['TODO',inst,arg]).info(arg)
+    }
+    key(inst,arg) {
+      error('TODO key');
+      throw this.err(['TODO',inst,arg]).info(arg)
     }
     mch(inst,arg) {
       error('TODO mch');
+      throw this.err(['TODO',inst,arg]).info(arg)
+    }
+    rng(inst,arg) {
+      error('TODO rng');
+      throw this.err(['TODO',inst,arg]).info(arg)
+    }
+    act(inst,arg) {
+      error('TODO act');
       throw this.err(['TODO',inst,arg]).info(arg)
     }
     stk(inst,arg) {
@@ -275,14 +281,6 @@ module.exports = Circuit => {
       }
       catch (e) { info.push(e); throw prs = prs.err(e) }
       finally { prs._info = info }
-    }
-    rng(inst,arg) {
-      error('TODO rng');
-      throw this.err(['TODO',inst,arg]).info(arg)
-    }
-    act(inst,arg) {
-      error('TODO act');
-      throw this.err(['TODO',inst,arg]).info(arg)
     }
   }
 }

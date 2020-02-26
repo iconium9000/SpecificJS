@@ -1,4 +1,67 @@
-module.exports = Circuit => function Act(vals,start) {
+module.exports = Circuit => {
+
+
+  const f = {
+    txt: val => val,
+    cmp: val => val,
+    mch: val => ['cmp',val[1]],
+    map: val => {
+      let i = 0, arg = { temp:{}, mch:{}, val:{}, map:{}, act:{length:0} }
+      while (++i < val.length) {
+        const [lst,[txt,name],body] = val[i]
+        let temp = arg.temp[name] = {
+          idx: ++arg.act.length,
+          mch: ['mch',name],
+          str: JSON.stringify(body),
+          val: body,
+        }
+        arg.map[name] = temp.idx
+        arg.map[temp.str] = temp.idx
+        arg.map[JSON.stringify(temp.mch)] = temp.idx
+        arg.val[temp.idx] = body
+        arg.mch[temp.idx] = name
+        if (name == 'start') arg.start = temp.idx
+      }
+      for (let name in arg.temp) {
+        const {idx,mch,str,val} = arg.temp[name]
+        act(val,arg,str)
+      }
+      return arg
+    },
+    lst: (val,arg) => {
+      let ret = [val[0]]
+      for (let i = 1; i < val.length; ++i) ret.push(act(val[i],arg))
+      return ret
+    }
+  }
+
+  function act(val,arg,str) {
+    if (Array.isArray(val)) {
+      let idx,fun = f[val[0]]
+      if (typeof fun != 'function') fun = f.lst
+      if (arg == undefined) return fun(val)
+
+      if (str == undefined) {
+        str = JSON.stringify(val)
+        idx = arg.map[str]
+        if (idx == undefined) {
+          arg.act[idx = ++arg.act.length] = fun(val,arg)
+          arg.map[str] = idx
+        }
+      }
+      else arg.act[idx = arg.map[str]] = fun(val,arg)
+      if (arg.val[idx] == undefined) arg.val[idx] = val
+      return idx
+    }
+    else {
+      throw ['Act !Array',val]
+    }
+  }
+
+  return function Act(val) { return act(val) }
+}
+
+function OldAct(vals,start) {
   const ary = [], src = {}
   const map = {}, strs = {}, mch = {}
 
@@ -11,7 +74,7 @@ module.exports = Circuit => function Act(vals,start) {
   for (const name in vals) set(mch[name],vals[name],true)
 
   function test(str,val,flag) {
-    if (typeof val == 'string') {
+    if (!Array.isArray(val)) {
       throw ['act',val]
     }
     let idx = map[str]
