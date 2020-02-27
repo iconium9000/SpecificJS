@@ -1,30 +1,66 @@
 module.exports = Circuit => {
 
 
+
   const f = {
     txt: val => val,
     cmp: val => val,
+    rng: val => val,
     mch: val => ['cmp',val[1]],
     map: val => {
-      let i = 0, arg = { temp:{}, mch:{}, val:{}, map:{}, act:{length:0} }
-      while (++i < val.length) {
-        const [lst,[txt,name],body] = val[i]
-        let temp = arg.temp[name] = {
-          idx: ++arg.act.length,
-          mch: ['mch',name],
-          str: JSON.stringify(body),
-          val: body,
-        }
-        arg.map[name] = temp.idx
-        arg.map[temp.str] = temp.idx
-        arg.map[JSON.stringify(temp.mch)] = temp.idx
-        arg.val[temp.idx] = body
-        arg.mch[temp.idx] = name
-        if (name == 'start') arg.start = temp.idx
+      const arg = {
+        temp:{}, str:{}, mch:{}, val:{}, map:{}, queue:[],
+        act:{length:0}
       }
-      for (let name in arg.temp) {
-        const {idx,mch,str,val} = arg.temp[name]
-        act(val,arg,str)
+      for (let i = 1; i < val.length; ++i) {
+        const [lst,[txt,name],body] = val[i]
+        const mch = ['mch',name]
+        let temp = {
+          name: name,
+          mch: mch,
+          mchstr: JSON.stringify(mch),
+          val: body,
+          valstr: JSON.stringify(body),
+        }
+        arg.mch[temp.mchstr] = temp
+      }
+      for (const mchstr in arg.mch) {
+        const temp = arg.mch[mchstr]
+        if (arg.mch[temp.valstr] == undefined) {
+          temp.idx = arg.map[temp.valstr]
+          if (temp.idx == undefined) {
+            temp.idx = arg.map[temp.valstr] = ++arg.act.length
+            arg.val[temp.idx] = temp.val
+            arg.temp[temp.idx] = temp
+          }
+        }
+        else arg.queue.push(temp)
+      }
+      const map = temp => {
+        if (temp.touch) {
+          delete temp.touch
+          temp.idx = arg.map[temp.valstr] = ++arg.act.length
+          arg.val[temp.idx] = temp.val
+          arg.temp[temp.idx] = temp
+          return temp.idx
+        }
+        if (temp.idx > 0) return temp.idx
+        temp.idx = arg.map[temp.valstr]
+        if (temp.idx > 0) return temp.idx
+        temp.touch = true
+        temp.idx = map(arg.mch[temp.valstr])
+        delete temp.touch
+        return temp.idx
+      }
+      arg.queue.forEach(map)
+      for (const mchstr in arg.mch) {
+        const temp = arg.mch[mchstr]
+        if (temp.name == 'start') arg.start = temp.idx
+        arg.map[temp.mchstr] = temp.idx
+      }
+      for (let idx in arg.temp) {
+        const {val,valstr} = arg.temp[idx]
+        act(val,arg,valstr)
       }
       return arg
     },

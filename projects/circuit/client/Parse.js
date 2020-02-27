@@ -39,30 +39,69 @@ module.exports = Circuit => {
 
   return class Parse {
 
+    static get Info() {
+      return class Info extends Parse {
+        get inst() { return this._const.strs[this._instid] }
+        get slice() {
+          return this._const.string.slice(this._srtidx,this._endidx)
+        }
+        get next() {
+          return this._const.string.slice(this._srtidx)
+        }
+        parse(instid,arg) {
+          const {_endidx,_const:{map,insts,strs,string,info}} = this
+          let ret = arg === undefined ? map[instid][_endidx] : undefined
+          if (ret !== undefined) {
+            info.push(ret)
+            if (ret._err) throw ret._err
+            else return ret
+          }
+          const inst = insts[instid]
+          this._const.info = []
+          try { return ret = this[inst[0]](inst,arg).copy }
+          catch (e) {
+            ret = this.copy
+            throw ret._err = e
+          }
+          finally {
+            ret._instid = instid
+            ret._inst = inst
+            ret._srtidx = _endidx
+            ret._info = this._const.info
+            this._const.info = info
+            info.push(ret)
+            map[instid][_endidx] = ret
+          }
+        }
+      }
+    }
+
     static init(string,act) {
-      let prs = new this
-      prs._ret = undefined
-      prs._err = false
-      prs._endidx = 0
-      const map = {}
-      for (const i in act.act) map[i] = {}
-      prs._const = {
-        acts:[],map:map,
+      const _const = {
+        act:{length:0},map:{},
         insts:act.act,
         strs:act.val,
         string:string,
+        info: [],
+        temp: new this
       }
-      let {time} = Circuit.Lib
-      prs = prs.parse(act.start)
-      log('time',Circuit.Lib.time-time)
-      return prs
+      for (const i in act.act) _const.map[i] = {}
+      _const.temp._const = _const
+      _const.temp._endidx = 0
+      let prs = _const.temp.copy
+      try { return prs.parse(act.start) }
+      catch (e) {
+        prs._err = e
+        prs._info = _const.info
+        return prs
+      }
     }
 
+    get const() { return this._const }
     get copy() {
-      let prs = new Parse
+      let prs = Object.create(this._const.temp)
       prs._ret = this._ret
       prs._endidx = this._endidx
-      prs._const = this._const
       return prs
     }
     endidx(endidx) { this._endidx = endidx; return this }
@@ -71,12 +110,12 @@ module.exports = Circuit => {
       const {_endidx,_const:{map,insts,strs,string}} = this
       let ret = arg === undefined ? map[instid][_endidx] : undefined
       if (ret !== undefined) {
-        if (ret.err) throw ret.err
+        if (ret._err) throw ret._err
         else return ret
       }
       const inst = insts[instid]
       try { return ret = this[inst[0]](inst,arg) }
-      catch (e) { throw ret = {err:e} }
+      catch (e) { ret = {_err:e}; throw e }
       finally { map[instid][_endidx] = ret }
     }
 
@@ -149,12 +188,15 @@ module.exports = Circuit => {
       }
       else throw `match "${word}"`
     }
+    mch(inst,arg) {
+      return this.cmp(inst,arg)
+    }
     char(inst,arg) {
       let {_const:{string},_endidx} = this
-      if (_endidx >= string.length) throw 'char overflow'
+      if (_endidx >= string.length) throw 'string overflow'
       let c = string[_endidx++]
       if (c == '\\') {
-        if (_endidx >= string.length) throw 'char overflow'
+        if (_endidx >= string.length) throw 'string overflow'
         c = string[_endidx++]
         const sc = special_chars[c]
         if (sc !== undefined) c = sc
@@ -164,7 +206,11 @@ module.exports = Circuit => {
       arg._endidx = _endidx
       return arg
     }
-
+    rng(inst,arg) {
+      const prs = this.char(inst,arg), c = prs._ret
+      if (inst[1] <= c && c <= inst[2]) return prs
+      else throw 'out of range'
+    }
     txt(inst,arg) {
       arg = this.copy
       arg._ret = inst[1]
@@ -183,6 +229,13 @@ module.exports = Circuit => {
     pad(inst,arg) {
       const prs = this.ary(inst,arg)
       prs._ret = [prs._ret]
+      return prs
+    }
+    act(inst,arg) {
+      let {act} = this._const, prs = this.ary(inst,arg).copy
+      const actid = ++act.length
+      act[actid] = prs._ret
+      prs._ret = actid
       return prs
     }
     str(inst,arg) {
@@ -214,24 +267,23 @@ module.exports = Circuit => {
     }
 
     map(inst,arg) {
-      error('TODO map');
-      throw ['TODO',inst,arg]
+      let prs = this, ret = {}
+      for (let i = 1; i < inst.length; ++i) {
+        prs = prs.parse(inst[i],arg)
+        ret[prs._ret.key] = prs._ret.body
+      }
+      prs = prs.copy
+      prs._ret = ret
+      return prs
     }
     key(inst,arg) {
-      error('TODO key');
-      throw ['TODO',inst,arg]
-    }
-    mch(inst,arg) {
-      error('TODO mch');
-      throw ['TODO',inst,arg]
-    }
-    rng(inst,arg) {
-      error('TODO rng');
-      throw ['TODO',inst,arg]
-    }
-    act(inst,arg) {
-      error('TODO act');
-      throw ['TODO',inst,arg]
+      let prs, ret = {
+        key: (prs = this.parse(inst[1],arg))._ret,
+        body: (prs = prs.parse(inst[2],arg))._ret
+      }
+      prs = prs.copy
+      prs._ret = ret
+      return prs
     }
     stk(inst,arg) {
       let instid = inst[1]

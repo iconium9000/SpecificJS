@@ -1,8 +1,6 @@
 
 
-pad {[or " " "	" "
-" [lst "#" [rep0 [and [not "
-"] [char]]]]] [ary]}
+pad {[or " " "\t" "\n" [lst "#" [rep0 [and [not "\n"] [char]]]]] [ary]}
 pad* [rep0 pad]
 parop [or pad "(" ")" "[" "]" "{" "}" "<" ">" ]
 funop [or regop '"' "'" "`" ";"]

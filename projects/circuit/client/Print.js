@@ -93,7 +93,7 @@ module.exports = Circuit => {
       return prc < 1 ? par(str,blk) : str
     },
     lst: (inst,prc,blk) => {
-      if (inst.length == 1) return ''
+      if (inst.length == 1) return par('',1+blk)
       if (prc < 2) ++blk
       let str = parse(inst[1],2,blk)
       for (let i = 2; i < inst.length; ++i) str += ' ' + parse(inst[i],2,blk)
