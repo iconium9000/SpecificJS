@@ -11,7 +11,7 @@ const module = {
 function CircuitTest(socket) {
 	let {time} = Circuit.Lib
 	try {
-		const {Lib,Parse,Tok,Tok2,Act,Print,PrintStr} = Circuit
+		const {Lib,Lex,Tok,Tok2,Act,Print,PrintStr} = Circuit
 		const json_mch = TOK3
 		const parser_str = TOK2
 		log(json_mch)
@@ -19,9 +19,9 @@ function CircuitTest(socket) {
 		log(json)
 		const json_str = Print(json_mch)
 		log(json_str)
-		let json_prs = Parse.init(parser_str,json)
-		log(json_prs)
-		const parser_mch = json_prs._ret
+		let json_lex = Lex.init(parser_str,json)
+		log(json_lex)
+		const parser_mch = json_lex._ret
 		const parser = Act(parser_mch,'regx')
 		log(parser)
 		const gen_str = Print(parser_mch)
@@ -33,10 +33,10 @@ function CircuitTest(socket) {
 		socket.emit('writefile','simp_cfg.cfg',json_str)
 		socket.emit('writefile','simp_cfg.scfg',parser_str)
 
-		const gen_prs = Parse.Info.init(gen_str,parser)
-		log(gen_prs)
+		const gen_lex = Lex.Info.init(gen_str,parser)
+		log(gen_lex)
 
-		const gen_mch = gen_prs._ret
+		const gen_mch = gen_lex._ret
 		const gen_str2 = Print(gen_mch)
 		log(gen_str2)
 		log(gen_str == gen_str2)
@@ -61,17 +61,17 @@ function Circuit() {
 		log(Circuit.Print(cfg))
 		const act = Circuit.Act(cfg)
 		log(act)
-		const prs = Circuit.Parse.Info.init(string,act)
-		const c_cfg = prs._ret
-		log(prs)
+		const lex = Circuit.Lex.Info.init(string,act)
+		const c_cfg = lex._ret
+		log(lex)
 		const string2 = Circuit.Print(c_cfg)
 		log(string2)
 		socket.emit('writefile','c.json',JSON.stringify(c_cfg))
 		const act2 = Circuit.Act(c_cfg)
 		log(act2)
-		const prs2 = Circuit.Parse.init(prog,act2)
-		log(prs2)
-		log(prs2._ret,prs2._const.act)
+		const lex2 = Circuit.Lex.Info.init(prog,act2)
+		log(lex2)
+		log(lex2._ret,lex2._const.act)
 
 		log('time',Circuit.Lib.time - time)
 	}

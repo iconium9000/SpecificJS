@@ -37,10 +37,10 @@ module.exports = Circuit => {
     "act":true
   }`)
 
-  return class Parse {
+  return class Lex {
 
     static get Info() {
-      return class Info extends Parse {
+      return class Info extends Lex {
         get inst() { return this._const.strs[this._instid] }
         get slice() {
           return this._const.string.slice(this._srtidx,this._endidx)
@@ -88,21 +88,21 @@ module.exports = Circuit => {
       for (const i in act.act) _const.map[i] = {}
       _const.temp._const = _const
       _const.temp._endidx = 0
-      let prs = _const.temp.copy
-      try { return prs.parse(act.start) }
+      let lex = _const.temp.copy
+      try { return lex.parse(act.start) }
       catch (e) {
-        prs._err = e
-        prs._info = _const.info
-        return prs
+        lex._err = e
+        lex._info = _const.info
+        return lex
       }
     }
 
     get const() { return this._const }
     get copy() {
-      let prs = Object.create(this._const.temp)
-      prs._ret = this._ret
-      prs._endidx = this._endidx
-      return prs
+      let lex = Object.create(this._const.temp)
+      lex._ret = this._ret
+      lex._endidx = this._endidx
+      return lex
     }
     endidx(endidx) { this._endidx = endidx; return this }
 
@@ -120,45 +120,45 @@ module.exports = Circuit => {
     }
 
     fun(inst,arg) {
-      let prs = this
+      let lex = this
       for (let i = 1; i < inst.length; ++i) {
-        prs = prs.parse(inst[i],arg)
-        arg = prs._ret
+        lex = lex.parse(inst[i],arg)
+        arg = lex._ret
       }
-      return prs
+      return lex
     }
     lst(inst,arg) {
-      let prs = this, ret = []
+      let lex = this, ret = []
       for (let i = 1; i < inst.length; ++i) {
-        prs = prs.parse(inst[i],arg)
-        ret.push(prs._ret)
+        lex = lex.parse(inst[i],arg)
+        ret.push(lex._ret)
       }
-      prs = prs.copy
-      prs._ret = ret
-      return prs
+      lex = lex.copy
+      lex._ret = ret
+      return lex
     }
     rep0(inst,arg) {
-      let idx, instid = inst[1], prs = this, ret = []
+      let idx, instid = inst[1], lex = this, ret = []
       try {
         do {
-          idx = prs._endidx
-          prs = prs.parse(instid,arg)
-          ret.push(prs._ret)
-        } while (prs._endidx > idx)
+          idx = lex._endidx
+          lex = lex.parse(instid,arg)
+          ret.push(lex._ret)
+        } while (lex._endidx > idx)
       }
       finally {
-        prs = prs.copy
-        prs._ret = ret
-        return prs
+        lex = lex.copy
+        lex._ret = ret
+        return lex
       }
     }
     rep1(inst,arg) {
-      let prs = this.rep0(inst,arg)
-      if (prs._ret.length > 0) return prs
+      let lex = this.rep0(inst,arg)
+      if (lex._ret.length > 0) return lex
       else throw 'fail first case'
     }
     or(inst,arg) {
-      let prs = this
+      let lex = this
       for (let i = 1; i < inst.length; ++i) {
         try { return this.parse(inst[i],arg) }
         catch (e) {}
@@ -166,9 +166,9 @@ module.exports = Circuit => {
       throw 'fail all cases'
     }
     and(inst,arg) {
-      let prs = this
-      for (let i = 1; i < inst.length; ++i) prs = this.parse(inst[i],arg)
-      return prs
+      let lex = this
+      for (let i = 1; i < inst.length; ++i) lex = this.parse(inst[i],arg)
+      return lex
     }
     not(inst,arg) {
       try { this.parse(inst[1],arg) }
@@ -207,8 +207,8 @@ module.exports = Circuit => {
       return arg
     }
     rng(inst,arg) {
-      const prs = this.char(inst,arg), c = prs._ret
-      if (inst[1] <= c && c <= inst[2]) return prs
+      const lex = this.char(inst,arg), c = lex._ret
+      if (inst[1] <= c && c <= inst[2]) return lex
       else throw 'out of range'
     }
     txt(inst,arg) {
@@ -217,83 +217,83 @@ module.exports = Circuit => {
       return arg
     }
     ary(inst,arg) {
-      let prs = this, ret = []
+      let lex = this, ret = []
       for (let i = 1; i < inst.length; ++i) {
-        prs = this.parse(inst[i],arg)
-        ret = ret.concat(prs._ret)
+        lex = this.parse(inst[i],arg)
+        ret = ret.concat(lex._ret)
       }
-      prs = prs.copy
-      prs._ret = ret
-      return prs
+      lex = lex.copy
+      lex._ret = ret
+      return lex
     }
     pad(inst,arg) {
-      const prs = this.ary(inst,arg)
-      prs._ret = [prs._ret]
-      return prs
+      const lex = this.ary(inst,arg)
+      lex._ret = [lex._ret]
+      return lex
     }
     act(inst,arg) {
-      let {act} = this._const, prs = this.ary(inst,arg).copy
+      let {act} = this._const, lex = this.ary(inst,arg).copy
       const actid = ++act.length
-      act[actid] = prs._ret
-      prs._ret = actid
-      return prs
+      act[actid] = lex._ret
+      lex._ret = actid
+      return lex
     }
     str(inst,arg) {
-      let str = '', prs = this.ary(inst,arg), {_ret} = prs
-      for (const i in _ret) str += _ret[i]; prs._ret = str
-      return prs
+      let str = '', lex = this.ary(inst,arg), {_ret} = lex
+      for (const i in _ret) str += _ret[i]; lex._ret = str
+      return lex
     }
     out(inst,arg) {
-      let prs = this
-      prs = this.parse(inst[1],arg)
-      arg = prs._ret
+      let lex = this
+      lex = this.parse(inst[1],arg)
+      arg = lex._ret
       for (let i = 2; i < inst.length; ++i) {
-        const prs = this.parse(inst[i],arg)
-        arg = arg[prs._ret]
+        const lex = this.parse(inst[i],arg)
+        arg = arg[lex._ret]
       }
-      prs = prs.copy
-      prs._ret = arg
-      return prs
+      lex = lex.copy
+      lex._ret = arg
+      return lex
     }
     fout(inst,arg) {
-      let prs = this, ret = arg
+      let lex = this, ret = arg
       for (let i = 1; i < inst.length; ++i) {
-        prs = this.parse(inst[i],arg)
-        ret = ret[prs._ret]
+        lex = this.parse(inst[i],arg)
+        ret = ret[lex._ret]
       }
-      prs = prs.copy
-      prs._ret = ret
-      return prs
+      lex = lex.copy
+      lex._ret = ret
+      return lex
     }
 
     map(inst,arg) {
-      let prs = this, ret = {}
+      let lex = this, ret = {}
       for (let i = 1; i < inst.length; ++i) {
-        prs = prs.parse(inst[i],arg)
-        ret[prs._ret.key] = prs._ret.body
+        lex = lex.parse(inst[i],arg)
+        ret[lex._ret.key] = lex._ret.body
       }
-      prs = prs.copy
-      prs._ret = ret
-      return prs
+      lex = lex.copy
+      lex._ret = ret
+      return lex
     }
     key(inst,arg) {
-      let prs, ret = {
-        key: (prs = this.parse(inst[1],arg))._ret,
-        body: (prs = prs.parse(inst[2],arg))._ret
+      let lex, ret = {
+        key: (lex = this.parse(inst[1],arg))._ret,
+        body: (lex = lex.parse(inst[2],arg))._ret
       }
-      prs = prs.copy
-      prs._ret = ret
-      return prs
+      lex = lex.copy
+      lex._ret = ret
+      return lex
     }
     stk(inst,arg) {
       let instid = inst[1]
-      let prs = this.parse(inst[2],arg)
+      let lex = this.parse(inst[2],arg)
       let stk = this.parse(inst[3],arg)._ret
       for (const i in stk) {
         const [tok,...args] = stk[i]
-        prs = this.parse(instid,[tok,prs._ret,...args])
+        lex = this.parse(instid,[tok,lex._ret,...args])
       }
-      return prs
+      return lex
     }
   }
 }
