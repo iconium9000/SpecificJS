@@ -13,24 +13,28 @@ module.exports = Circuit => {
 
   function list(acts,map,actid,act) {
     const comp = map[actid] = { actid:actid }
-    const next = { actid:actid,next:true }
+    let next = { actid:actid,next:true, ret:{ list:true } }
 
     const list = []
     for (let i = 1; i < act.length; ++i) {
       list.push(setnext(look(acts,map,act[i]),next))
     }
-    throw ['TODO ' + act[0],list]
+    let {length} = act
+    while (--length >= 0) {
+      
+    }
+    return Object.assign(comp,next)
   }
 
   const f = {
 
     rep0: (acts,map,actid,act) => {
       const comp = map[actid] = { actid:actid }
-      const next = { actid:actid }
-      next.next = next
       const fail = { actid:actid, next:true }
-      const rep = setnext(look(acts,map,act[1]),next,fail)
-      throw ['TODO','rep0',rep,next]
+      let rep = look(acts,map,act[1])
+      rep = setnext(rep,comp,fail)
+      rep = Object.assign(comp,rep)
+      return rep
     },
     rep1: (acts,map,actid,act) => { throw "TODO rep1" },
     fun: list,
@@ -52,7 +56,7 @@ module.exports = Circuit => {
       for (let i = 1; i < act.length; ++i) {
         list.push(look(acts,map,act[i]))
       }
-      return andmerge(comp,list)
+      return andmerge(comp,list,list.length-1)
     },
     not: (acts,map,actid,act) => {
       const comp = map[actid] = { actid:actid, flag:true }
@@ -88,9 +92,11 @@ module.exports = Circuit => {
         next: true
       }
       let {length} = str
-      while (--length >= 0) comp = {
-        actid: actid,
-        key: { [str[length]]: comp }
+      while (--length >= 0) {
+        comp = {
+          actid: actid,
+          key: { [str[length]]: comp }
+        }
       }
       return map[actid] = comp
     },
@@ -109,43 +115,58 @@ module.exports = Circuit => {
     act: (acts,map,actid,act) => { throw "TODO act" },
   }
 
-  function andmerge(comp,list) {
-
-    let key = false, char = false, next = false
-    const popidx = list.length-1
+  function andmerge(comp,list,popidx) {
+    let top = null
+    let key = false, char = false, next = {}
     for (const i in list) {
       const test = list[i]
 
-      if (test.key) {
-        if (!key) key = {}
-        for (const c in test.key) key[c] = {}
-        if (test.char) char = {}
-        if (test.next) next = {}
+      if (test.key || test.char || test.next) {
+        if (test.key) {
+          if (!key) key = {}
+          for (const c in test.key) key[c] = {}
+          if (test.char) char = {}
+          if (!test.next) next = false
+        }
       }
+      else return test
+
+      if (top) top = false
+      else if (top == null) top = test
     }
+    if (top == null) return comp
+    else if (top) {
+      const pop = list[popidx]
+      if (pop == top) return top
+      throw ['who knows???',pop,top]
+    }
+
     for (const i in list) {
       const test = list[i]
       for (const c in key) {
-        let next = (test.key && test.key[c]) || test.char || test.next
-        if (!next) return comp
-        else if (next != true) key[c][i] = next
-        else if (i == popidx) key[c][i] = test
+        let temp = (test.key && test.key[c]) || test.char || test.next
+        if (temp != true) key[c][i] = temp || { actid:comp.actid }
       }
       if (char) {
-        let next = test.char || test.next
-        if (!next) return comp
-        else if (next != true) char[i] = next
-        else if (i == popidx) char[i] = test
+        let temp = test.char || test.next
+        if (temp != true) char[i] = temp || { actid:comp.actid }
       }
-      if (next && test.next) {
-        if (test.next != true) next[i] = test.next
-        else if (i == popidx) next[i] = test
-      }
+      if (next) next[i] = test.next
     }
-
-    log(list,key,char,next)
-
-    throw 'andmerge'
+    if (key) {
+      for (const c in key) {
+        key[c] = andmerge({ actid:comp.actid },key[c],popidx)
+      }
+      comp.key = key
+    }
+    if (char) comp.char = andmerge({ actid:comp.actid },char,popidx)
+    if (next) {
+      comp.next = andmerge({ actid:comp.actid },next,popidx)
+      const pop = list[popidx]
+      if (!pop) throw 'pop is null????'
+      else if (pop.ret) comp.ret = ret
+    }
+    return comp
   }
 
   function setnext(comp,next,fail) {
@@ -163,7 +184,7 @@ module.exports = Circuit => {
       if (comp.next == true) { if (next) newcomp.next = next }
       else if (comp.next) newcomp.next = setnext(comp.next,next,fail)
       else if (fail) newcomp.next = fail
-      if (comp.ret && newcomp.next) newcomp.ret = comp.ret
+      if (comp.ret) newcomp.ret = comp.ret
     }
     else if (comp.next == true) {
       if (next == true) newcomp.next = true
