@@ -10,33 +10,56 @@ module.exports = Circuit => {
     }
   }
 
-
-  function list(acts,map,actid,act) {
-    throw ['TODO',act]
-  }
-
+  const {assign} = Object
   const f = {
 
     rep0: (acts,map,actid,act) => { throw "TODO rep0" },
     rep1: (acts,map,actid,act) => { throw "TODO rep1" },
-    fun: list,
-    lst: list,
+    fun: (acts,map,actid,act) => { throw "TODO fun" },
+    lst: (acts,map,actid,act) => {
 
-    or: (acts,map,actid,act) => { throw "TODO or" },
+      const list = []
+      for (let i = 1; i < act.length; ++i) {
+        list.push(look(acts,map,act[i]))
+      }
+
+      throw ['TODO lst',list]
+    },
+
+    or: (acts,map,actid,act) => {
+
+      const list = []
+      for (let i = 1; i < act.length; ++i) {
+        list.push(look(acts,map,act[i]))
+      }
+
+      throw ['TODO or',list]
+    },
     and: (acts,map,actid,act) => { throw "TODO and" },
     not: (acts,map,actid,act) => { throw "TODO not" },
 
     char: (acts,map,actid,act) => { throw "TODO char" },
     mch: (acts,map,actid,act) => { throw "TODO mch" },
-    cmp: (acts,map,actid,act) => { throw "TODO cmp" },
+    cmp: (acts,map,actid,act) => {
+      const str = act[1]
+      let ret = {
+        ret:{str:str},
+        next:true
+      }
+
+      let {length} = str
+      while (--length >= 0) ret = { key:{ [str[length]]:ret } }
+
+      return map[actid] = ret
+    },
     txt: (acts,map,actid,act) => { throw "TODO txt" },
     rng: (acts,map,actid,act) => { throw "TODO rng" },
 
-    str: list,
-    ary: list,
-    pad: list,
-    fout: list,
-    out: list,
+    str: (acts,map,actid,act) => { throw "TODO str" },
+    ary: (acts,map,actid,act) => { throw "TODO ary" },
+    pad: (acts,map,actid,act) => { throw "TODO pad" },
+    fout: (acts,map,actid,act) => { throw "TODO fout" },
+    out: (acts,map,actid,act) => { throw "TODO out" },
     stk: (acts,map,actid,act) => { throw "TODO stk" },
 
     map: (acts,map,actid,act) => { throw "TODO map" },
@@ -44,7 +67,11 @@ module.exports = Circuit => {
     act: (acts,map,actid,act) => { throw "TODO act" },
   }
 
-  function comp(acts,map,actid) {
+  function setnext(comp,next,fail) {
+    
+  }
+
+  function look(acts,map,actid) {
     let ret = map[actid]
     if (ret) return ret
 
@@ -54,5 +81,5 @@ module.exports = Circuit => {
 
 
 
-  return function ActComp({act,start}) { comp(act,{},start) }
+  return function ActComp({act,start}) { look(act,{},start) }
 }
