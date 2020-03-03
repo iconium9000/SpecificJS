@@ -1,203 +1,151 @@
 module.exports = Circuit => {
 
   const f = {
-
     rep0: (acts,map,actid,act) => {
-      const next = map[actid] = {
-        tok: 'setnext',
-        win: {
-          mid:[ {tok:'addlist'} ]
-        },
-        fail: {
-          ret:[ {tok:'endlist'} ]
-        }
-      }
-      next.win.next = next
-      next.body = look(acts,map,act[1])
-      return next
+      let rep = look(acts,map,act[1])
+      return [
+        {tok:'newlist'},
+        {err:true,tok:'jump',jump:rep.length+3}
+      ].concat(
+        rep, {tok:'addlist'},
+        {tok:'jump',jump:-rep.length-1},
+        {tok:'endlist'}
+      )
     },
-    rep1: (acts,map,actid,act) => { throw "TODO rep1" },
-    fun: (acts,map,actid,act) => { throw "TODO fun" },
-    lst: (acts,map,actid,act) => {
-      let next = { ret:[ {tok:'endlist'} ] }
-      let {length} = act
-      const list = {}
-      while (--length > 0) list[length] = next = {
-        tok: 'setnext',
-        win: {
-          mid: [ {tok:'addlist'} ],
-          next: next
-        },
+    rep1: (acts,map,actid,act) => {
+      let rep = look(acts,map,act[1])
+      return [ {tok:'newlist'} ].concat(
+        rep, {tok:'addlist'},
+        {err:true,tok:'jump',jump:rep.length+3},
+        rep, {tok:'addlist'},
+        {tok:'jump',jump:-rep.length-1},
+        {tok:'endlist'}
+      )
+    },
+    fun: (acts,map,actid,act) => {
+      if (act.length == 1) return []
+      let list = look(acts,map,act[1])
+      for (let i = 2; i < act.length; ++i) {
+        list = list.concat({tok:'ret'},look(acts,map,act[i]))
       }
-      map[actid] = next
-      length = act.length
-      while (--length > 0) list[length].body = look(acts,map,act[length])
-      return next
+      return list
+    },
+    lst: (acts,map,actid,act) => {
+      let list = [{tok:'newlist'}]
+      for (let i = 1; i < act.length; ++i) {
+        list = list.concat(look(acts,map,act[i]),{tok:"addlist"})
+      }
+      list.push({tok:'endlist'})
+      return list
     },
 
     or: (acts,map,actid,act) => {
-      let {length} = act
-      let next = map[actid] = { tok: 'or', list:{length:length} }
-      for (let i = 1; i < length; ++i) next.list[i] = look(acts,map,act[i])
-      return next
+      if (act.length == 1) return []
+      let {length} = act, list = look(acts,map,act[--length])
+      while (length > 1) {
+        let rep = look(acts,map,act[--length])
+        list = [ {err:true,tok:'jump',jump:rep.length+2} ].concat(
+          rep, {tok:'jump',jump:list.length}, list
+        )
+      }
+      return list
     },
     and: (acts,map,actid,act) => {
-      const length = act.length-1
-      if (length == 0) return map[actid] = { next:true }
-      else if (length == 1) return map[actid] = look(acts,map,act[1])
-      const check = []
-      const comp = map[actid] = { tok: 'and', check:check }
-      for (let i = 1; i < length; ++i) check.push(look(acts,map,act[i]))
-      comp.real = look(acts,map,act[length])
-      return comp
+      if (act.length == 1) return []
+      let {length} = act, list = look(acts,map,act[--length])
+      while (length > 1) {
+        let rep = look(acts,map,act[--length])
+        list = [{tok:'newsave'}].concat(rep,{tok:'endsave'},list)
+      }
+      return list
     },
     not: (acts,map,actid,act) => {
-      const next = map[actid] = {
-        tok: 'setnext',
-        fail: { next:true }
-      }
-      next.body = look(acts,map,act[1])
-      return next
+      let rep = look(acts,map,act[1])
+      return [{err:true,tok:'jump',jump:rep.length+2}].concat(rep,{tok:'err'})
     },
 
-    char: (acts,map,actid,act) => {
-      return map[actid] = {
-        key: { '\\': { char: { ret: [ { 'schar':true } ] } } },
-        char: { ret: [{ 'char':true }] }
-      }
-    },
+    char: (acts,map,actid,act) => [ {tok:'char'} ],
     mch: (acts,map,actid,act) => { throw "TODO mch" },
     cmp: (acts,map,actid,act) => {
-      const str = act[1]
-      let {length} = str, next = {
-        ret: [ {
-          tok:'cstr',
-          count:length
-        } ]
-      }
-      while (--length >= 0) next = {
-        key: { [str[length]]:next }
-      }
-      return map[actid] = next
+      const str = act[1], list = []
+      for (const i in str) list.push({tok:'cmp',c:str[i]})
+      list.push({tok:'txt',txt:str})
+      return list
     },
-    txt: (acts,map,actid,act) => { throw "TODO txt" },
-    rng: (acts,map,actid,act) => { throw "TODO rng" },
+    txt: (acts,map,actid,act) => [ {tok:'txt',txt:act[1]} ],
+    rng: (acts,map,actid,act) => [ {tok:'rng',low:act[1],high:act[2]} ],
 
-    str: (acts,map,actid,act) => { throw "TODO str" },
-    ary: (acts,map,actid,act) => { throw "TODO ary" },
-    pad: (acts,map,actid,act) => { throw "TODO pad" },
-    fout: (acts,map,actid,act) => { throw "TODO fout" },
-    out: (acts,map,actid,act) => { throw "TODO out" },
-    stk: (acts,map,actid,act) => { throw "TODO stk" },
-
-    map: (acts,map,actid,act) => { throw "TODO map" },
-    key: (acts,map,actid,act) => { throw "TODO key" },
-    act: (acts,map,actid,act) => { throw "TODO act" },
-  }
-
-  function arymerge(a,b) {
-    return a && b ? a.concat(b) : a || b
-  }
-  function checkfail(comp) {
-    const {key,char,next,ret} = comp
-    return !(key || char || next || ret)
-  }
-
-  function setnext(comp,win,fail) {
-    let newcomp = comp.setnext
-    if (newcomp) return newcomp
-    newcomp = comp.setnext = {}
-
-    if (comp.key) {
-      newcomp.key = {}
-      for (const c in comp.key) {
-        newcomp.key[c] = setnext(comp.key[c],win,fail)
+    ary: (acts,map,actid,act) => {
+      if (act.length == 1) return [{tok:'emptyary'}]
+      else if (act.length == 2) return look(acts,map,act[1])
+      let list = [{tok:'newary'}]
+      for (let i = 1; i < act.length; ++i) {
+        list = list.concat(look(acts,map,act[i]),{tok:'addary'})
       }
-    }
-    if (comp.char) newcomp.char = setnext(comp.char,win,fail)
-
-    if (comp.next || comp.ret) {
-      if (win) {
-        let {mid,next,ret} = win
-        if (comp.next == true) {
-          if (mid) newcomp.mid = arymerge(comp.mid,mid)
-          if (next) newcomp.next = next
-          else if (ret) newcomp.ret = arymerge(comp.mid,ret)
-        }
-        else if (comp.next) {
-          if (comp.mid) newcomp.mid = comp.mid
-          newcomp.next = setnext(comp.next,win,fail)
-        }
-        else if (comp.ret) {
-          if (mid) newcomp.mid = arymerge(comp.ret,mid)
-          if (next) newcomp.next = next
-          else if (ret) newcomp.ret = arymerge(comp.ret,ret)
-        }
+      list.push({tok:'endary'})
+      return list
+    },
+    str: (acts,map,actid,act) => f.ary(acts,map,actid,act).concat({tok:'str'}),
+    pad: (acts,map,actid,act) => f.ary(acts,map,actid,act).concat({tok:'pad'}),
+    fout: (acts,map,actid,act) => {
+      let list = [{tok:'fout'}]
+      for (let i = 1; i < act.length; ++i) {
+        list = list.concat(look(acts,map,act[i]),{tok:'out'})
       }
-    }
-    else if (fail) {
-      const {mid,next,ret} = fail
-      if (mid) newcomp.mid = mid
-      if (next) newcomp.next = next
-      else if (ret) newcomp.ret = ret
-    }
-    delete comp.setnext
-    return newcomp
-  }
-  function ormerge(list) {
+      return list
+    },
+    out: (acts,map,actid,act) => {
+      let list = look(acts,map,act[1]).concat({tok:'ret'})
+      for (let i = 2; i < act.length; ++i) {
+        list = list.concat(look(acts,map,act[i]),{tok:'out'})
+      }
+      return list
+    },
+    stk: (acts,map,actid,act) => [{tok:'newstk'}].concat(
+      look(acts,map,act[2]),{tok:'addstk'},
+      look(acts,map,act[3]),{tok:'addstk'},
+      look(acts,map,act[1]),{tok:'endstk'},
+    ),
 
-    throw ['ormerge',list]
-  }
-  function andmerge(check,real) {
-    throw ['andmerge',check,arg]
-  }
-
-  function dotok(comp) {
-    let newcomp = comp.dotok
-    if (newcomp) return newcomp
-    comp.dotok = newcomp = {}
-    switch (comp.tok) {
-      case 'setnext': {
-        let {body,win,fail} = comp
-        body = dotok(body)
-        if (win && win.next) win.next = dotok(win.next)
-        if (fail && fail.next) fail.next = dotok(fail.next)
-        Object.assign(newcomp,setnext(body,win,fail))
-      } break
-      case 'or': {
-        const list = []
-        for (let i = 1; i < comp.list.length; ++i) {
-          list.push(dotok(comp.list[i]))
-        }
-        Object.assign(newcomp,ormerge(list))
-      } break
-      case 'and': {
-        let {check,real} = comp
-        let list = []
-        for (const i in check) list.push(dotok(check[i]))
-        Object.assign(newcomp,andmerge(list,dotok(real)))
-      } break
-      case undefined: {
-        Object.assign(newcomp,comp)
-      } break
-      default: throw ['dotok bad tok',comp]
-    }
-    delete comp.dotok
-    delete newcomp.dotok
-    log('dotok',comp,newcomp)
-    return newcomp
+    key: (acts,map,actid,act) => {
+      return look(acts,map,act[1]).concat(
+        {tok:'addkey'}, look(acts,map,act[2]), {tok:'addmap'}
+      )
+    },
+    map: (acts,map,actid,act) => {
+      let list = [{tok:'newmap'}]
+      for (let i = 1; i < act.length; ++ i) {
+        list = list.concat(look(acts,map,act[i]))
+      }
+      return list.concat({tok:'endmap'})
+    },
+    act: (acts,map,actid,act) => f.ary(acts,map,actid,act).concat({tok:'act'}),
   }
 
   function look(acts,map,actid) {
     let ret = map[actid]
     if (ret) return ret
+
     const act = acts[actid]
-    return f[act[0]](acts,map,actid,act)
+    if (act.look != null) {
+      act.look = true
+      return [{tok:'addrep',rep:actid}]
+    }
+    else {
+      act.look = false
+      ret = f[act[0]](acts,map,actid,act)
+      if (act.look == true) {
+        ret = [{tok:'newrep',rep:actid}].concat(ret,{tok:'endrep'})
+      }
+      delete act.look
+      return map[actid] = ret
+    }
   }
 
   return function ActComp({act,start}) {
-    log('ActComp',act)
-    const top = look(act,{},start)
-    return dotok(top)
+    const map = {}
+    const top = look(act,map,start)
+    log(map)
+    return top
   }
 }
