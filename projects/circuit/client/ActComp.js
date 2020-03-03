@@ -5,23 +5,29 @@ module.exports = Circuit => {
     rep0: (acts,map,actid,act) => {
       const next = map[actid] = {
         tok: 'setnext',
-        mid: [ {tok:'addlist'} ],
-        fail: { ret:[ {tok:'endlist'} ] }
+        win: {
+          mid:[ {tok:'addlist'} ]
+        },
+        fail: {
+          ret:[ {tok:'endlist'} ]
+        }
       }
-      next.next = next
+      next.win.next = next
       next.body = look(acts,map,act[1])
       return next
     },
     rep1: (acts,map,actid,act) => { throw "TODO rep1" },
     fun: (acts,map,actid,act) => { throw "TODO fun" },
     lst: (acts,map,actid,act) => {
-      let next = { ret:[{tok:'endlist'}] }
+      let next = { ret:[ {tok:'endlist'} ] }
       let {length} = act
       const list = {}
       while (--length > 0) list[length] = next = {
         tok: 'setnext',
-        mid: [ {tok:'addlist'} ],
-        next: next,
+        win: {
+          mid: [ {tok:'addlist'} ],
+          next: next
+        },
       }
       map[actid] = next
       length = act.length
@@ -31,26 +37,47 @@ module.exports = Circuit => {
 
     or: (acts,map,actid,act) => {
       let {length} = act
-      let next = map[actid] = { tok: 'or', length:length }
-      for (let i = 1; i < length; ++i) next[i] = look(acts,map,act[i])
+      let next = map[actid] = { tok: 'or', list:{length:length} }
+      for (let i = 1; i < length; ++i) next.list[i] = look(acts,map,act[i])
       return next
     },
-    and: (acts,map,actid,act) => { throw "TODO and" },
+    and: (acts,map,actid,act) => {
+      const length = act.length-1
+      if (length == 0) return map[actid] = { next:true }
+      else if (length == 1) return map[actid] = look(acts,map,act[1])
+      const check = []
+      const comp = map[actid] = { tok: 'and', check:check }
+      for (let i = 1; i < length; ++i) check.push(look(acts,map,act[i]))
+      comp.real = look(acts,map,act[length])
+      return comp
+    },
     not: (acts,map,actid,act) => {
       const next = map[actid] = {
         tok: 'setnext',
-        fail: { pass:true }
+        fail: { next:true }
       }
       next.body = look(acts,map,act[1])
       return next
     },
 
-    char: (acts,map,actid,act) => { throw "TODO char" },
+    char: (acts,map,actid,act) => {
+      return map[actid] = {
+        key: { '\\': { char: { ret: [ { 'schar':true } ] } } },
+        char: { ret: [{ 'char':true }] }
+      }
+    },
     mch: (acts,map,actid,act) => { throw "TODO mch" },
     cmp: (acts,map,actid,act) => {
       const str = act[1]
-      let {length} = str, next = { ret: [{tok:'str',count:length}] }
-      while (--length >= 0) next = { key: { [str[length]]:next } }
+      let {length} = str, next = {
+        ret: [ {
+          tok:'cstr',
+          count:length
+        } ]
+      }
+      while (--length >= 0) next = {
+        key: { [str[length]]:next }
+      }
       return map[actid] = next
     },
     txt: (acts,map,actid,act) => { throw "TODO txt" },
@@ -68,40 +95,15 @@ module.exports = Circuit => {
     act: (acts,map,actid,act) => { throw "TODO act" },
   }
 
-  function arymerge(a,b) { return a && b ? a.concat(b) : a || b }
-  function compmerge(comp) {
-    // return comp
-
-    const {next} = comp
-    if (!next) return comp
-    let compkc = comp.key || comp.char
-    let nextkc = next.key || next.char
-    if (compkc && nextkc) return comp
-    else if (nextkc) {
-      if (next.key) comp.key = next.key
-      if (next.char) comp.char = next.char
-    }
-    if (next.pass) {
-      let mid = arymerge(comp.mid,next.mid)
-      if (mid) comp.mid = mid
-      delete comp.next
-      comp.pass = true
-    }
-    else if (next.next) {
-      let mid = arymerge(comp.mid,next.mid)
-      if (mid) comp.mid = mid
-      comp.next = next.next
-    }
-    else if (next.ret) {
-      delete comp.mid
-      delete comp.next
-      comp.ret = arymerge(comp.mid,next.ret)
-    }
-    else delete comp.next
-    return comp
+  function arymerge(a,b) {
+    return a && b ? a.concat(b) : a || b
+  }
+  function checkfail(comp) {
+    const {key,char,next,ret} = comp
+    return !(key || char || next || ret)
   }
 
-  function setnext(comp,mid,next,fail) {
+  function setnext(comp,win,fail) {
     let newcomp = comp.setnext
     if (newcomp) return newcomp
     newcomp = comp.setnext = {}
@@ -109,38 +111,45 @@ module.exports = Circuit => {
     if (comp.key) {
       newcomp.key = {}
       for (const c in comp.key) {
-        newcomp.key[c] = setnext(comp.key[c],mid,next,fail)
+        newcomp.key[c] = setnext(comp.key[c],win,fail)
       }
     }
-    if (comp.char) newcomp.char = setnext(comp.char,mid,next,fail)
+    if (comp.char) newcomp.char = setnext(comp.char,win,fail)
 
-    if (comp.pass) {
-      if (next) {
-        if (comp.mid) newcomp.mid = comp.mid
-        newcomp.next = next
+    if (comp.next || comp.ret) {
+      if (win) {
+        let {mid,next,ret} = win
+        if (comp.next == true) {
+          if (mid) newcomp.mid = arymerge(comp.mid,mid)
+          if (next) newcomp.next = next
+          else if (ret) newcomp.ret = arymerge(comp.mid,ret)
+        }
+        else if (comp.next) {
+          if (comp.mid) newcomp.mid = comp.mid
+          newcomp.next = setnext(comp.next,win,fail)
+        }
+        else if (comp.ret) {
+          if (mid) newcomp.mid = arymerge(comp.ret,mid)
+          if (next) newcomp.next = next
+          else if (ret) newcomp.ret = arymerge(comp.ret,ret)
+        }
       }
     }
-    else if (comp.next) {
-      if (comp.mid) newcomp.mid = comp.mid
-      newcomp.next = setnext(comp.next,mid,next,fail)
+    else if (fail) {
+      const {mid,next,ret} = fail
+      if (mid) newcomp.mid = mid
+      if (next) newcomp.next = next
+      else if (ret) newcomp.ret = ret
     }
-    else if (comp.ret) {
-      if (next) {
-        newcomp.mid = comp.ret
-        newcomp.next = next
-      }
-    }
-    else if (fail) newcomp.next = fail
-
     delete comp.setnext
-    return newcomp // merge(newcomp)
+    return newcomp
   }
   function ormerge(list) {
-    const newlist = { length:list.length }
-    for (let i = 1; i < list.length; ++i) {
-      newlist[i] = dotok(list[1])
-    }
-    throw ['ormerge',newlist]
+
+    throw ['ormerge',list]
+  }
+  function andmerge(check,real) {
+    throw ['andmerge',check,arg]
   }
 
   function dotok(comp) {
@@ -149,22 +158,32 @@ module.exports = Circuit => {
     comp.dotok = newcomp = {}
     switch (comp.tok) {
       case 'setnext': {
-        let {body,mid,next,fail} = comp
+        let {body,win,fail} = comp
         body = dotok(body)
-        if (next) next = dotok(next)
-        if (fail) fail = dotok(fail)
-        Object.assign(newcomp,setnext(body,mid,next,fail))
+        if (win && win.next) win.next = dotok(win.next)
+        if (fail && fail.next) fail.next = dotok(fail.next)
+        Object.assign(newcomp,setnext(body,win,fail))
       } break
       case 'or': {
-        Object.assign(newcomp,ormerge(comp))
+        const list = []
+        for (let i = 1; i < comp.list.length; ++i) {
+          list.push(dotok(comp.list[i]))
+        }
+        Object.assign(newcomp,ormerge(list))
+      } break
+      case 'and': {
+        let {check,real} = comp
+        let list = []
+        for (const i in check) list.push(dotok(check[i]))
+        Object.assign(newcomp,andmerge(list,dotok(real)))
       } break
       case undefined: {
         Object.assign(newcomp,comp)
-        delete newcomp.dotok
       } break
       default: throw ['dotok bad tok',comp]
     }
     delete comp.dotok
+    delete newcomp.dotok
     log('dotok',comp,newcomp)
     return newcomp
   }
