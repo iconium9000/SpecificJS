@@ -1,7 +1,8 @@
-tok:newlst; # creates new list
-tok:addlst; # adds
-tok:endlst;
-tok:emptylst;
+tok:newaddlst; # creates new list, adds ret to list
+tok:addlst; # adds ret to list
+tok:endlst; # sets ret to list
+tok:addendlst; # adds ret to list, sets ret to list
+tok:emptylst; # sets ret to emptylst
 
 tok:catch jump:int;
 # push jump onto catch
@@ -13,10 +14,11 @@ tok:jump jump:int; # moves state forward by jump
 tok:newsave; # saves current state as a checkpoint
 tok:endsave; # forgets checkpoint
 
+tok:schar; # reads a char as a special char and moves state forward
 tok:char; # reads a char and moves state forward
-tok:cmp cmp:{forEach c}:int;
+tok:cmp cmp:{forEach c}:int jump:int;
 # reads a char c
-# if c does not exist in map, throws err
+# if c does not exist in map, goto jump
 # else moves state forward by cmp[c]
 
 tok:arg; # sets arg to ret
