@@ -1,0 +1,46 @@
+tok:newlst; # creates new list
+tok:addlst; # adds
+tok:endlst;
+tok:emptylst;
+
+tok:catch jump:int;
+# push jump onto catch
+# if err is thrown, pops catch moves state forward by jump
+tok:endcatch; # pops catch
+tok:err; # pops catch and throws err
+tok:jump jump:int; # moves state forward by jump
+
+tok:newsave; # saves current state as a checkpoint
+tok:endsave; # forgets checkpoint
+
+tok:char; # reads a char and moves state forward
+tok:cmp cmp:{forEach c}:int;
+# reads a char c
+# if c does not exist in map, throws err
+# else moves state forward by cmp[c]
+
+tok:arg; # sets arg to ret
+
+tok:txt txt:string; # sets ret to txt
+
+tok:emptyary; # sets ret to
+tok:newary;
+tok:addary;
+tok:endary;
+
+tok:str;
+tok:pad;
+
+tok:fout;
+tok:out;
+
+tok:newstk;
+tok:addstk;
+tok:endstk;
+
+tok:newmap;
+tok:addkey;
+tok:addmap;
+tok:endmap;
+
+tok:act;
