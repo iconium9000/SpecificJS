@@ -6,9 +6,12 @@ module.exports = Circuit => {
       const repl = rep.length
       return [
         {tok:'newlst'},
-        {tok:'catch',jump:repl+2},
+        {tok:'try',catch:repl+4},
+        {tok:'newsave'},
       ].concat(
-        rep,{tok:'addlst',jump:-repl},
+        rep,{tok:'addlst'},
+        {tok:'locksave',jump:-repl-2},
+        {tok:'clearsave'},
         {tok:'endlst'},
       )
     },
@@ -17,8 +20,11 @@ module.exports = Circuit => {
       const repl = rep.length
       return [{tok:'newlst'}].concat(
         rep,{tok:'addlst'},
-        {tok:'catch',jump:repl+2},
-        rep,{tok:'addlst',jump:-repl},
+        {tok:'try',catch:repl+4},
+        {tok:'newsave'},
+        rep,{tok:'addlst'},
+        {tok:'locksave',jump:-repl-2},
+        {tok:'clearsave'},
         {tok:'endlst'}
       )
     },
@@ -44,10 +50,12 @@ module.exports = Circuit => {
       while (length > 1) {
         const rep = look(acts,map,act[--length])
         list = [
-          {tok:'catch',jump:rep.length+2}
+          {tok:'try',catch:rep.length+3},
+          {tok:'newsave'},
         ].concat(
           rep,
-          {tok:'jump',jump:list.length+1},
+          {tok:'locksave',jump:list.length+2},
+          {tok:'clearsave'},
           list
         )
       }
@@ -59,7 +67,7 @@ module.exports = Circuit => {
       while (length > 1) {
         let rep = look(acts,map,act[--length])
         if (rep.length > 0) {
-          list = [{tok:'newsave'}].concat(rep,{tok:'endsave'},list)
+          list = [{tok:'newsave'}].concat(rep,{tok:'clearsave'},list)
         }
       }
       return list
@@ -67,10 +75,11 @@ module.exports = Circuit => {
     not: (acts,map,actid,act) => {
       let rep = look(acts,map,act[1])
       return [
-        {tok:'catch',jump:rep.length+2}
+        {tok:'try',catch:rep.length+3},
+        {tok:'newsave'},
       ].concat(
-        rep, {tok:'jump',jump:2},
-        {tok:'jump',jump:2},
+        rep, {tok:'clearsave',jump:2},
+        {tok:'clearsave',jump:2},
         {tok:'err'}
       )
     },
@@ -170,15 +179,81 @@ module.exports = Circuit => {
     if (!top) return { tok:'end' }
 
     switch (top.tok) {
+      case 'cmp': {
+        const ret = { tok:'cmp', cmp:{} }
+        for (const c in top.cmp) {
+          ret.cmp[c] = jumpfollow(state,jump+top.cmp[c])
+        }
+        const next = jumpfollow(state,jump+top.jump)
+        if (next.tok == 'cmp') {
+          for (const c in next.cmp) {
+            if (ret.cmp[c] == undefined) {
+              ret.cmp[c] = next.cmp[c]
+            }
+          }
+          ret.next = next.next
+        }
+        else ret.next = next
+        return ret
+      }
       case 'jumplink':
         return jumpfollow({
           act:state.act,
           list:state.act[top.link],
-          tok:'jumplink',
           parent:state,
-          link:state.link,
+          tok:'jumplink',
           jump:jump+1,
         },0)
+      case 'jumpback': {
+        const stack = []
+        while (state.parent) switch (state.tok) {
+          case 'top':
+            stack.push({tok:'top',top:state.top})
+            state = state.parent
+            break
+          case 'try':
+            stack.push({tok:'try',catch:state.catch})
+            state = state.parent
+            break
+          case 'jumplink':
+            jump = state.jump
+            state = state.parent
+            while (stack.length) {
+              const pop = stack.pop()
+              state = {
+                act:state.act, list:state.list, parent:state,
+                tok:pop.tok
+              }
+              switch (pop.tok) {
+                case 'top':
+                  state.tok = ''
+                  break;
+                default:
+
+              }
+            }
+          default: throw state
+        }
+      }
+      case 'newlst':
+      case 'newsave':
+      case 'char':
+      case 'txt':
+        return jumpfollow({
+          act:state.act,
+          list:state.list,
+          parent:state,
+          tok:'top',
+          top:top,
+        },jump+top.jump)
+      case 'try':
+        return jumpfollow({
+          act:state.act,
+          list:state.list,
+          parent:state,
+          tok:'try',
+          catch:jump+top.catch
+        },jump+top.jump)
       default: throw top
     }
   }
@@ -188,6 +263,7 @@ module.exports = Circuit => {
     if (!ret && !act.look) {
       act.look = true
       ret = f[act[0]](acts,map,actid,act)
+      for (const i in ret) if (ret[i].jump == undefined) ret[i].jump = 1
       delete act.look
       map[actid] = ret.concat({tok:'jumpback'})
     }
@@ -197,6 +273,7 @@ module.exports = Circuit => {
   return function ActComp({act,start}) {
     const map = {}
     const top = look(act,map,start)
+    log(top,map)
     log(listexpand(top,map))
     return top
   }
