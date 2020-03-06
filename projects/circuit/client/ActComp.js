@@ -2,87 +2,77 @@ module.exports = Circuit => {
 
   const f = {
     rep0: (acts,map,actid,act) => {
-      let rep = look(acts,map,act[1])
-      const repl = rep.length
       return [
         {tok:'newlst'},
-        {tok:'try',catch:repl+4},
+        {tok:'try',catch:5},
         {tok:'newsave'},
-      ].concat(
-        rep,{tok:'addlst'},
-        {tok:'locksave',jump:-repl-2},
+        look(acts,map,act[1]),{tok:'addlst'},
+        {tok:'locksave',jump:-3},
         {tok:'clearsave'},
         {tok:'endlst'},
-      )
+      ]
     },
     rep1: (acts,map,actid,act) => {
-      let rep = look(acts,map,act[1])
-      const repl = rep.length
-      return [{tok:'newlst'}].concat(
-        rep,{tok:'addlst'},
-        {tok:'try',catch:repl+4},
+      return [
+        {tok:'newlst'},
+        look(acts,map,act[1]),{tok:'addlst'},
+        {tok:'try',catch:5},
         {tok:'newsave'},
-        rep,{tok:'addlst'},
-        {tok:'locksave',jump:-repl-2},
+        look(acts,map,act[1]),{tok:'addlst'},
+        {tok:'locksave',jump:-3},
         {tok:'clearsave'},
         {tok:'endlst'}
-      )
+      ]
     },
     fun: (acts,map,actid,act) => {
       if (act.length == 1) return []
-      let list = look(acts,map,act[1])
+      let list = [look(acts,map,act[1])]
       for (let i = 2; i < act.length; ++i) {
-        list = list.concat({tok:'arg'},look(acts,map,act[i]))
+        list.push({tok:'arg'},look(acts,map,act[i]))
       }
       return list
     },
     lst: (acts,map,actid,act) => {
       let list = [{tok:'newlst'}]
       for (let i = 1; i < act.length; ++i) {
-        list = list.concat(look(acts,map,act[i]),{tok:'addlst'})
+        list.push(look(acts,map,act[i]),{tok:'addlst'})
       }
       return list.concat({tok:'endlst'})
     },
     or: (acts,map,actid,act) => {
       let {length} = act
       if (length == 1) return []
-      let list = look(acts,map,act[--length])
-      while (length > 1) {
-        const rep = look(acts,map,act[--length])
-        list = [
-          {tok:'try',catch:rep.length+3},
-          {tok:'newsave'},
-        ].concat(
-          rep,
-          {tok:'locksave',jump:list.length+2},
-          {tok:'clearsave'},
-          list
-        )
-      }
+      let list = [look(acts,map,act[--length])]
+      while (length > 1) list = [
+        {tok:'try',catch:5},
+        {tok:'newsave'},
+        look(acts,map,act[--length]),
+        {tok:'catch'},
+        {tok:'locksave',jump:list.length+2},
+        {tok:'clearsave'},
+      ].concat(list)
       return list
     },
     and: (acts,map,actid,act) => {
       if (act.length == 1) return []
-      let {length} = act, list = look(acts,map,act[--length])
+      let {length} = act, list = [look(acts,map,act[--length])]
       while (length > 1) {
-        let rep = look(acts,map,act[--length])
-        if (rep.length > 0) {
-          list = [{tok:'newsave'}].concat(rep,{tok:'clearsave'},list)
-        }
+        list = [
+          {tok:'newsave'},
+          look(acts,map,act[--length]),
+          {tok:'clearsave'}
+        ].concat(list)
       }
       return list
     },
-    not: (acts,map,actid,act) => {
-      let rep = look(acts,map,act[1])
-      return [
-        {tok:'try',catch:rep.length+3},
-        {tok:'newsave'},
-      ].concat(
-        rep, {tok:'clearsave',jump:2},
-        {tok:'clearsave',jump:2},
-        {tok:'err'}
-      )
-    },
+    not: (acts,map,actid,act) => [
+      {tok:'try',catch:5},
+      {tok:'newsave'},
+      look(acts,map,act[1]), {tok:'catch'},
+      {tok:'clearsave',jump:2},
+      {tok:'clearsave',jump:2},
+      {tok:'err'}
+    ],
 
     char: (acts,map,actid,act) => [
       {tok:'cmp',cmp:{'\\':1},jump:3},
@@ -124,7 +114,7 @@ module.exports = Circuit => {
       else if (act.length == 2) return look(acts,map,act[1])
       let list = [{tok:'newary'}]
       for (let i = 1; i < act.length; ++i) {
-        list = list.concat(look(acts,map,act[i]),{tok:'addary'})
+        list.push(look(acts,map,act[i]),{tok:'addary'})
       }
       list.push({tok:'endary'})
       return list
@@ -134,22 +124,23 @@ module.exports = Circuit => {
     fout: (acts,map,actid,act) => {
       let list = [{tok:'fout'}]
       for (let i = 1; i < act.length; ++i) {
-        list = list.concat(look(acts,map,act[i]),{tok:'out'})
+        list.push(look(acts,map,act[i]),{tok:'out'})
       }
       return list
     },
     out: (acts,map,actid,act) => {
-      let list = look(acts,map,act[1]).concat({tok:'arg'})
+      let list = [look(acts,map,act[1]),{tok:'arg'}]
       for (let i = 2; i < act.length; ++i) {
         list = list.concat(look(acts,map,act[i]),{tok:'out'})
       }
       return list
     },
-    stk: (acts,map,actid,act) => [{tok:'newstk'}].concat(
+    stk: (acts,map,actid,act) => [
+      {tok:'newstk'},
       look(acts,map,act[2]),{tok:'addstk'},
       look(acts,map,act[3]),{tok:'addstk'},
       look(acts,map,act[1]),{tok:'endstk'},
-    ),
+    ],
 
     key: (acts,map,actid,act) => look(acts,map,act[1]).concat(
       {tok:'addkey'}, look(acts,map,act[2]), {tok:'addmap'}
@@ -163,118 +154,141 @@ module.exports = Circuit => {
     },
     act: (acts,map,actid,act) => f.ary(acts,map,actid,act).concat({tok:'act'}),
   }
-
-  function listexpand(list,map) {
-    const state = {
-      act:map,
-      list:list,
-      tok:'top',
-    }
-    const ret = jumpfollow(state,0)
-    throw ['listexpand',ret,state]
-  }
-  function jumpfollow(state,jump) {
-
-    let top = state.list[jump]
-    if (!top) return { tok:'end' }
-
-    switch (top.tok) {
-      case 'cmp': {
-        const ret = { tok:'cmp', cmp:{} }
-        for (const c in top.cmp) {
-          ret.cmp[c] = jumpfollow(state,jump+top.cmp[c])
-        }
-        const next = jumpfollow(state,jump+top.jump)
-        if (next.tok == 'cmp') {
-          for (const c in next.cmp) {
-            if (ret.cmp[c] == undefined) {
-              ret.cmp[c] = next.cmp[c]
-            }
-          }
-          ret.next = next.next
-        }
-        else ret.next = next
-        return ret
-      }
-      case 'jumplink':
-        return jumpfollow({
-          act:state.act,
-          list:state.act[top.link],
-          parent:state,
-          tok:'jumplink',
-          jump:jump+1,
-        },0)
-      case 'jumpback': {
-        const stack = []
-        while (state.parent) switch (state.tok) {
-          case 'top':
-            stack.push({tok:'top',top:state.top})
-            state = state.parent
-            break
-          case 'try':
-            stack.push({tok:'try',catch:state.catch})
-            state = state.parent
-            break
-          case 'jumplink':
-            jump = state.jump
-            state = state.parent
-            while (stack.length) {
-              const pop = stack.pop()
-              state = {
-                act:state.act, list:state.list, parent:state,
-                tok:pop.tok
-              }
-              switch (pop.tok) {
-                case 'top':
-                  state.tok = ''
-                  break;
-                default:
-
-              }
-            }
-          default: throw state
-        }
-      }
-      case 'newlst':
-      case 'newsave':
-      case 'char':
-      case 'txt':
-        return jumpfollow({
-          act:state.act,
-          list:state.list,
-          parent:state,
-          tok:'top',
-          top:top,
-        },jump+top.jump)
-      case 'try':
-        return jumpfollow({
-          act:state.act,
-          list:state.list,
-          parent:state,
-          tok:'try',
-          catch:jump+top.catch
-        },jump+top.jump)
-      default: throw top
-    }
-  }
-
   function look(acts,map,actid) {
     let ret = map[actid], act = acts[actid]
     if (!ret && !act.look) {
       act.look = true
       ret = f[act[0]](acts,map,actid,act)
-      for (const i in ret) if (ret[i].jump == undefined) ret[i].jump = 1
       delete act.look
+      if (typeof ret.concat != 'function') {
+        throw [ret,act]
+      }
       map[actid] = ret.concat({tok:'jumpback'})
     }
-    return [ {tok:'jumplink',link:actid} ]
+    return {tok:'jumplink',link:actid}
+  }
+
+  function proj(acts,catcher,link,save,jump) {
+    const list = acts[link.actid]
+    const top = list[jump]
+    let bot
+    if (top.flag == true) {
+      top.flag = { tok:'temp' }
+    }
+    else if (top.flag) {
+      return top.flag
+    }
+    else top.flag = true
+    
+    let fun = top && j[top.tok]
+    if (typeof fun == 'string') fun = j[fun]
+    if (typeof fun != 'function') {
+      throw top
+    }
+    let ret = fun(acts,catcher,link,save,top,jump)
+    let {flag} = top
+    if (flag == true) delete top.flag
+    else if (flag) {
+      let {length} = save.stack
+      while (length > 0) {
+        ret = Object.assign({},save.stack[--length],{jump:ret})
+      }
+      Object.assign(flag,ret)
+      top.flag = true
+    }
+    else throw top
+    return ret
+  }
+  const j = {
+    end: (acts,catcher,link,save,top,jump) => {
+      let ret = { tok:'end' }
+      while (save) {
+        let {length} = save.stack
+        while (length > 0) {
+          ret = Object.assign({},save.stack[--length],{jump:ret})
+        }
+        save = save.parent
+      }
+      return ret
+    },
+    char:'top',
+    txt:'top',
+    newlst:'top',
+    addlst:'top',
+    endlst:'top',
+    top: (acts,catcher,link,save,top,jump) => proj(
+      acts,catcher,link,
+      {parent:save.parent, stack:save.stack.concat(top), move:save.move},
+      jump+top.jump,
+    ),
+    newsave: (acts,catcher,link,save,top,jump) => proj(
+      acts,catcher,link, {parent:save, stack:[], move:0}, jump+top.jump
+    ),
+    clearsave: (acts,catcher,link,{parent,move},top,jump) => {
+      let ret = proj(acts,catcher,link,parent,jump+top.jump)
+      if (move == 0) return ret
+      else return { tok:'move', move:-move, jump:ret }
+    },
+    locksave: (acts,catcher,link,{parent,stack},top,jump) => {
+      let {length} = stack
+      let ret = proj(acts,catcher,link,parent,jump+top.jump)
+      while (length > 0) ret = Object.assign({},stack[--length],{jump:ret})
+      return ret
+    },
+    try: (acts,catcher,link,save,top,jump) => proj(
+      acts,{ parent:catcher, catch:jump+top.catch, link:link },
+      link,save,jump+top.jump
+    ),
+    catch: (acts,catcher,link,save,top,jump) => proj(
+      acts,catcher.parent,link,save,jump+top.jump
+    ),
+    err: (acts,catcher,link,save,top,jump) => proj(
+      acts,catcher.parent,catcher.link,save,catcher.catch
+    ),
+    fail: () => { return { tok:'fail' } },
+    jumplink: (acts,catcher,link,save,top,jump) => proj(
+      acts,catcher,
+      { parent:link, actid:top.link, jump:jump+top.jump },
+      save,0
+    ),
+    jumpback: (acts,catcher,link,save,top,jump) => proj(
+      acts,catcher,link.parent,save,link.jump
+    ),
+    cmp: (acts,catcher,link,save,top,jump) => {
+      const ret = { tok:'cmp', cmp:{} }
+      const newsave = {
+        parent:save.parent,
+        stack:save.stack,
+        move:save.move+1
+      }
+      for (const c in top.cmp) {
+        ret.cmp[c] = proj(acts,catcher,link,newsave,jump+top.cmp[c])
+      }
+      ret.jump = proj(acts,catcher,link,save,jump+top.jump)
+      return ret
+    }
   }
 
   return function ActComp({act,start}) {
     const map = {}
     const top = look(act,map,start)
+    map[0] = [
+      {tok:'try',catch:1,jump:2},
+      {tok:'fail'},
+      top,{tok:'catch'},{tok:'end'},
+    ]
+    for (const i in map) {
+      const sub = map[i]
+      for (const i in sub) if (sub[i].jump == undefined) sub[i].jump = 1
+    }
     log(top,map)
-    log(listexpand(top,map))
+    log(proj(
+      map,
+      false,
+      { actid:0, parent:false },
+      { parent:false, stack:[], move:0 },
+      0,
+    ))
     return top
   }
 }
