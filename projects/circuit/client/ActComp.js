@@ -15,10 +15,7 @@ module.exports = Circuit => {
       map[link] = {
         pre:{tok:'newsave'},
         tok:'jumplink',link:act[1],
-        catch:{
-          pre:{tok:'clearsave'},
-          tok:'jumpback'
-        },
+        catch:{ tok:'clearsave' },
         pst:{
           pre:{
             tok:'addlist',
@@ -26,17 +23,13 @@ module.exports = Circuit => {
           },
           tok:'jumplink',link:link,
           catch:{tok:'jumpfail'},
-          pst:{tok:'jumpback'}
         }
       }
       return {
         pre:{tok:'newlist'},
         tok:'jumplink',link:link,
         catch:{tok:'jumpfail'},
-        pst:{
-          pre:{tok:'endlist'},
-          tok:'jumpback'
-        }
+        pst:{tok:'endlist'}
       }
     },
     rep1: (acts,map,act) => {
@@ -91,7 +84,7 @@ module.exports = Circuit => {
         else ret.pre = {tok:'clearsave'}
         ret = {
           pre:{tok:'newsave'},
-          tok:jumplink,link:act[--length],
+          tok:'jumplink',link:act[--length],
           catch:ret,
           pst:{ tok:'locksave' }
         }
