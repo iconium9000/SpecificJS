@@ -163,33 +163,24 @@ module.exports = Circuit => {
       throw act
     }
 
+    const bstack = stack
     const tstack = {parent:false,save:[],ary:[]}
     stack = stack || tstack
     for (const i in act.save) {
       let {parent,save,ary} = stack
-      parent = parent || tstack
-      switch (act.save[i]) {
-        case 'new': stack = {
-          parent:stack, save:['new'], ary:[]
-        }; break
-        case 'lock': stack = {
-          parent:parent.parent,
-          save:annihilate(parent.save.concat(save,'lock')),
-          ary:parent.ary.concat(ary)
-        }; break
-        case 'clear': stack = {
-          parent:parent.parent,
-          save:annihilate(parent.save.concat('clear')),
-          ary:parent.ary
-        }; break
-        default: stack = {
-          parent:parent, save:save.concat(act.save[i]), ary:ary
-        }; break
+      stack = {
+        parent:parent,
+        save:save.concat(act.save[i]),
+        ary:ary
       }
     }
     if (act.ary) {
       const {parent,save,ary} = stack
-      stack = { parent:parent, save:save, ary:ary.concat(act.ary) }
+      stack = {
+        parent:parent,
+        save:save,
+        ary:ary.concat(act.ary)
+      }
     }
     fun = fun(acts,act,stack,ret,err)
 
@@ -277,24 +268,20 @@ module.exports = Circuit => {
       const ans = { tok:'char',branch:{} }
 
       const {parent,save,ary} = stack
-      // if (save.includes('next') || save.includes('clear')) {
-        stack = { parent:parent, save:[], ary:ary }
-        ans.save = save
-      // }
-      // else ans.save = []
-      // if(save.length != ans.save.length) {
-      //   log(ans)
-      // }
+      stack = { parent:parent, save:[], ary:ary }
+      ans.save = save
 
       const char = flatten(acts,act.char,stack,ret,err)
+      ans.char = char
 
-      if (char.tok != 'char' || char.save.length > 0) ans.char = char
-      else {
-        ans.char = char.char
-        for (const c in char.branch) {
-          ans.branch[c] = char.branch[c]
-        }
-      }
+
+      // if (char.tok != 'char' || char.save.length > 0) ans.char = char
+      // else {
+      //   ans.char = char.char
+      //   for (const c in char.branch) {
+      //     ans.branch[c] = char.branch[c]
+      //   }
+      // }
 
       for (const c in act.branch) {
         ans.branch[c] = flatten(acts,act.branch[c],stack,ret,err)
