@@ -1,0 +1,34 @@
+Unlock {
+  unlock: true
+  body: Lock | Unlock
+
+  preretfun: String[] | null
+  retfun: String[] | null
+  ret: Lock | Unlock
+
+  preerrfun: String[] | null
+  errfun: String[] | null
+  err: Lock | Unlock
+}
+Lock {
+  branch: Branch[]
+  fun: String[] | null
+  ret: Bool
+}
+Branch {
+  tok: false
+  lock: Lock | null
+  not: Bool
+  pass: Bool
+}
+Char : Branch {
+  tok: 'char'
+  char: String (length = 1)
+}
+Link : Branch {
+  tok: 'link'
+  link: Int
+}
+Next : Branch {
+  tok: 'next'
+}
