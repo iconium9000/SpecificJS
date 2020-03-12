@@ -2,104 +2,88 @@ module.exports = Circuit => {
 
   function copy(...ary) { return Object.assign({},...ary) }
 
-  function gotostrip(state,stripidx,fun) {
-    state = copy(state)
-    if (stripidx > state.stripidx) throw "strip can't jump forward"
-    else if (stripidx != undefined && stripidx != state.stripidx) do {
-      if (!state.strip) throw 'empty strip stack'
-      let {parent} = state
+  function mergebranch(branch) {
+    let {preretfun,preerrfun,body,retfun,ret,errfun,err} = branch
+    if (!preretfun || preretfun == true) preretfun = []
+    if (!preerrfun || preerrfun == true) preerrfun = []
+    if (retfun == true) retfun = []
+    else if (!retfun) retfun = false
+    if (errfun == true) errfun = []
+    else if (!errfun) errfun = false
+    if (ret == true || !ret) ret = { fun:[], ret:!!ret }
+    if (err == true || !err) err = { fun:[], ret:!ret }
 
-      --state.stripidx
-    } while (stripidx < state.stripidx)
-
-
-    return state
+    log(preretfun,preerrfun,body,retfun,errfun,ret,err)
+    return 'branch'
   }
-  function lookbranch(state,branch) {
-    log(state,branch)
-    throw 'lookbranch'
-  }
-  function lookid(state,actid) {
-    if (state.stack.includes(actid)) {
-      return lookbranch(state,{tok:'link',link:actid})
+
+  function lookid(acts,stack,actid) {
+    if (stack.includes(actid)) {
+      if (!acts.map[actid]) acts.map[actid] = true
+      return {
+        branch:[{
+          tok:'link',link:actid,
+          next:{ fun:[], ret:true },
+          pass:false
+        }],
+        ret:{fun:[],ret:false}
+      }
     }
-    state = copy(state)
-    state.stack = state.stack.concat(actid)
-    return lookact(state,state.acts[actid])
-  }
-  function lookact(state,act) {
-    let {ret,err} = state; state = copy(state)
+    stack = stack.concat(actid)
+    let act = acts[actid], flag = true
     switch (act[0]) {
-      case 'lstbare': {
-        let {length} = act; ret = {tok:'ret',fun:['lstend'],ret:ret}
-        while (length > 1) ret = {
-          tok:'actid',actid:act[--length],fun:[],
-          ret:ret,err:err
-        }
-        ret.fun.splice(0,0,'lstnew')
-        return looktok(state,ret)
-      }
-      case 'lstadd': {
-        let [tok,actid,jump] = act
-        if (jump == undefined) state.ret = {tok:'ret',fun:['lstadd'],ret:ret}
-        else {
-          state.ret = {tok:'actid',fun:['lstadd'],actid:jump,ret:ret,err:err}
-          state.err = {tok:'ret',stripidx:state.stripidx,ret:ret}
-        }
-        return lookid(state,actid)
-      }
       case 'or': {
-        let {length} = act
-        while (length > 1) err = {
-          tok:'actid',actid:act[--length],
-          ret:ret,err:err,
-          stripidx:state.stripidx
-        }
-        return looktok(state,err)
+        let {length} = act, ret = false
+        while (length > 1) ret = mergebranch({
+          body:lookid(acts,stack,act[--length]),
+          retfun:true,ret:true,err:ret
+        })
+        return ret
       }
-      case 'lst': {
-        let {length} = act; ret = {tok:'ret',fun:['lstend'],ret:ret}
+      case 'lst':flag = ['lstadd']
+      case 'lstbare':{
+        if (act.length < 2) return { fun:['lstempty'], ret:true }
+        let {length} = act, ret = { fun:['lstend'], ret:true }
         while (length > 1) {
-          ret.fun.splice(0,0,'lstadd')
-          ret = { tok:'actid',fun:[],actid:act[--length],ret:ret,err:err }
+          ret = {
+            body:lookid(acts,stack,act[--length]),
+            retfun:flag,ret:ret
+          }
+          if (length == 1) ret.preretfun = ['lstnew']
+          ret = mergebranch(ret)
         }
-        ret.fun.splice(0,0,'lstnew')
-        return looktok(state,ret)
+        return ret
       }
-      case 'cmp': {
+      case 'lstadd':switch (act.length) {
+        case 3:flag = mergebranch({
+          body:lookid(acts,stack,act[2]),
+          retfun:true,ret:true
+        })
+        case 2:return mergebranch({
+          body:lookid(acts,stack,act[1]),
+          retfun:['lstadd'],ret:flag,err:flag!=true
+        })
+        default:return true
+      }
+      case 'cmp':{
         let str = act[1], {length} = str
-        ret = {tok:'ret',fun:['txt',str],ret:ret}
-        err = {tok:'err',stripidx:state.stripidx,err:err}
-        while (length > 0) ret = {tok:'char',char:str[--length],ret:ret,err:err}
-        return looktok(state,ret)
+        let ret = { fun:['txt',str], ret:true }
+        while (length > 0) ret = mergebranch({
+          body:{
+            branch:[{
+              tok:'char',char:str[--length],
+              next: {fun:['char'],ret:true},
+              pass:false
+            }],
+            ret:{fun:[],ret:false},
+          },
+          retfun:true,ret:ret
+        })
+        return ret
       }
-      default: error(...act); throw 'lookact'
+      default:error(...act); throw 'lookid'
     }
   }
-  function looktok(state,tok) {
-    state = gotostrip(state,tok.stripidx,tok.fun || [])
-    state.err = tok.err
-    state.ret = tok.ret
-
-    switch (tok.tok) {
-      case 'ret': {
-        if (state.ret) return looktok(state,state.ret)
-        else throw 'ret'
-      }
-      case 'err': {
-        if (state.err) return looktok(state,state.err)
-        else throw 'err'
-      }
-      case 'char': {
-        const {stripidx,ret} = state
-        state.ret = {tok:'ret',fun:['char'],stripidx:stripidx+1,ret:ret}
-        return lookbranch(state,{tok:'char',char:tok.char})
-      }
-      case 'actid': return lookid(state,tok.actid)
-      default: error(tok); throw 'looktok'
-    }
-  }
-
 
   return function ActComp({act,start}) {
 
@@ -121,18 +105,17 @@ module.exports = Circuit => {
         }
       }
     }
+
+    act.map = { [start]:true }
+    while (true) {
+      let flag = true
+      for (const i in act.map) if (act.map[i] == true) {
+        act.map[i] = lookid(act,[],parseInt(i))
+        flag = false
+      }
+      if (flag) break
+    }
     log(act)
-    const map = {}
-    let ret = lookid({
-      acts:act,
-      map:map,
-      stack:[],
-      strip:false,
-      stripidx:0,
-      ret:false,
-      err:false,
-    },start)
-    log(map,ret)
 
     return 'ActComp'
   }

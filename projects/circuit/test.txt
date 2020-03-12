@@ -1,5 +1,4 @@
 Unlock {
-  unlock: true
   body: Lock | Unlock
 
   preretfun: String[] | null
@@ -19,7 +18,9 @@ Branch {
   tok: false
   lock: Lock | null
   not: Bool
-  pass: Bool
+  ret: Bool
+  retpass: Bool
+  errpass: Bool
 }
 Char : Branch {
   tok: 'char'
