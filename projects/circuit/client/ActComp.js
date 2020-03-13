@@ -2,107 +2,93 @@ module.exports = Circuit => {
 
   function copy(...ary) { return Object.assign({},...ary) }
 
-  function expandtrace(body,trace,stack) {
-    let pop = trace.pop()
+  function expandtracelist(body,trace,stack) {
+    if (body == true || !body) return {trace:trace,fun:[],ret:!!body}
     switch (body.tok) {
-      case 'next': {
-        if (pop.length > 0) trace.push(pop)
-        stack.push({ trace:trace, fun:body.fun || [], ret:body.ret })
-      }; break;
-      case 'char': {
-        let {char} = body
-        if (char == undefined) throw 'expandtrace char undefined'
-        expandtrace(body.body,trace.concat(
-          [pop.concat({tok:'char',char:char})],[[]]
-        ),stack)
-        expandtrace(body.err,trace.concat(
-          [pop.concat({tok:'notchar',char:char})]
-        ),stack)
-      }; break
-      default: error(body); throw 'expandtrace tok'
+      case 'next': return {trace:trace, fun:body.fun || [], ret:!!body.ret}
+      default: error(body); throw 'expandtracelist body.tok'
     }
-    return stack
   }
-  function mergetrace(a,b) {
-    error('mergetrace',a,b)
-    throw 'mergetrace'
+  function prependtrace(root,spot) {
+    throw 'prependtrace'
+  }
+  function appendtrace(root,spot) {
+    throw 'appendtrace'
   }
   function mergetracelist(tracelist) {
-    const root = {}
-    log('mergetracelist',tracelist)
-    for (const i in tracelist) {
-      let node = root, {trace,fun,ret} = tracelist[i]
-      for (const j in trace) {
-        error(trace[j])
-        throw 'mergetracelist trace[j]'
-      }
-      if (!node.tok) {
-        node.tok = 'next'
-        node.fun = fun
-        node.ret = ret
-      } else switch (node.tok) {
-        default: error(node); throw 'mergetracelist node.tok'
-      }
-    }
-    if (!root.tok) {
-      root.tok = 'next'
-      root.fun = []
-      root.ret = false
-    }
-    return root
+    throw 'mergetracelist'
   }
 
-  // on body error, prepends err to body
+  // on body error, prepend err to body
   // else body
   function mergeiferr(body,err) {
-    // return {
-    //   tok:'mergeiferr',
-    //   body:body,err:err
-    // }
-  }
-  // on body error, body
-  // else prepend ret to body
-  function mergeifret(body,ret) {
-    // return {
-    //   tok:'mergeifret',
-    //   body:body,ret:ret
-    // }
-  }
-  // on body error,
-  // prepend std error with !!err as ret to body
-  // else append ret to body
-  function mergeappend(body,ret,err) {
-    let bodytracelist = expandtrace(body,[[]],[])
-    let rettracelist = expandtrace(ret,[[]],[])
-    let tracelist = []; err = !!err
+    let bodytracelist = expandtracelist(body,[[]],[])
+    let errtracelist = expandtracelist(err,[[]],[])
+    let tracelist = []
     for (const i in bodytracelist) {
-      const bodytrace = bodytracelist[i]
-      if (!bodytrace.ret) {
-        tracelist.push({trace:bodytrace.trace,fun:[],ret:err})
-      }
-      else for (const j in rettracelist) {
-        const rettrace = rettracelist[j]
+      const bodytrace = bodytrace[i]
+      if (bodytrace.ret) tracelist.push(bodytrace)
+      else for (const j in errtracelist) {
+        let {trace,fun,ret} = errtracelist[j]
         tracelist.push({
-          trace:bodytrace.trace.concat(
-            bodytrace.if ?
-            mergetrace(bodytrace.if,rettrace.trace) :
-            rettrace.trace
-          ),
-          fun:bodytrace.fun.concat(rettrace.fun),
-          ret:rettrace.ret
+          trace:prependtrace(bodytrace.trace,trace),
+          fun:fun,ret:ret
         })
       }
     }
     return mergetracelist(tracelist)
   }
-
+  // on body error, body
+  // else prepend ret to body
+  function mergeifret(body,ret) {
+    let bodytracelist = expandtracelist(body,[[]],[])
+    let rettracelist = expandtracelist(ret,[[]],[])
+    let tracelist = []
+    for (const i in bodytracelist) {
+      const bodytrace = bodytrace[i]
+      if (bodytrace.ret) for (const j in rettracelist) {
+        let {trace,fun,ret} = rettracelist[j]
+        tracelist.push({
+          trace:prependtrace(bodytrace.trace,trace),
+          fun:bodytrace.fun.concat(fun),ret:ret
+        })
+      }
+      else tracelist.push(bodytrace)
+    }
+    return mergetracelist(tracelist)
+  }
+  // on body error, prepend err
+  // else append ret to body
+  function mergeappend(body,ret,err) {
+    let bodytracelist = expandtracelist(body,[[]],[])
+    let rettracelist = expandtracelist(ret,[[]],[])
+    let errtracelist = expandtracelist(err,[[]],[])
+    let tracelist = []
+    for (const i in bodytracelist) {
+      const bodytrace = bodytrace[i]
+      if (bodytrace.ret) for (const j in rettracelist) {
+        let {trace,fun,ret} = rettracelist[j]
+        tracelist.push({
+          trace:appendtrace(bodytrace.trace,trace),
+          fun:bodytrace.fun.concat(fun),ret:ret
+        })
+      }
+      else for (const j in errtracelist) {
+        let {trace,fun,ret} = errtracelist[j]
+        tracelist.push({
+          trace:prependtrace(bodytrace.trace,trace),
+          fun:fun,ret:ret
+        })
+      }
+    }
+    return mergetracelist(tracelist)
+  }
   function lookid(acts,stack,actid) {
     if (stack.includes(actid)) {
       if (!acts.map[actid]) acts.map[actid] = true
       return {
-        tok:'link',link:actid,
-        body:{ tok:'next',fun:['link'],ret:true },
-        err:{ tok:'next',fun:[],ret:false }
+        tok:'link',err:false,
+        link:{[actid]:{tok:'next',fun:['link'],ret:true }},
       }
     }
     stack = stack.concat(actid)
@@ -112,7 +98,7 @@ module.exports = Circuit => {
     }
     switch (act[0]) {
       case 'lstadd': {
-        if (act.length == 1) return {tok:'next',fun:[],ret:true}
+        if (act.length == 1) return true
         let body = lookid(acts,stack,act[1])
         if (act.length == 2) {
           return mergeappend(body,{tok:'next',fun:['lstadd'],ret:true})
@@ -140,8 +126,8 @@ module.exports = Circuit => {
         return ret
       }
       case 'or': {
-        if (act.length < 2) return {tok:'next',fun:[],ret:true}
-        let {length} = act, err = {tok:'next',fun:[],ret:false}
+        if (act.length < 2) return true
+        let {length} = act, err = false
         while (length > 1) {
           err = mergeiferr(lookid(acts,stack,act[--length]),err)
         }
@@ -151,8 +137,8 @@ module.exports = Circuit => {
         let txt = act[1], {length} = txt
         let ret = {tok:'next',fun:['txt',txt],ret:true}
         while (length > 0) ret = {
-          tok:'char',char:txt[--length],
-          body:ret,err:{tok:'next',fun:[],ret:false}
+          tok:'char',err:false,
+          char:{ [txt[--length]]:ret }
         }
         return ret
       }
@@ -190,7 +176,7 @@ module.exports = Circuit => {
       }
       if (flag) break
     }
-    log(act)
+    log(act.map)
 
     return 'ActComp'
   }
