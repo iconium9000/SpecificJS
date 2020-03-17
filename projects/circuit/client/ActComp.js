@@ -3,19 +3,51 @@ module.exports = Circuit => {
   function copy(...ary) { return Object.assign({},...ary) }
 
   function expandtracelist(body,trace,stack) {
-    if (body == true || !body) return {trace:trace,fun:[],ret:!!body}
+    if (body == true || !body) {
+      stack.push({trace:trace,fun:[],ret:!!body})
+      return stack
+    }
     switch (body.tok) {
-      case 'next': return {trace:trace, fun:body.fun || [], ret:!!body.ret}
+      case 'next': {
+        stack.push({trace:trace, fun:body.fun || [], ret:!!body.ret})
+      }; break;
+      case 'char': {
+        trace = trace.slice()
+        let _pop, _trace, pop = trace.pop()
+        let notchar = {tok:'notchar',char:{}}
+        for (const c in body.char) {
+          notchar.char[c] = true
+          _pop = pop.concat({tok:'char',char:c})
+          _trace = trace.concat([_pop],[[]])
+          expandtracelist(body.char[c],_trace,stack)
+        }
+        _pop = pop.concat(notchar)
+        _trace = trace.concat([_pop])
+        expandtracelist(body.err,_trace,stack)
+      }; break;
       default: error(body); throw 'expandtracelist body.tok'
     }
+    return stack
   }
   function prependtrace(root,spot) {
+    if (root.length == 1 && root[0].length == 0) {
+      return spot
+    }
     throw 'prependtrace'
   }
   function appendtrace(root,spot) {
-    throw 'appendtrace'
+    root = root.slice()
+    return root.concat(prependtrace([root.pop()],spot))
   }
   function mergetracelist(tracelist) {
+    if (
+      tracelist.length == 1 && tracelist[0].trace.length == 1 &&
+      tracelist[0].trace[0].length == 0
+    ) {
+      let {fun,ret} = tracelist[0]
+      return {tok:'next',fun:fun,ret:ret}
+    }
+
     throw 'mergetracelist'
   }
 
@@ -26,7 +58,7 @@ module.exports = Circuit => {
     let errtracelist = expandtracelist(err,[[]],[])
     let tracelist = []
     for (const i in bodytracelist) {
-      const bodytrace = bodytrace[i]
+      const bodytrace = bodytracelist[i]
       if (bodytrace.ret) tracelist.push(bodytrace)
       else for (const j in errtracelist) {
         let {trace,fun,ret} = errtracelist[j]
@@ -45,7 +77,7 @@ module.exports = Circuit => {
     let rettracelist = expandtracelist(ret,[[]],[])
     let tracelist = []
     for (const i in bodytracelist) {
-      const bodytrace = bodytrace[i]
+      const bodytrace = bodytracelist[i]
       if (bodytrace.ret) for (const j in rettracelist) {
         let {trace,fun,ret} = rettracelist[j]
         tracelist.push({
@@ -65,7 +97,7 @@ module.exports = Circuit => {
     let errtracelist = expandtracelist(err,[[]],[])
     let tracelist = []
     for (const i in bodytracelist) {
-      const bodytrace = bodytrace[i]
+      const bodytrace = bodytracelist[i]
       if (bodytrace.ret) for (const j in rettracelist) {
         let {trace,fun,ret} = rettracelist[j]
         tracelist.push({
