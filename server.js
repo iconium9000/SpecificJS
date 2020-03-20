@@ -22,6 +22,10 @@ const projects = {
     name: '2048',
     title: '2048',
   },
+  'factory': {
+    name: 'factory',
+    title: 'Factory',
+  },
   'circuit': {
     name: 'circuit',
     title: 'Circuit',

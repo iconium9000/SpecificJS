@@ -58,6 +58,22 @@ module.exports = (constructors) => class Lib {
     for (const i in object) return object[i]
   }
 
+  static itop(a) {
+    if (a < 1) return {x:0,y:0}
+    const {floor,sqrt} = Math, e = floor((1 + sqrt(4*a - 3))/2)
+    const f = e*e - e + 1, g = floor((a - f)/e), h = (e + 1)%2
+    const i = (f + e*g + floor((e - 2)/2) - a) * (h ? 1 : -1)
+    const j = floor((e + g)/2) * (g ^ h ? 1 : -1)
+    return g ? {x:j,y:i} : {x:i,y:j}
+  }
+  static ptoi({x,y}) {
+    if (x == 0 && y == 0) return 0
+    else if (0.5 > y + Math.abs(x - 1)) return 4*y*y - 3*y + x
+    else if (y > Math.abs(x + 0.5)) return 4*y*y - y - x
+    else if (x > 0) return 4*x*x - 3*x + y
+    else return 4*x*x - x - y
+  }
+
   static now () { (new Date()).getTime() * 1e-3 }
 
   static get_cookie(cookie_name) {

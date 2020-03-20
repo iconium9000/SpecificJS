@@ -30,8 +30,7 @@ module.exports = constructors => class Point {
     const k = (px*vy - py*vx) / c
     return 0 < k && k < 1 && dx*(hy-ay) < dy*(hx-ax)
   }
-
-
+  
   static radius_intersect(
     r,{x:p11,y:p12},{x:v11,y:v12},{x:p21,y:p22},{x:v21,y:v22},
   ) {
