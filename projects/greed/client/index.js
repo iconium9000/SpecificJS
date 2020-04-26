@@ -1,42 +1,46 @@
-const {log} = console
+const {log,error} = console
 const module = {
 	set exports(
-		get_constructor // (Function{Function.name}) => Function
+		get_constructor, // (Function{Function.name}) => Function
 	) {
 		const constructor = get_constructor(Greed)
 		Greed[constructor.name] = constructor
+		console.log(constructor.name)
 	}
 }
 
+function drawlobby(lobby,id) {
+
+  log('drawlobby',lobby)
+
+  let menu = `<p><b>Welcome to Greed!</b></p>`
+  menu += '<i>Select a game to join or start a new game</i>'
+
+  for (const id in lobby.rooms) {
+    const room = lobby.rooms[id]
+    let txt = ''
+    for (const username in room.players) {
+      txt += `* ${room.players[username].name} `
+    }
+    menu += `<p><a href="${id}">${id}</a> ${txt}*`
+  }
+  menu += `<p><a href="${id}">Start New Game</a>`
+
+
+  document.getElementById('menu').innerHTML = menu
+}
 
 function Greed() {
 
-	const {Lib} = Greed
+  const {Lib,Setup} = Greed
   const socket = io('/greed')
 
-  socket.on('connect', () => {
-		let name = Lib.get_cookie('name')
+  socket.on('update', lobby => {
 
-		// if no name is found in cookies, get one from the user
-		while (!name || name == 'null') {
-			name = prompt('Choose a name:', name)
-			Lib.set_cookie('name',name,10)
-		}
+    // get player id
+    const id = Setup(socket)
 
-		// reply to server with name
-		socket.emit('client name', {name: name})
-		socket.emit('update')
-  })
-
-  socket.on('update', clients => {
-		const id = '/' + socket.id.split('#').pop()
-		clients[id] = 'New Game?'
-		log('clients')
-
-		let menu = '<h>Greed!</h>'
-		for (const id in clients) {
-			menu += `<p><a href="${id}">${clients[id]}</a></p>\n`
-		}
-		document.getElementById('menu').innerHTML = menu
+    // draw lobby
+    drawlobby(lobby,id)
   })
 }

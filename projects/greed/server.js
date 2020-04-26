@@ -1,35 +1,80 @@
-const proj_name = 'Greed:'
-const log = (...msg) => console.log(proj_name, ...msg)
+module.exports = (project,info) => {
+  const proj_name = `Greed:`
+  function log(...msg) { console.log(proj_name, ...msg) }
+  const {app,express,socket_io} = info
+  const lobby_socket = project.socket
+  const client_path = __dirname + `/client`
 
-const game_names = {}
-const ClientListener = require(__dirname + '/ClientListener.js')
+  const lobby = {
+    name: 'lobby',
+    rooms: {}
+  }
 
-module.exports = (
-  {socket:menu_socket},{app,socket_io}
-) => menu_socket.on('connection', _menu_socket => {
-  let index = 'greed'
-  const menu_id = '/' + _menu_socket.id.split('#').pop()
-  const game_socket = socket_io.of(menu_id)
+  lobby_socket.on('connection', lobby_client_socket => {
+    const id = lobby_client_socket.id.split('#').pop()
 
-  _menu_socket.on('update', () => menu_socket.emit('update', game_names))
+    log('socket connection:', lobby_client_socket.id)
+    app.get('/' + id, (req,res) => res.sendFile(client_path + `/room.html`))
+    const room_socket = socket_io.of('/' + id)
+    const room = {
+      id: id,
+      name: null,
+      players: {},
+    }
 
-  // temporary page that only works once
-  app.get(menu_id, (req,res) => {
-    res.sendFile(`${__dirname}/client/${index}.html`)
-    index = 'index'
-  })
+    lobby_client_socket.emit('update',lobby)
 
-  game_socket.on('connection', _game_socket => {
-    const cl = new ClientListener(game_names, socket_io, _game_socket)
+    lobby_client_socket.on('client name', ({name,username}) => {
+      if (name == room.name && username == room.username) return
+      room.name = name
+      room.username = username
 
-    app.get(cl.game_id, (req,res) => {
-      res.sendFile(`${__dirname}/client/${cl.index}.html`)
+      log('client name:', name)
+      lobby_socket.emit('update',lobby)
+      room_socket.emit('update',room)
     })
 
-    _game_socket.on('client name', ({name}) => {
-      game_names[cl.game_id] = `Join ${name}'s game`
-      menu_socket.emit('update', game_names)
+    lobby_client_socket.on('disconnect', () => {
+      log('disconnect:', room.name)
     })
 
+    room_socket.on('connection', room_client_socket => {
+      const player = {
+        id: room_client_socket.id.split('#').pop(),
+        name: null,
+        score: Math.floor(Math.random() * 1000)
+      }
+      room.players[player.id] = player
+
+      log('room_socket connection', player.id)
+
+      room_client_socket.emit('update',room)
+
+      room_client_socket.on('client name', ({name,username}) => {
+        if (player.name == name && username == player.username) return
+
+        lobby.rooms[room.id] = room
+        player.name = name
+        player.username = username
+
+        log('room client name:', name)
+
+        lobby_socket.emit('update',lobby)
+        room_socket.emit('update',room)
+      })
+
+      room_client_socket.on('disconnect', () => {
+        log('disconnect from room:', player.name)
+        delete room.players[player.id]
+
+        let flag = true
+        for (const i in room.players) flag = false
+        if (flag) delete lobby.rooms[room.id]
+
+        lobby_socket.emit('update',lobby)
+        room_socket.emit('update',room)
+      })
+    })
   })
-})
+
+}

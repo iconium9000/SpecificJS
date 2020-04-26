@@ -18,17 +18,13 @@ const projects = {
     name: 'greed',
     title: 'Greed',
   },
-  '2048': {
-    name: '2048',
-    title: '2048',
+  'mazegame_new': {
+    name: 'mazegame/new',
+    title: 'MazeGame New',
   },
-  'factory': {
-    name: 'factory',
-    title: 'Factory',
-  },
-  'circuit': {
-    name: 'circuit',
-    title: 'Circuit',
+  'mazegame_viewer': {
+    name: 'mazegame/viewer',
+    title: 'MazeGame Viewer',
   },
   'mazegame_old': {
     name: 'mazegame/old',
@@ -38,18 +34,22 @@ const projects = {
     name: 'mazegame/grid',
     title: 'MazeGame Grid',
   },
-  'mazegame_new': {
-    name: 'mazegame/new',
-    title: 'MazeGame New',
-  },
-  'mazegame_viewer': {
-    name: 'mazegame/viewer',
-    title: 'MazeGame Viewer',
-  },
-  'mazegame_solver': {
-    name: 'mazegame/solver',
-    title: 'MazeGame Solver',
-  },
+  // '2048': {
+  //   name: '2048',
+  //   title: '2048',
+  // },
+  // 'factory': {
+  //   name: 'factory',
+  //   title: 'Factory',
+  // },
+  // 'circuit': {
+  //   name: 'circuit',
+  //   title: 'Circuit',
+  // },
+  // 'mazegame_solver': {
+  //   name: 'mazegame/solver',
+  //   title: 'MazeGame Solver',
+  // },
 }
 
 const jquery_dir = '/node_modules/jquery/dist/'
@@ -68,7 +68,7 @@ const http = require('http')
 const serv = http.Server(app)
 const socket_io = require('socket.io')(serv, {})
 
-for ( const path in projects ) {
+for (const path in projects) {
   const project = projects[path]
   project.path = path
 
@@ -90,7 +90,8 @@ const info = {
   projects: projects,
   super_require: require,
   app: app,
-  socket_io: socket_io
+  socket_io: socket_io,
+  express: express,
 }
 for ( const path in projects ) {
   const project = projects[path]
