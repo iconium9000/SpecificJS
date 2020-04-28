@@ -4,9 +4,9 @@ module.exports = Greed => function Setup(socket) {
 
   // get player id
   const id = socket.id.split('#').pop()
-  let username = Lib.get_cookie('username')
-  if (typeof username != 'string' || username.length < 10) {
-    Lib.set_cookie('username', username = id, 15)
+  let user_id = Lib.get_cookie('user_id')
+  if (typeof user_id != 'string' || user_id.length < 10) {
+    Lib.set_cookie('user_id', user_id = id, 15)
   }
 
   // select name
@@ -15,7 +15,7 @@ module.exports = Greed => function Setup(socket) {
     name = prompt('Choose a name:', name)
   }
   Lib.set_cookie('name', name, 15)
-  socket.emit('client name', {name:name, username:username})
+  socket.emit('client name', {name:name, user_id:user_id})
 
-  return id
+  return { id:id, name:name, user_id:user_id }
 }

@@ -9,38 +9,59 @@ const module = {
 	}
 }
 
-function drawlobby(lobby,id) {
+function hideroom(room_id) {
+  Greed.socket.emit('hideroom',room_id)
+}
+
+function drawlobby(lobby) {
+  const {Lib,Setup,socket} = Greed
+  const {name,id,user_id} = Setup(socket)
 
   log('drawlobby',lobby)
+  Greed.lobby = lobby
 
-  let menu = `<p><b>Welcome to Greed!</b></p>`
+  let menu = `<p><b>Welcome to Greed, ${name}!</b></p>`
   menu += '<i>Select a game to join or start a new game</i>'
 
-  for (const id in lobby.rooms) {
-    const room = lobby.rooms[id]
-    let txt = ''
-    for (const username in room.players) {
-      txt += `* ${room.players[username].name} `
-    }
-    menu += `<p><a href="${id}">${id}</a> ${txt}*`
-  }
-  menu += `<p><a href="${id}">Start New Game</a>`
 
+  menu += `<table class="game-table">`
+  menu += `<thead><tr><th>Players</th><th>Games</th></tr></thead>`
+  menu += '<tbody>'
+  menu += `<tr>`
+  menu += `<td>New Game</td>`
+  menu += `<td><a href="${id}">Start!</a></td>`
+  menu += `</tr>`
+
+  for (const room_id in lobby.rooms) {
+    const room = lobby.rooms[room_id]
+    let flag = false
+    for (const id in room.players) { flag = true; break; }
+    if (flag || room.users[user_id] && !room.hidden) {
+      menu += `<tr>`
+      menu += `<td>`
+      for (const user_id in room.users) {
+        const user = room.users[user_id]
+        // txt += `* ${user.name} (${room.players[user.player_id] ? 'on' : 'off'})`
+
+        if (room.players[user.player_id]) {
+          menu += `<p>${user.name} (Online)`
+        }
+        else menu += `<p><i>${user.name} (Offline)</i>`
+      }
+      menu += `</td>`
+      menu += `<td>`
+      menu += `<p><a href="${id}">Continue</a>`
+      menu += `<p><button onclick="hideroom('${room_id}')">Hide</button>`
+      menu += `</td>`
+      menu += `</tr>`
+    }
+  }
+  menu += '</tbody></table>'
 
   document.getElementById('menu').innerHTML = menu
 }
 
 function Greed() {
-
-  const {Lib,Setup} = Greed
-  const socket = io('/greed')
-
-  socket.on('update', lobby => {
-
-    // get player id
-    const id = Setup(socket)
-
-    // draw lobby
-    drawlobby(lobby,id)
-  })
+  Greed.socket = io('/greed')
+  Greed.socket.on('update',drawlobby)
 }

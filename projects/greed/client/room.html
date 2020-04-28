@@ -1,39 +1,14 @@
 <head>
   <title id="title">Greed Game</title>
   <link rel="shortcut icon" href="/images/favicon.ico"/>
+  <link rel="stylesheet" href="greed/style.css">
 </head>
-<style>
-  .game-table {
-    border-collapse: collapse;
-    margin: 25px 0;
-    font-size: 0.9em;
-    min-width: 400px;
-  }
-  .game-table thead tr {
-    background-color: #303040;
-    color: #ffffff;
-    text-align: left;
-    font-weight: bold;
-  }
-  .game-table th,
-  .game-table td {
-    padding: 12px 15px;
-  }
-
-  .game-table tbody tr {
-    border-bottom: 1px solid #dddddd
-  }
-
-  .game-table tbody tr:nth-of-type(even) {
-    background-color: #f3f3f3;
-  }
-</style>
 <body>
   <div id="menu"> Loading... </div>
   <script src="jquery/jquery.slim.min.js"> </script>
   <script src="socket_io/socket.io.js"></script>
   <script src="greed/room.js"></script>
   <script src="Lib.js"></script>
-  <script src="greed/setup.js"></script>
+  <script src="greed/Setup.js"></script>
   <script> Greed() </script>
 </body>

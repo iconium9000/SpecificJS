@@ -1,0 +1,24 @@
+.game-table {
+  border-collapse: collapse;
+  margin: 25px 0;
+  font-size: 0.9em;
+  min-width: 400px;
+}
+.game-table thead tr {
+  background-color: #303040;
+  color: #ffffff;
+  text-align: left;
+  font-weight: bold;
+}
+.game-table th,
+.game-table td {
+  padding: 12px 15px;
+}
+
+.game-table tbody tr {
+  border-bottom: 1px solid #dddddd
+}
+
+.game-table tbody tr:nth-of-type(even) {
+  background-color: #f3f3f3;
+}
