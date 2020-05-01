@@ -11,7 +11,7 @@ module.exports = Greed => function Setup(socket) {
 
   // select name
   let name = Lib.get_cookie('name')
-  while (name == null || name == 'null' || name == 'NULL') {
+  while (!name || name == 'null' || name == 'NULL') {
     name = prompt('Choose a name:', name)
   }
   Lib.set_cookie('name', name, 15)

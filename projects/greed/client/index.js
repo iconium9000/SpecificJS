@@ -21,7 +21,8 @@ function drawlobby(lobby) {
   Greed.lobby = lobby
 
   let menu = `<p><b>Welcome to Greed, ${name}!</b></p>`
-  menu += '<i>Select a game to join or start a new game</i>'
+  menu += '<p><i>Select a game to join or start a new game</i>'
+	menu += '<p><a href="greed/rules.html">(Greed Rules)</a>'
 
 
   menu += `<table class="game-table">`
@@ -32,16 +33,19 @@ function drawlobby(lobby) {
   menu += `<td><a href="${id}">Start!</a></td>`
   menu += `</tr>`
 
+	const user = lobby.users[user_id]
   for (const room_id in lobby.rooms) {
     const room = lobby.rooms[room_id]
-    let flag = false
+    let flag = room.users[user_id] && !room.hidden
     for (const id in room.players) { flag = true; break; }
-    if (flag || room.users[user_id] && !room.hidden) {
+		const hidden_room = user && user.hidden_rooms[room_id]
+		if (hidden_room) flag = false
+
+    if (flag) {
       menu += `<tr>`
       menu += `<td>`
       for (const user_id in room.users) {
         const user = room.users[user_id]
-        // txt += `* ${user.name} (${room.players[user.player_id] ? 'on' : 'off'})`
 
         if (room.players[user.player_id]) {
           menu += `<p>${user.name} (Online)`
@@ -50,7 +54,15 @@ function drawlobby(lobby) {
       }
       menu += `</td>`
       menu += `<td>`
-      menu += `<p><a href="${id}">Continue</a>`
+			if (room.started && !room.users[user_id]) {
+				menu += `<p><a href="${room_id}">Spectate</a>`
+			}
+			else if (hidden_room == false) {
+				menu += `<p><a href="${room_id}">Continue</a>`
+			}
+			else {
+				menu += `<p><a href="${room_id}">Join</a>`
+			}
       menu += `<p><button onclick="hideroom('${room_id}')">Hide</button>`
       menu += `</td>`
       menu += `</tr>`
