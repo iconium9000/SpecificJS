@@ -49,7 +49,7 @@ function htmlbutton(fun,text,state) {
 function drawroom(room,my_user_id) {
   Greed.room = room
   Greed.user_id = my_user_id
-	room.user_id = my_user_id
+	room.user_id = room.whoseturn
 
 	// if (room.whoseturn != my_user_id) Greed.myturn = false
 	// else if (!Greed.myturn) {
@@ -84,25 +84,38 @@ function drawroom(room,my_user_id) {
 			value = user.score
 		}
 	}
+	const vip = room.users[room.vip]
   for (const user_list_idx in room.user_list) {
 		const user_id = room.user_list[user_list_idx]
     const user = room.users[user_id]
     menu += `<tr><td>`
 
+		const enabled = user_id == my_user_id ? 'enabled' : 'disabled'
+
 		if (user_id == my_user_id) {
 			menu += user.name
-			menu += `&nbsp` + htmlbutton('rename()','Rename','enabled')
+			menu += `&nbsp` + htmlbutton('rename()','Rename',enabled)
 		}
 		else if (room.players[user.player_id]) menu += `<p>${user.name} (Online)`
 		else menu += `<p><i>${user.name} (Offline)</i>`
     menu += `<p><i>Score ${user.score}</i>`
 		menu += `<p><i>Rank ${user.rank}</i>`
-		if (user.winner) menu += `<p><b>WINNER!</b></p>`
     menu += `</td>`
 
 		if (room.winner != null) {
 			if (room.winner == user_id) menu += `<td><b>WINNER!</b></td>`
 			else menu += `<td><b>LOSER!</b></td>`
+		}
+		else if (!room.started) {
+			if (user_id == my_user_id) {
+				if (my_user_id == room.vip) {
+					menu += `<td>Everyone is waiting for <b>You</b> to press`
+				}
+				else {
+					menu += `<td>Waiting for <b>${vip.name}</b> to press`
+				}
+				menu += ' ' + htmlbutton('startgame()','Start Game','enabled') + '</td>'
+			}
 		}
     else if (room.whoseturn == user_id) {
       menu += `<td>`
@@ -111,7 +124,7 @@ function drawroom(room,my_user_id) {
 			for (const dice_id in canscoredice) if (!canscoredice[dice_id]) ++count
 			let score_dice = room.dice.length - count
 
-			if (room.lost_score > 0) menu += `Lost score: ${room.lost_score} points`
+			if (room.lost_score > 0) menu += `Missed ${room.lost_score} points`
 			else menu += `Play score: ${room.play_score} points`
 			if (room.passed);
 			else if (score_dice == 0) menu += `<p>No Scoreable Dice = 0 points`
@@ -120,20 +133,20 @@ function drawroom(room,my_user_id) {
 				for (const dice_id in room.dice) {
 					let val = room.dice[dice_id]
 					if (canscoredice[dice_id]) {
-						let enabled = canseldice[dice_id] ? 'enabled' : 'disabled'
-						menu += htmlbutton(`seldice('${dice_id}')`,val,enabled)
+						let dice_enabled = canseldice[dice_id] ? enabled : 'disabled'
+						menu += htmlbutton(`seldice('${dice_id}')`,val,dice_enabled)
 					}
 				}
 				menu += `&nbsp= ${room.roll_score} points`
 			}
 
 			if (room.canclear) {
-				let clearmsg = `Clear Play Score and Roll 6 Dice`
-				menu += `<p>` + htmlbutton('cleardice()',clearmsg,'enabled')
+				let clearmsg = `Clear <b>Play Score</b> and Roll <b>6 Dice</b>`
+				menu += `<p>` + htmlbutton('cleardice()',clearmsg,enabled)
 			}
 
-			let roll_count = `Roll ${count == 0 ? 6 : count} Dice`
-			const roll_enabled = room.canroll ? 'enabled' : 'disabled'
+			let roll_count = `Roll <b>${count == 0 ? 6 : count} Dice</b>`
+			const roll_enabled = room.canroll ? enabled : 'disabled'
 			menu += `<p>${htmlbutton('rolldice()',roll_count,roll_enabled)}&nbsp`
 			if (count == 0) for (let i = 0; i < 6; ++i) {
 				menu += htmlbutton(`seldice('${i}')`,'?','disabled')
@@ -141,14 +154,16 @@ function drawroom(room,my_user_id) {
 			else for (const dice_id in room.dice) {
 				let val = room.dice[dice_id]
 				if (!canscoredice[dice_id]) {
-					let enabled = canseldice[dice_id] ? 'enabled' : 'disabled'
+					let dice_enabled = canseldice[dice_id] ? enabled : 'disabled'
 					val = val < 0 ? -val : val == 0 ? '?' : val
-					menu += htmlbutton(`seldice('${dice_id}')`,val,enabled)
+					menu += htmlbutton(`seldice('${dice_id}')`,val,dice_enabled)
 				}
 			}
 
 			menu += `&nbsp`
-			if (room.canpass) menu += `<p>` + htmlbutton('passdice()',room.passmsg,'enabled')
+			if (room.canpass) {
+				menu += `<p>` + htmlbutton('passdice()',room.passmsg,enabled)
+			}
       menu += `</td>`
     }
     else menu += `<td></td>`

@@ -9,6 +9,7 @@ module.exports = Greed => class Room {
     this.dice = [0,0,0, 0,0,0]
 
     this.started = false
+    this.rolling = false
     this.vip = null
     this.passed = true
     this.cleared = true
@@ -36,10 +37,10 @@ module.exports = Greed => class Room {
     let user_turn = (this.user_turn + 1) % this.user_list.length
     const next_player = this.users[this.user_list[user_turn]].name
 
-    let ans = `Pass<br>Keep ${points < 500 ? 'No' : points} Points`
-    ans += ` and Pass ${pass_dice} Dice`
-    ans += `<br>and ${points < 500 ? 'No' : points} Points`
-    ans += ` to ${next_player}`
+    let ans = `Pass<br>Keep <b>${points < 500 ? 'No' : points} Points</b>`
+    ans += ` and Pass <b>${pass_dice} Dice</b>`
+    ans += `<br>and <b>${points < 500 ? 'No' : points} Points</b>`
+    ans += ` to <b>${next_player}</b>`
     return ans
   }
   get canstart() {
@@ -150,7 +151,10 @@ module.exports = Greed => class Room {
         if (score > high_score) { winners = [user_id]; high_score = score; }
         else if (score == high_score) winners.push(user_id)
       }
-      if (high_score > 10000 && winners.length < 2) this.winner = winners.pop()
+      if (high_score > 10000 && winners.length < 2) {
+        this.winner = winners.pop()
+        this.user_turn = NaN
+      }
     }
     else this.lost_score = -1
     return true

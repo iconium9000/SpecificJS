@@ -95,7 +95,6 @@ module.exports = (project,info) => {
 
       room_client_socket.on('client name', ({name,user_id}) => {
         if (player.name == name && user_id == player.user_id) return
-        // else if (room.started) return update()
 
         if (!room.vip) room.vip = user_id
 
@@ -116,7 +115,7 @@ module.exports = (project,info) => {
           room_user.name = name
           room_user.player_id = player.id
         }
-        else {
+        else if (!room.started) {
           room.users[user_id] = {
             name: name,
             user_id: user_id,
@@ -131,13 +130,7 @@ module.exports = (project,info) => {
       })
 
       room_client_socket.on('disconnect', () => {
-
         delete room.players[player.id]
-
-        // let flag = true
-        // for (const i in room.players) flag = false
-        // if (flag) delete lobby.rooms[room.id]
-
         update()
       })
     })
