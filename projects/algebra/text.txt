@@ -1,0 +1,12 @@
+E: A = A
+A: M + A | M - A | M
+M: P * M | P / M | P
+P: N ^ P | F ( A ) | N
+F: function
+N: number
+
+
+a + b = b + a
+a - b = -b + a
+a * b = b * a
+a / b = 1/b * a

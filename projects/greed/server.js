@@ -4,15 +4,19 @@ module.exports = (project,info) => {
   const {app,express,socket_io} = info
   const lobby_socket = project.socket
   const client_path = __dirname + `/client`
-  const Score = require('./client/Score.js')()
-  const Room = require(`./client/Room.js`)({Score:Score})
-  const timeout_clock = 15000
+  const Greed = {}
+  function getlib(path,f) { const lib = f(path)(Greed); Greed[lib.name] = lib; }
+  getlib('./client/Score.js',require)
+  getlib(`./projects/menu/client/Lib.js`,info.super_require)
+  getlib(`./client/Room.js`,require)
+  const {Score,Lib,Room} = Greed
 
   const lobby = {
     name: 'lobby',
     rooms: {},
     users: {}
   }
+  const user_keys = {}
 
   lobby_socket.on('connection', lobby_client_socket => {
     const id = lobby_client_socket.id.split('#').pop()
@@ -20,7 +24,7 @@ module.exports = (project,info) => {
     app.get('/' + id, (req,res) => res.sendFile(client_path + `/room.html`))
     const room_socket = socket_io.of('/' + id)
     const room = new Room; room.init(id)
-    let room_user = null
+    let room_user = null, timeout = undefined
 
     lobby_client_socket.emit('update',lobby)
 
@@ -31,8 +35,12 @@ module.exports = (project,info) => {
       }
     })
 
-    lobby_client_socket.on('client name', ({name,user_id}) => {
+    lobby_client_socket.on('client name', ({name,user_id,key}) => {
       if (name == room.name && user_id == room.user_id) return
+
+      if (!user_keys[user_id]) user_keys[user_id] = key
+      else if (user_keys[user_id] != key) return
+
       room.name = name
       room.user_id = user_id
 
@@ -54,47 +62,39 @@ module.exports = (project,info) => {
       }
       room.players[player.id] = player
 
-      let timeout = null
-      function settimer() {
-        // log('settimer')
-        // clearInterval(timeout)
-        update()
-        // timeout = setTimeout(() => {
-        //   room.user_id = room.whoseturn
-        //   room.dopass()
-        //   settimer()
-        // },timeout_clock)
-      }
       function update() {
+        room.time_offset = room.clock - Lib.time
         lobby_socket.emit('update',lobby)
         room_socket.emit('update',room)
       }
 
       room_client_socket.emit('update',room)
 
-      room_client_socket.on('dopass', () => {
-        room.user_id = player.user_id
-        if (room.dopass()) settimer()
-      })
-      room_client_socket.on('dostart', () => {
-        room.user_id = player.user_id
-        if (room.dostart()) settimer()
-      })
-      room_client_socket.on('doroll', () => {
-        room.user_id = player.user_id
-        if (room.doroll()) settimer()
-      })
-      room_client_socket.on('doclear', () => {
-        room.user_id = player.user_id
-        if (room.doclear()) settimer()
-      })
+      function dooffset(fname,user_id,dice_id) {
+        room.user_id = user_id
+        if (room[fname](dice_id)) {
+          room.clock = Lib.time + room.timer
+          update()
+
+          clearTimeout(timeout)
+          timeout = setTimeout(() => {
+            dooffset('forcepass',room.whoseturn)
+          }, room.time_offset)
+        }
+      }
+      room_client_socket.on('dopass', () => dooffset('dopass',player.user_id))
+      room_client_socket.on('dostart', () => dooffset('dostart',player.user_id))
+      room_client_socket.on('doroll', () => dooffset('doroll',player.user_id))
+      room_client_socket.on('doclear', () => dooffset('doclear',player.user_id))
       room_client_socket.on('doseldice', dice_id => {
-        room.user_id = player.user_id
-        if (room.doseldice(dice_id)) settimer()
+        dooffset('doseldice',player.user_id,dice_id)
       })
 
-      room_client_socket.on('client name', ({name,user_id}) => {
+      room_client_socket.on('client name', ({name,user_id,key}) => {
         if (player.name == name && user_id == player.user_id) return
+
+        if (!user_keys[user_id]) user_keys[user_id] = key
+        else if (user_keys[user_id] != key) return
 
         if (!room.vip) room.vip = user_id
 

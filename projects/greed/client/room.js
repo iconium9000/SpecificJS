@@ -46,18 +46,28 @@ function htmlbutton(fun,text,state) {
   }
 }
 
+function gettimer() {
+	const {room,user_id,Lib} = Greed
+	if (!room) return ''
+	let secs = Math.floor((room.clock - Lib.time)/1000)
+	if (secs < 0) secs = 0
+	const pass = room.passmsg + `<br><i>Passing in ${secs} seconds</i>`
+	room.user_id = user_id
+	return htmlbutton('passdice()',pass,room.canpass ? 'enabled' : 'disabled')
+}
+
 function drawroom(room,my_user_id) {
   Greed.room = room
   Greed.user_id = my_user_id
 	room.user_id = room.whoseturn
+	room.time = Greed.Lib.time
+	room.clock = room.time_offset + room.time
 
 	// if (room.whoseturn != my_user_id) Greed.myturn = false
 	// else if (!Greed.myturn) {
 	// 	alert(`It's Your Turn!`)
 	// 	Greed.myturn = true
 	// }
-
-  // log('drawroom',room)
 
   let menu = ''
 	menu += `<p><b>${room.name}'s Greed Game</b>`
@@ -103,8 +113,8 @@ function drawroom(room,my_user_id) {
     menu += `</td>`
 
 		if (room.winner != null) {
-			if (room.winner == user_id) menu += `<td><b>WINNER!</b></td>`
-			else menu += `<td><b>LOSER!</b></td>`
+			const win = room.winner == user_id ? 'WINNER' : 'LOSER'
+			menu += `<td><b>${win}! (Rank: ${user.rank})</b></td>`
 		}
 		else if (!room.started) {
 			if (user_id == my_user_id) {
@@ -125,7 +135,13 @@ function drawroom(room,my_user_id) {
 			let score_dice = room.dice.length - count
 
 			if (room.lost_score > 0) menu += `Missed ${room.lost_score} points`
-			else menu += `Play score: ${room.play_score} points`
+			else {
+				const ps = room.play_score
+				menu += `Play score: ${ps} points`
+				if (ps < 500) menu += ` (<i>${ps} &lt; 500 points</i>)`
+				else if (ps == 500) menu += ` (<i>${ps} = 500 points</i>)`
+				else menu += ` (<i>${ps} &gt; 500 points</i>)`
+			}
 			if (room.passed);
 			else if (score_dice == 0) menu += `<p>No Scoreable Dice = 0 points`
 			else {
@@ -145,9 +161,13 @@ function drawroom(room,my_user_id) {
 				menu += `<p>` + htmlbutton('cleardice()',clearmsg,enabled)
 			}
 
-			let roll_count = `Roll <b>${count == 0 ? 6 : count} Dice</b>`
-			const roll_enabled = room.canroll ? enabled : 'disabled'
-			menu += `<p>${htmlbutton('rolldice()',roll_count,roll_enabled)}&nbsp`
+			const dice = count == 0 ? 6 : count
+			menu += `<p>${
+				room.canroll ?
+				htmlbutton('rolldice()',`Roll <b>${dice} Dice</b>`,enabled) :
+				htmlbutton('rolldice()',`Can't Roll`,'disabled')
+			}&nbsp`
+
 			if (count == 0) for (let i = 0; i < 6; ++i) {
 				menu += htmlbutton(`seldice('${i}')`,'?','disabled')
 			}
@@ -161,9 +181,7 @@ function drawroom(room,my_user_id) {
 			}
 
 			menu += `&nbsp`
-			if (room.canpass) {
-				menu += `<p>` + htmlbutton('passdice()',room.passmsg,enabled)
-			}
+			menu += `<p><div id="timer">${gettimer()}</div>`
       menu += `</td>`
     }
     else menu += `<td></td>`
@@ -174,6 +192,8 @@ function drawroom(room,my_user_id) {
   menu += '</table>'
 
   document.getElementById('menu').innerHTML = menu
+
+
 }
 
 function Greed() {
@@ -182,6 +202,11 @@ function Greed() {
   const lobby_socket = io('/greed')
   Greed.Socket = io('/' + window.location.href.split('/').pop())
   const {Lib,Setup,Socket,Room} = Greed
+
+	setInterval(() => {
+		const timer = document.getElementById('timer')
+		if (timer) timer.innerHTML = gettimer()
+	}, 1000)
 
   lobby_socket.on('update', lobby => Setup(lobby_socket))
 

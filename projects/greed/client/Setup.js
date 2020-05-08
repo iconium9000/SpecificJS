@@ -17,5 +17,8 @@ module.exports = Greed => function Setup(socket) {
   Lib.set_cookie('name', name, 15)
   socket.emit('client name', {name:name, user_id:user_id})
 
-  return { id:id, name:name, user_id:user_id }
+  let key = Lib.get_cookie('key')
+  if (!key) Lib.set_cookie('key',key = '' + Math.random(),15)
+
+  return { id:id, name:name, user_id:user_id, key:key }
 }

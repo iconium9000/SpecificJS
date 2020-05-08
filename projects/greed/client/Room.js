@@ -1,5 +1,9 @@
 module.exports = Greed => class Room {
 
+  get timer() {
+    return 15000
+  }
+
   init(id) {
     this.id = id
     this.players = {}
@@ -7,6 +11,9 @@ module.exports = Greed => class Room {
     this.user_turn = NaN
     this.user_list = []
     this.dice = [0,0,0, 0,0,0]
+
+    const time = this.clock = Greed.Lib.time
+    this.time_offset = this.clock - time
 
     this.started = false
     this.rolling = false
@@ -25,19 +32,22 @@ module.exports = Greed => class Room {
   }
 
   get passmsg() {
-    const {canscoredice,play_score,roll_score} = this
+    const {canpass,canscoredice,play_score,roll_score} = this
     const points = play_score + roll_score
     let score_dice = 0, pass_dice = 0
     for (const dice_id in canscoredice) {
       if (canscoredice[dice_id]) ++score_dice
       else ++pass_dice
     }
-    if (score_dice == 0 || pass_dice == 0 || points < 500) pass_dice = 6
+
+    if (!canpass);
+    else if (score_dice == 0 || pass_dice == 0 || points < 500) pass_dice = 6
 
     let user_turn = (this.user_turn + 1) % this.user_list.length
     const next_player = this.users[this.user_list[user_turn]].name
 
-    let ans = `Pass<br>Keep <b>${points < 500 ? 'No' : points} Points</b>`
+    const keep_points = !canpass || points < 500 ? 'No' : points
+    let ans = `Keep <b>${keep_points} Points</b>`
     ans += ` and Pass <b>${pass_dice} Dice</b>`
     ans += `<br>and <b>${points < 500 ? 'No' : points} Points</b>`
     ans += ` to <b>${next_player}</b>`
@@ -103,9 +113,13 @@ module.exports = Greed => class Room {
     return ans
   }
 
-
   forcepass() {
     if (!this.myturn) return false
+    else if (!this.canpass) {
+      this.user_turn = (this.user_turn+1) % this.user_list.length
+      return true
+    }
+
     if (this.roll_score == 0 || (this.play_score + this.roll_score) < 500) {
       this.play_score = 0
       this.roll_score = 0
@@ -151,7 +165,7 @@ module.exports = Greed => class Room {
         if (score > high_score) { winners = [user_id]; high_score = score; }
         else if (score == high_score) winners.push(user_id)
       }
-      if (high_score > 10000 && winners.length < 2) {
+      if (high_score >= 10000 && winners.length < 2) {
         this.winner = winners.pop()
         this.user_turn = NaN
       }
