@@ -24,11 +24,16 @@ module.exports = Greed => class Room {
     this.roll_score = 0
   }
 
+
   get whoseturn() {
     return this.user_list[this.user_turn]
   }
   get myturn() {
     return this.user_id != null && this.whoseturn == this.user_id
+  }
+  get whoseturnname() {
+    const user = this.users[this.whoseturn]
+    return user && user.name
   }
 
   get passmsg() {
@@ -47,7 +52,7 @@ module.exports = Greed => class Room {
     const next_player = this.users[this.user_list[user_turn]].name
 
     const keep_points = !canpass || points < 500 ? 'No' : points
-    let ans = `Keep <b>${keep_points} Points</b>`
+    let ans = `Pass<br>Keep <b>${keep_points} Points</b>`
     ans += ` and Pass <b>${pass_dice} Dice</b>`
     ans += `<br>and <b>${points < 500 ? 'No' : points} Points</b>`
     ans += ` to <b>${next_player}</b>`
@@ -135,7 +140,14 @@ module.exports = Greed => class Room {
     }
     this.passed = true
     this.lost_score = -1
+    const usera = this.whoseturnname
     this.user_turn = (this.user_turn+1) % this.user_list.length
+    const userb = this.whoseturnname
+
+    this.action_msg = `<b>${usera}</b> passed`
+      + ` <b>${this.dice.length} Dice</b>`
+      + ` and <b>${this.play_score} Points</b>`
+      + ` to <b>${userb}</b>`
     return true
   }
   doclear() {
@@ -151,7 +163,7 @@ module.exports = Greed => class Room {
 
     this.passed = false
     this.play_score += this.roll_score
-    const {dice} = Greed.Score(this.dice)
+    const {dice} = Greed.Score(this.dice), {length} = dice
     for (const i in dice) dice[i] = (Math.floor(Math.random() * 12) % 6) + 1
     this.roll_score = Greed.Score(this.dice = dice).score
     if (this.roll_score == 0) {
@@ -171,6 +183,10 @@ module.exports = Greed => class Room {
       }
     }
     else this.lost_score = -1
+
+    this.action_msg = `<b>${this.whoseturn}</b>`
+    if (this.cleared) this.action_msg += `Cleared play score and`
+    this.action_msg += ` Rolled <b>${length} Dice</b>`
     return true
   }
   doseldice(dice_id) {
@@ -179,6 +195,7 @@ module.exports = Greed => class Room {
     if (abs_val == 1 || abs_val == 5) dice[dice_id] = -val
     else for (const i in dice) if (dice[i] == val) dice[i] = -val
     this.roll_score = Greed.Score(dice).score
+    this.action_msg = false
     return true
   }
 }

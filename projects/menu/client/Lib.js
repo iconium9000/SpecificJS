@@ -32,6 +32,11 @@ module.exports = (constructors) => class Lib {
     return true
   }
 
+  static ordinal(n) {
+    const s = ["th","st","nd","rd"], v = n % 100
+    return n + (s[(v - 20) % 10] || s[v] || s[0])
+  }
+
   static set (object, value, label) {
     if (value == undefined) delete object[label]
     else object[label] = value

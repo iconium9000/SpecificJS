@@ -90,7 +90,7 @@ function drawroom(room,my_user_id) {
 		const user = scores[i]
 		if (user.score == value) user.rank = rank
 		else {
-			user.rank = ++rank
+			user.rank = Greed.Lib.ordinal(++rank) + ' place'
 			value = user.score
 		}
 	}
@@ -109,12 +109,12 @@ function drawroom(room,my_user_id) {
 		else if (room.players[user.player_id]) menu += `<p>${user.name} (Online)`
 		else menu += `<p><i>${user.name} (Offline)</i>`
     menu += `<p><i>Score ${user.score}</i>`
-		menu += `<p><i>Rank ${user.rank}</i>`
+		menu += `<p><i>${user.rank}</i>`
     menu += `</td>`
 
 		if (room.winner != null) {
 			const win = room.winner == user_id ? 'WINNER' : 'LOSER'
-			menu += `<td><b>${win}! (Rank: ${user.rank})</b></td>`
+			menu += `<td><b> ${user.rank}</b></td>`
 		}
 		else if (!room.started) {
 			if (user_id == my_user_id) {
