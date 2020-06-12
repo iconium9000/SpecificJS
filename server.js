@@ -18,7 +18,7 @@ const projects = {
     name: 'greed',
     title: 'Greed',
   },
-  'mazegame_new': {
+  'mazegame': {
     name: 'mazegame/new',
     title: 'MazeGame New',
   },
