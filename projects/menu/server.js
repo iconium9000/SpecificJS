@@ -50,6 +50,7 @@ module.exports = (project, {projects}) => {
         name: project.name,
         title: project.title,
         path: project.path,
+        description: project.description,
         n_clients: 0,
       }
 

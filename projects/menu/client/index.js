@@ -31,11 +31,18 @@ client_socket.on('update', ({ projects }) => {
 
   log('update', projects)
 
-  var menu = ''
+  let menu = ''
+  menu += `<table class="table">`
+  // menu += `<thead><tr><th>Games</th></tr></thead>`
+  menu += '<tbody>'
+
   for ( const project_idx in projects ) {
     const project = projects[ project_idx ]
 
-    menu += `<p><a href="${project.path}">${project.title}</a>`
+    menu += `<tr>`
+    menu += `<td>`
+
+    menu += `<p><a href="${project.path}" class="button">${project.title}</a>`
 
     var count = project.n_clients
 
@@ -47,7 +54,16 @@ client_socket.on('update', ({ projects }) => {
       }
     }
     menu += '</p>\n'
+    if (project.description) {
+      menu += project.description
+    }
+
+    menu += `</td>`
+    menu += `</tr>`
   }
+
+  menu += '</tbody></table>'
+
   document.getElementById('menu').innerHTML = menu
 
 })

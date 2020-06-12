@@ -1,0 +1,37 @@
+.button {
+  background-color: #303040;
+  border: none;
+  color: white;
+  padding: 15px 32px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  font-size: 16px;
+  margin: 4px 2px;
+  cursor: pointer;
+}
+
+.table {
+  border-collapse: collapse;
+  margin: 25px 0;
+  font-size: 0.9em;
+  min-width: 400px;
+}
+.table thead tr {
+  background-color: #303040;
+  color: #ffffff;
+  text-align: left;
+  font-weight: bold;
+}
+.table th,
+.table td {
+  padding: 12px 15px;
+}
+
+.table tbody tr {
+  border-bottom: 1px solid #dddddd
+}
+
+.table tbody tr:nth-of-type(even) {
+  background-color: #f3f3f3;
+}

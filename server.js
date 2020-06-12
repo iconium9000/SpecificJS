@@ -9,30 +9,78 @@ const projects = {
   'blockade': {
     name: 'blockade',
     title: 'Blockade',
+    description: `<ul>
+    <li> Simple multiplayer side-scroller where players pilot
+         a weighted block around obstacles.</li>
+    <li> Completed in a fast-paced,
+         player-led exercise to quickly produce
+         a playable product in an afternoon.</li>
+    <li> Is VERY hard, but CAN be mastered.</li>
+    <li> Controls with either spacebar or mouse.</li>
+    <li> Completed in 2018.</li></ul>`
   },
   'knifeline': {
     name: 'knifeline',
     title: 'Knifeline',
+    description: `<ul>
+    <li> Turn-based puzzle game in which players build a map out of lines
+         and strategically place fountains of paint and knives
+        to gain and keep territory.</li>
+    <li> Developed clean, intuitive UX which has facilitated
+         exhilarating player comradery.</li>
+    <li> Completed in 2018.</li></ul>`
   },
   'greed': {
     name: 'greed',
     title: 'Greed',
+    description: `<ul>
+    <li> Fun Group Game-Night style game designed for
+         fun with friends during COVID-19 shutdown.</li>
+    <li> Implementation of a fun dice game introduced by friends.</li>
+    <li> Completed in 2020.</li></ul>`
   },
   'mazegame': {
     name: 'mazegame/new',
-    title: 'MazeGame New',
+    title: 'MazeGame',
+    description: `<ul>
+    <li> Minimalist puzzle game in which players manipulate keys, doors,
+         and portals to escape colorful rooms in subversive and creative ways.</li>
+    <li> First designed around 2010 with paper and markers.</li>
+    <li> Has become a pathfinder project used to hone new skills.</li>
+    <li> Rewritten dozens of times over the course of many years.</li>
+    <li> Completed in 2020.</li></ul>`
   },
   'mazegame_viewer': {
     name: 'mazegame/viewer',
     title: 'MazeGame Viewer',
+    description: `<ul><li> Player Game State Viewer
+         to aid in game development and player troubleshooting.</ul>`
   },
   'mazegame_old': {
     name: 'mazegame/old',
-    title: 'MazeGame Old',
+    title: 'MazeGame 2016',
+    description: `<ul>
+      <li> Simple Mobile-Compatable MazeGame implemtation.</li>
+      <li> Completed in 2016.</li></ul>`
   },
   'mazegame_grid': {
     name: 'mazegame/grid',
     title: 'MazeGame Grid',
+    description: `<ul>
+      <li> Grid-based, desktop solution to complexity issues with MazeGame.</li>
+      <li> Controls with Arrow-Keys. </li>
+      <li> Swap Players by pressing the Spacebar. </li>
+      <li> Select levels by clicking on them. </li>
+      <li> Click and drag to pan around map. </li>
+      <li> Completed in 2017.</li></ul>`
+  },
+  'mazegame_solver': {
+    name: 'mazegame/solver',
+    title: 'MazeGame Solver (C++ Solver Disabled)',
+    description: `<ul>
+      <li> Advanced level solver in C++
+           to efficiently test optimal puzzle solves.</li>
+      <li> Completed in 2020.</li></ul>`
   },
   // '2048': {
   //   name: '2048',
@@ -45,10 +93,6 @@ const projects = {
   // 'circuit': {
   //   name: 'circuit',
   //   title: 'Circuit',
-  // },
-  // 'mazegame_solver': {
-  //   name: 'mazegame/solver',
-  //   title: 'MazeGame Solver',
   // },
 }
 

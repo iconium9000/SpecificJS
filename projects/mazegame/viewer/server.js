@@ -13,7 +13,7 @@ module.exports = (project, {projects, super_require, app, socket_io}) => {
     socket.emit('update', _clients)
   }
 
-  projects.mazegame_new.socket.on('connection', (socket) => {
+  projects.mazegame.socket.on('connection', (socket) => {
     const client = {
       name: socket.id,
       socket: socket,

@@ -44,7 +44,7 @@ module.exports = MazeGame => class Level extends MazeGame.Type {
     this._minhit = minhit
   }
 
-  get is_locked() { return this._is_locked }
+  get is_locked() { return false; } //this._is_locked }
   set is_locked(
     is_locked // Boolean
   ) {
