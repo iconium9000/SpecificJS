@@ -10,6 +10,7 @@ function Tick() {
   const deltaT = (temptime - _TIME_) * 1e-3;
   _TIME_ = temptime;
 
+
   // resize the content panel to fit window
   const {innerWidth,innerHeight} = window;
   const {offsetWidth,offsetHeight} = SIDEBAR;
@@ -19,6 +20,16 @@ function Tick() {
   else height = innerHeight - 20;
   CANVAS.width = width;
   CANVAS.height = height;
+
+  // Game Loop
+  window.requestAnimationFrame(Tick); // ask window to call Tick again
+
+  const pallet = _PALLETS_[_PALLETNAME_]; // Get current color pallet
+
+  // Draw Each Ball
+  for (const i in _BALLS_) DrawBall(_BALLS_[i],pallet);
+
+  if (_PAUSEPLAYTOGGLE_) return;
 
   // get correct collision function
   const Collision = _COLLISIONTOGGLE_ ? SimpleCollision : ComplexCollision;
@@ -42,12 +53,8 @@ function Tick() {
     }
   }
 
-  const pallet = _PALLETS_[_PALLETNAME_]; // Get current color pallet
-  // Draw and Move each ball
-  for (const i in _BALLS_) {
-    DrawBall(_BALLS_[i],pallet);
-    MoveBall(_BALLS_[i],deltaT,width,height);
-  }
+  // Move each ball
+  for (const i in _BALLS_) MoveBall(_BALLS_[i],deltaT,width,height);
 
   // draw line to indicate velocity
   if (_MOUSEDOWN_ && _MOUSEUP_) {
@@ -58,7 +65,4 @@ function Tick() {
     CTX.closePath();
     CTX.stroke();
   }
-
-  // Game Loop
-  window.requestAnimationFrame(Tick); // ask window to call Tick again
 }

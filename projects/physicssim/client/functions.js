@@ -46,6 +46,12 @@ function ToggleShowChunk() {
   SHOWCHUNKBUTTON.innerHTML = (_SHOWCHUNKTOGGLE_ ? "Hide" : "Show") + " Chunks";
 }
 
+// Pause/Play Toggle
+function Pause() {
+  _PAUSEPLAYTOGGLE_ = !_PAUSEPLAYTOGGLE_;
+  PAUSEBUTTON.innerHTML = (_PAUSEPLAYTOGGLE_ ? "Play" : "Paused");
+}
+
 // get mouse location from given mouse event listener
 function GetMouse(e) {
   return {x:e.offsetX,y:e.offsetY};

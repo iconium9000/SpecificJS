@@ -17,8 +17,12 @@ let _MOUSEDOWN_ = null, _MOUSEUP_ = null;
 
 const COLLISIONBUTTON = document.getElementById("collisionbutton");
 let _COLLISIONTOGGLE_ = true; // collision type (true: simple, false: complex)
+
 const SHOWCHUNKBUTTON = document.getElementById("showchunksbutton");
 let _SHOWCHUNKTOGGLE_ = false; // collision chunks draw (true: show, false: hide)
+
+const PAUSEBUTTON = document.getElementById("pausebutton");
+let _PAUSEPLAYTOGGLE_ = false; // pause play toggle (true: play, false: paused)
 
 const PALLETDROPDOWN = document.getElementById("palletdropdowncontent");
 const DROPDOWNCONTENT = document.getElementsByClassName("dropdown-content");
