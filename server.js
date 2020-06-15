@@ -39,6 +39,31 @@ const projects = {
     <li> Implementation of a fun dice game introduced by friends.</li>
     <li> Completed in 2020.</li></ul>`
   },
+  'physicssim': {
+    name: 'physicssim',
+    title: 'Physics Sim',
+    description: `<ul>
+    <li>Click and drag to launch balls!</li>
+    <li>Designed to display basic ballistic physics.</li>
+    <li>There are two collision modes; simple and complex.</li>
+    <ul><li>Simple swap of the momenta balls which come into contact with each other.
+    This mode allows for some fun experiments and interesting behaviors.</li>
+    <li>Complex takes into account the locations of each ball
+      in a collision and only swaps the velocities which are
+      aligned with the distance vector between the colliding balls.</li></ul>
+
+    <li>Employed a simple, chunk-based system which massively improves
+      algorithmic complexity.
+      Each ball only checks for collisions with balls in its
+      immediate vicinity corresponding to the radius of the
+      largest ball on screen.
+    <ul><li>This still has O(n<sup>2</sup>) complexity in the worst case,
+      but that worst case only occurs when many balls occupy the same chunks.</li>
+    <li>You can see this chunk system work in action by enabling "Show Chunks",
+      but this tends to add a performance penalty.</li></ul>
+
+    </ul>`
+  },
   'mazegame': {
     name: 'mazegame/new',
     title: 'MazeGame',

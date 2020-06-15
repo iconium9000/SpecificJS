@@ -1,0 +1,48 @@
+<head>
+  <title id="title">Scott Hildreth Physics Sim</title>
+  <link rel="shortcut icon" href="images/favicon.ico"/>
+  <link rel="stylesheet" href="physicssim/style.css">
+</head>
+<body style="background-color:#303030;" oncontextmenu="return false">
+
+  <!-- The sidebar -->
+  <div id="sidebar" class="sidebar">
+
+    <!-- color pallet dropdown -->
+    <div class="dropdown">
+      <button onclick="PalletDropDown()" class="dropbtn" id="palletdropdown">
+        Color Pallet: The Incredibles
+      </button>
+      <div id="palletdropdowncontent" class="dropdown-content"></div>
+    </div>
+
+    <!-- buttons -->
+    <p><button class="button" id="clearballs" onclick="ClearBalls()">Clear Balls</button>
+    <p><button class="button" id="clearmomentum" onclick="ClearMomentum()">Clear Momentum</button>
+    <p><button class="button" id="collisionbutton" onclick="ToggleCollision()">Simple Collisions</button>
+    <p><button class="button" id="showchunksbutton" onclick="ToggleShowChunk()">Show Chunks</button>
+
+    <!-- sliders -->
+    <p><div id="numballs">Number of Balls: 1</div>
+      <input type="range" min="1" max="500" value="1" class="slider" id="numballsslider">
+    <p><div id="ballradius">Ball Radius: 10</div>
+      <input type="range" min="1" max="50" value="10" class="slider" id="ballradiusslider">
+    <p><div id="balldensity">Ball Density: 5</div>
+      <input type="range" min="1" max="20" value="5" class="slider" id="balldensityslider">
+  </div>
+
+  <!-- Canvas Content -->
+  <div id="content" class="content">
+    <canvas id="canvas" style="boarder:1px solid #000000" cursor="none">
+    	Your browser does not support canvas element
+    </canvas>
+  </div>
+
+  <!-- JavaScript -->
+  <script src="physicssim/jquery.slim.min.js"> </script>
+  <script src="physicssim/globalvariables.js"></script>
+  <script src="physicssim/physics.js"></script>
+  <script src="physicssim/tick.js"></script>
+  <script src="physicssim/functions.js"></script>
+  <script type="text/javascript"> Tick(); </script>
+</body>
