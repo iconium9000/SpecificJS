@@ -29,7 +29,7 @@ function NewBalls() {
 }
 
 // check each balls surrounding chunks for neighboring balls
-function CheckBallChunk(ball,grid,Collision) {
+function CheckBallChunk(ball,Collision) {
   ball.flag = {}; // clear ball flag (index of interacted balls)
 
   // get center chunk
@@ -40,9 +40,9 @@ function CheckBallChunk(ball,grid,Collision) {
   // collide with the neighboring balls
   for (let i = -1; i <= 1; ++i) {
     for (let j = -1; j <= 1; ++j) {
-      const gridid = `${x+i},${y+j}`; // assemble grid id
-      let chunk = grid[gridid]; // get chunk
-      if (!chunk) grid[gridid] = chunk = []; // define new chunk if none exists
+      const chunkid = `${x+i},${y+j}`; // assemble grid id
+      let chunk = _CHUNKS_[chunkid]; // get chunk
+      if (!chunk) _CHUNKS_[chunkid] = chunk = []; // define new chunk if none exists
       else for (const i in chunk) Collision(ball,chunk[i]); // run collision
       chunk.push(ball); // add ball to chunk
     }

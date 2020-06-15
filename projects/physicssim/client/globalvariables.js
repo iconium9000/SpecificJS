@@ -45,6 +45,7 @@ for (const palletname in _PALLETS_) {
 PALLETDROPDOWN.innerHTML = palletdropdownHTML;
 
 let _BALLS_ = []; // list of balls on screen
+let _CHUNKS_ = {}; // map of chunks
 
 const NUMBALLSSLIDER = document.getElementById("numballsslider");
 const NUMBALLSHTML = document.getElementById("numballs");

@@ -26,23 +26,10 @@ function Tick() {
 
   const pallet = _PALLETS_[_PALLETNAME_]; // Get current color pallet
 
-  // Draw Each Ball
-  for (const i in _BALLS_) DrawBall(_BALLS_[i],pallet);
-
-  if (_PAUSEPLAYTOGGLE_) return;
-
-  // get correct collision function
-  const Collision = _COLLISIONTOGGLE_ ? SimpleCollision : ComplexCollision;
-
-  const grid = {}; // define new grid
-
-  // check each balls surrounding chunks for neighboring balls
-  for (const i in _BALLS_) CheckBallChunk(_BALLS_[i],grid,Collision);
-
   // draw chunks which balls are in
   if (_SHOWCHUNKTOGGLE_) {
     CTX.fillStyle = "#505050";
-    for (const i in grid) {
+    for (const i in _CHUNKS_) {
       let [x,y] = i.split(",");
       x = parseInt(x) * _MAXRADIUS_;
       y = parseInt(y) * _MAXRADIUS_;
@@ -52,6 +39,21 @@ function Tick() {
       CTX.fill();
     }
   }
+
+
+  // Draw Each Ball
+  for (const i in _BALLS_) DrawBall(_BALLS_[i],pallet);
+
+  if (_PAUSEPLAYTOGGLE_) return;
+
+  // get correct collision function
+  const Collision = _COLLISIONTOGGLE_ ? SimpleCollision : ComplexCollision;
+
+  _CHUNKS_ = {}; // define new grid
+
+  // check each balls surrounding chunks for neighboring balls
+  for (const i in _BALLS_) CheckBallChunk(_BALLS_[i],Collision);
+
 
   // Move each ball
   for (const i in _BALLS_) MoveBall(_BALLS_[i],deltaT,width,height);
