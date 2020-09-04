@@ -1,4 +1,4 @@
-module.exports = MazeGameSolver => class Jack {
+module.exports = MazeGameSolver => class Mass {
 
 	constructor(id, homes, { x,y, homeid }) {
 		this.id = id;
@@ -6,7 +6,7 @@ module.exports = MazeGameSolver => class Jack {
 		this.y = y;
 
 		this.home = homes[homeid];
-		this.home.addjack(this);
+		this.home.addmass(this);
 	}
 
 	get object() {

@@ -1,81 +1,93 @@
-module.exports = Solver => class Level {
+module.exports = MazeGameSolver => class Level {
 
-  _nodes = {}
-  _rooms = {}
-  _doors = {}
-  _locks = {}
-  _slots = {}
-  _portals = {}
-  _keys = {}
+	rooms = [];
+	doors = [];
+	portals = [];
+	locks = [];
+	keys = [];
+	masses = [];
+	jacks = [];
 
-  get _headers() { return {[this._header._id]: this._header} }
+	gates = [];
+	homes = [];
+	pieces = [];
 
-  get is_open() {
-    const {_locks,_doors,_portals,_header} = this
-    for (const i in _locks) _locks[i]._is_open = _locks[i].is_open
-    for (const i in _doors) _doors[i]._is_open = _doors[i].is_open
+	constructor({ name, rooms, goalid, doors, portals, locks, keys, masses, jacks }) {
 
-    const portals = []
-    for (const i in _portals) {
-      const _portal = _portals[i]
-      if (_portal._is_open = _portal.is_open) portals.push(_portal)
-    }
-    if (portals.length != 2) {
-      for (const i in portals) portals[i]._is_open = false
-    }
+		const { Room, Door, Portal, Lock, Key, Mass, Jack } = MazeGameSolver;
 
-    return _header ? _header.is_open : false
-  }
+		this.name = name;
 
-  set draw(
-    ctx // CanvasRenderingContext2D
-  ) {
-    const {_nodes} = this
-    ctx.lineJoin = 'round'
-    ctx.lineCap = 'round'
-    ctx.font = 'Bold 8px Arial'
-    ctx.textAlign = 'center'
-    for (const i in _nodes) _nodes[i].draw = ctx
-    for (const i in _nodes) _nodes[i].fill = ctx
-  }
+		for (const id in rooms) {
+			const room = new Room(id, rooms[id])
+			this.rooms.push(room);
+			this.homes.push(room);
+		}
 
-  get copy() {
-    const _level = new this.constructor, {copy} = Solver.Node
-    for (const id in this._nodes) copy(this,_level,id)
-    return _level
-  }
-  get serialize() {
-    const _sLevel = {}, {_nodes} = this
-    for (const id in _nodes) _nodes[id].serialize(_sLevel)
-    return _sLevel
-  }
-  read(
-    sLevel, // sLevel
-  ) {
-    const {read} = Solver.Node
-    for (const id in sLevel) read(sLevel,this,id)
-    return this
-  }
+		this.goal = this.rooms[goalid];
+		if (this.goal == null) {
+			this.goal = new Room(this.rooms.length, { x:100, y:100 });
+			this.rooms.push(this.goal);
+			this.homes.push(this.goal);
+		}
 
-  solve() {
-    if (!this._header) return null
-    try {
-      const timeA = Solver.Lib.time
-      this._solve = new Solver.Fast(this)
-      const timeB = Solver.Lib.time
-      log(timeB-timeA)
-      return this._solve
-    }
-    catch (e) {
-      return e
-    }
-  }
-  get toString() {
-    try { return this._solve.toString }
-    catch (e) { return '' }
-  }
+		for (const id in doors) {
+			const door = new Door(id, this.rooms, doors[id]);
+			this.doors.push(door);
+			this.gates.push(door);
+		}
 
-  pop() {
-    if (this._solve) this._solve.pop()
-  }
+		for (const id in portals) {
+			const portal = new Portal(id, this.rooms, portals[id]);
+			this.portals.push(portal);
+			this.gates.push(portal);
+		}
+
+		for (const id in locks) {
+			const lock = new Lock(id, this.rooms, this.gates, locks[id]);
+			this.locks.push(lock);
+			this.homes.push(lock);
+		}
+
+		for (const id in keys) {
+			const key = new Key(id, this.homes, keys[id]);
+			this.keys.push(key);
+			this.pieces.push(key);
+		}
+
+		for (const id in masses) {
+			const mass = new Mass(id, this.homes, masses[id]);
+			this.masses.push(mass);
+			this.pieces.push(mass);
+		}
+
+		for (const id in jacks) {
+			const jack = new Jack(id, this.homes, jacks[id]);
+			this.jacks.push(jack);
+			this.pieces.push(jack);
+		}
+
+	}
+
+	get object() {
+		
+		const o = {
+			name: this.name,
+			goalid: this.goal.id,
+			rooms: [],
+			doors: [],
+			portals: [],
+			locks: [],
+			keys: [],
+			masses: [],
+			jacks: []
+		};
+
+		const names = ["rooms","doors","portals","locks","keys","masses","jacks"];
+		for (const id in names) {
+			o[names[id]].push(this[names[id]].object);
+		}
+
+		return o;
+	}
 }

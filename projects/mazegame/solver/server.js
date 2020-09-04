@@ -1,82 +1,22 @@
 module.exports = (project) => {
-  const project_name = 'MazeGame Solver:'
-  const log = (...msg) => console.log(project_name, ...msg)
-  const pi2 = Math.PI * 2
-  const fs = require('fs')
-  const file_name = __dirname + '/Solver.json'
-  const solve_file = __dirname + '/solve.json'
 
-  let shell = null
-  try { shell = require('shelljs') }
-  catch (e) {}
+	const {log} = console;
+	const filename = __dirname + "/levels.json";
+	log("MazeGame Solver: server.js");
 
-  const clients = {}
-  let file = '{}'
-  try { file = fs.readFileSync(file_name).toString('utf8') }
-  catch (e) { log(e) }
-  project.socket.on('connection', (socket) => {
+	const fs = require('fs')
 
-    const client = {
-      socket: socket,
-      name: null,
-      full_name: null,
-      solve: false,
-    }
-    clients[client.socket.id] = client
+	project.socket.on("connection", socket => {
 
-    client.socket.emit('connect')
-    client.socket.emit('serial', file)
+		socket.on("request levels",() => {
+			const level_objects = JSON.parse(fs.readFileSync(filename).toString('utf8'));
+			socket.emit("send levels", level_objects);
+		});
 
-    client.socket.on('client name', ({name}) => {
-      client.name = name
-      client.full_name = `'${name}' (${client.socket.id})`
-    })
-    client.socket.on('serial', serial => {
-      if (serial) {
-        try {
-          fs.writeFile(file_name, serial, 'utf8', log)
-          file = serial
-        }
-        catch (e) { log(e) }
-      }
-      else client.socket.emit('serial', file)
-    })
-    client.socket.on('get_solve', string => {
+		socket.on("send levels", level_objects => {
+			fs.writeFileSync(filename, JSON.stringify(level_objects, null, " "));
+		});
 
-      try {
-        string = fs.readFileSync(solve_file).toString('utf8')
-        client.socket.emit('solve', string)
-      }
-      catch (e) {
-        log(e)
-      }
+	});
 
-    })
-    client.socket.on('solve', string => {
-      // DO NOT TRUST: string
-      try {
-        const array = string.replace(/\n/g, '').split(' ')
-        string = ''
-        for (let i in array) {
-          const int = parseInt(array[i])
-          if (int >= 0) string += ` ${int}`
-        }
-        log(string)
-        shell.cd(__dirname)
-        // shell.exec(`g++ -o app solver.cpp`)
-        shell.exec(`./app${string}`)
-      }
-      catch (e) {
-        log(e)
-      }
-    })
-
-    client.socket.on(`disconnect`, () => {
-      delete clients[client.socket.id]
-    })
-  })
-
-
-
-  log('server.js')
 }

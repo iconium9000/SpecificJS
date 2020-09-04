@@ -1,0 +1,102 @@
+{
+ "John": {
+  "name": "John",
+  "goalid": 0,
+  "rooms": [
+   null
+  ],
+  "doors": [
+   null
+  ],
+  "portals": [
+   null
+  ],
+  "locks": [
+   null
+  ],
+  "keys": [
+   null
+  ],
+  "masses": [
+   null
+  ],
+  "jacks": [
+   null
+  ]
+ },
+ "new level": {
+  "name": "new level",
+  "goalid": 0,
+  "rooms": [
+   null
+  ],
+  "doors": [
+   null
+  ],
+  "portals": [
+   null
+  ],
+  "locks": [
+   null
+  ],
+  "keys": [
+   null
+  ],
+  "masses": [
+   null
+  ],
+  "jacks": [
+   null
+  ]
+ },
+ "Josh": {
+  "name": "Josh",
+  "goalid": 0,
+  "rooms": [
+   null
+  ],
+  "doors": [
+   null
+  ],
+  "portals": [
+   null
+  ],
+  "locks": [
+   null
+  ],
+  "keys": [
+   null
+  ],
+  "masses": [
+   null
+  ],
+  "jacks": [
+   null
+  ]
+ },
+ "Shannon": {
+  "name": "Shannon",
+  "goalid": 0,
+  "rooms": [
+   null
+  ],
+  "doors": [
+   null
+  ],
+  "portals": [
+   null
+  ],
+  "locks": [
+   null
+  ],
+  "keys": [
+   null
+  ],
+  "masses": [
+   null
+  ],
+  "jacks": [
+   null
+  ]
+ }
+}
