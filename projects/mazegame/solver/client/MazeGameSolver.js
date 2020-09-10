@@ -14,8 +14,11 @@ function MazeGameSolver() {
 	const {Lib,Level} = MazeGameSolver;
 	let levels = {};
 	let selected_level = null;
+	let selected_item = null;
+	let previous_mouse = null;
+	let moved_mouse = false;
 
-	let mode = "Room";
+	let mode = MazeGameSolver.Room;
 	const modemap = {
 		'r': "Room",
 		'd': "Door",
@@ -100,7 +103,7 @@ function MazeGameSolver() {
 		
 		}
 
-		let newmode = modemap[e.key];
+		let newmode = MazeGameSolver[modemap[e.key]];
 		if (newmode && newmode != mode) {
 			mode = newmode;
 			log("Set mode as", mode);
@@ -108,22 +111,54 @@ function MazeGameSolver() {
 
 	};
 
-	$(document).mousemove(e => {
-		// e.offsetX,e.offsetY
+
+	function search(e, group) {
+
 		
+
+		return mindist < 1 ? minpoint : null;
+	}
+	
+	$(document).mousedown(e => {
+		const {searchmask} = mode;
+
+		let mindist = Infinity;
+		let minitem = null;
+
+		for (const i in searchmask) {
+
+			const group = searchmask[i];
+			for (const id in group) {
+			
+				const dist = group[id].find(e);
+				if (dist < mindist) {
+					mindist = dist;
+					minitem = group[id];
+				}
+			}
+		}
+
+		if (mindist < 1) {
+			selected_item = minitem;
+		}
 		
+
+		moved_mouse = false;
+		previous_mouse = e;
 	});
 
-	$(document).mousedown(e => {
-		// e.offsetX,e.offsetY
-
+	$(document).mousemove(e => {
+		const x = e.offsetX - previous_mouse.offsetX;
+		const y = e.offsetY - previous_mouse.offsetY;
 		
+		moved_mouse = true;
+		previous_mouse = e;
 	});
 
 	$(document).mouseup(e => {
-		// e.offsetX,e.offsetY
+		
 
-
+		previous_mouse = e;
 	});
 
 }

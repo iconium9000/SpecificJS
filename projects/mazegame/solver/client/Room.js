@@ -1,4 +1,6 @@
-module.exports = MazeGameSolver => class Room {
+module.exports = MazeGameSolver => class Room extends MazeGameSolver.Item {
+
+	static get searchmask() { return ["rooms"]; }
 
 	doors = [];
 	portals = [];
@@ -21,9 +23,8 @@ module.exports = MazeGameSolver => class Room {
 	}
 
 	constructor(id, { x,y }) {
-		this.id = id;
-		this.x = x;
-		this.y = y;
+		super(id,x,y);
+
 	}
 
 	get object() {

@@ -1,10 +1,9 @@
-module.exports = MazeGameSolver => class Key {
+module.exports = MazeGameSolver => class Key extends MazeGameSolver.Item {
+
+	static get searchmask() { return ["rooms","locks","keys"]; }
 
 	constructor(id, homes, { x,y, homeid }) {
-		this.id = id;
-		
-		this.x = x;
-		this.y = y;
+		super(id,x,y);
 
 		this.home = homes[homeid];
 		this.home.addkey(this);

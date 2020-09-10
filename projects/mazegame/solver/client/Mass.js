@@ -1,9 +1,9 @@
-module.exports = MazeGameSolver => class Mass {
+module.exports = MazeGameSolver => class Mass extends MazeGameSolver.Item {
+
+	static get searchmask() { return ["rooms","locks","masses"]; }
 
 	constructor(id, homes, { x,y, homeid }) {
-		this.id = id;
-		this.x = x;
-		this.y = y;
+		super(id,x,y);
 
 		this.home = homes[homeid];
 		this.home.addmass(this);

@@ -1,5 +1,7 @@
 module.exports = MazeGameSolver => class Level {
 
+	static get searchmask() { return ["rooms"]; }
+
 	rooms = [];
 	doors = [];
 	portals = [];
