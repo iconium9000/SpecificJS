@@ -1,1 +1,19 @@
-{}
+{
+ "John": {
+  "name": "John",
+  "goalid": "0",
+  "rooms": [
+   {
+    "x": 100,
+    "y": 100
+   }
+  ],
+  "doors": [],
+  "portals": [],
+  "locks": [],
+  "keys": [],
+  "masses": [],
+  "jacks": [],
+  "selected": true
+ }
+}

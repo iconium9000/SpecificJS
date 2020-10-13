@@ -1,12 +1,4 @@
 const {log} = console
-const module = {
-	set exports(
-		get_constructor // (Function{Function.name}) => Function
-	) {
-		const constructor = get_constructor(MazeGameSolver)
-		MazeGameSolver[constructor.name] = constructor
-	}
-}
 
 function MazeGameSolver() {
 
@@ -15,7 +7,7 @@ function MazeGameSolver() {
 	let levels = {};
 	let selected_level = null;
 	let selected_item = null;
-	let previous_mouse = null;
+	let previous_mouse = { offsetX:0, offsetY:0 };
 	let moved_mouse = false;
 
 	let mode = MazeGameSolver.Room;
@@ -48,7 +40,14 @@ function MazeGameSolver() {
 		levels = {};
 
 		for (const levelname in level_objects) {
-			levels[levelname] = new Level(level_objects[levelname]);
+			const level = new Level(level_objects[levelname]);
+
+			levels[levelname] = level;
+
+			if (level.selected) {
+				selected_level = level;
+				delete level.selected;
+			}
 		}
 
 		log("Received levels", levels);
@@ -75,9 +74,11 @@ function MazeGameSolver() {
 
 				const level_objects = {};
 
+				if (selected_level) selected_level.selected = true;
 				for (const levelname in levels) {
 					level_objects[levelname] = levels[levelname].object;
 				}
+				if (selected_level) delete selected_level.selected;
 
 				socket.emit("send levels", level_objects);
 				log("Sent levels:", Object.keys(level_objects));
@@ -106,20 +107,16 @@ function MazeGameSolver() {
 		let newmode = MazeGameSolver[modemap[e.key]];
 		if (newmode && newmode != mode) {
 			mode = newmode;
-			log("Set mode as", mode);
+			log("Set mode as", mode.name);
 		}
 
+
+		Tick();
 	};
 
 
 	function search(e, group) {
 
-		
-
-		return mindist < 1 ? minpoint : null;
-	}
-	
-	$(document).mousedown(e => {
 		const {searchmask} = mode;
 
 		let mindist = Infinity;
@@ -127,7 +124,7 @@ function MazeGameSolver() {
 
 		for (const i in searchmask) {
 
-			const group = searchmask[i];
+			const group = selected_level[searchmask[i]];
 			for (const id in group) {
 			
 				const dist = group[id].find(e);
@@ -141,13 +138,18 @@ function MazeGameSolver() {
 		if (mindist < 1) {
 			selected_item = minitem;
 		}
-		
+	}
+	
+	$(document).mousedown(e => {
+		if (selected_level == null) return;
 
 		moved_mouse = false;
 		previous_mouse = e;
 	});
 
 	$(document).mousemove(e => {
+		if (selected_level == null) return;
+
 		const x = e.offsetX - previous_mouse.offsetX;
 		const y = e.offsetY - previous_mouse.offsetY;
 		
@@ -156,9 +158,24 @@ function MazeGameSolver() {
 	});
 
 	$(document).mouseup(e => {
-		
+		if (selected_level == null) return;
+
+		if (moved_mouse == false) {
+			mode.mouseup(e.offsetX, e.offsetY, selected_level, selected_item);
+		}
 
 		previous_mouse = e;
 	});
+
+	function Tick() {
+
+		const canvas = document.getElementById('canvas');
+		const ctx = canvas.getContext('2d') // CanvasRenderingContext2D;
+		canvas.width = window.innerWidth - 20;
+		canvas.height = window.innerHeight - 20;
+		window.requestAnimationFrame(Tick);
+
+		if (selected_level) selected_level.draw(ctx);
+	}
 
 }

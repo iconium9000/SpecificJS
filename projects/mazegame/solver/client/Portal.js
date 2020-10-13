@@ -5,10 +5,10 @@ module.exports = MazeGameSolver => class Portal extends MazeGameSolver.Item {
 	locks = [];
 	slots = [];
 
-	constructor(id, rooms, { x,y, roomid }) {
-		super(id,x,y);
+	constructor(rooms, {x,y, room}) {
+		super(x,y);
 
-		this.room = rooms[roomid];
+		this.room = rooms[room];
 		this.room.portals.push(this);
 	}
 
@@ -16,7 +16,7 @@ module.exports = MazeGameSolver => class Portal extends MazeGameSolver.Item {
 		return {
 			x: this.x,
 			y: this.y,
-			roomid: this.room.id
+			room: this.room.room_id
 		}
 	}
 }

@@ -5,14 +5,13 @@ module.exports = MazeGameSolver => class Lock extends MazeGameSolver.Item {
 	key = null;
 	jack = null;
 
-	constructor(id, rooms, gates, { x,y, roomid, gateid }) {
-		super(id,x,y);
-
+	constructor(rooms, gates, {x,y,room,gate}) {
+		super(x,y);
 		
-		this.room = rooms[roomid];
+		this.room = rooms[room];
 		this.room.locks.push(this);
 
-		this.gate = gates[gateid];
+		this.gate = gates[gate];
 		this.gate.locks.push(this);
 	}
 
@@ -28,8 +27,8 @@ module.exports = MazeGameSolver => class Lock extends MazeGameSolver.Item {
 		return {
 			x: this.x,
 			y: this.y,
-			roomid: this.room.id,
-			gateid: this.gate.id
+			room: this.room.room_id,
+			gate: this.gate.gate_id
 		}
 	}
 }

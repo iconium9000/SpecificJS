@@ -2,6 +2,18 @@ module.exports = MazeGameSolver => class Room extends MazeGameSolver.Item {
 
 	static get searchmask() { return ["rooms"]; }
 
+	static mouseup(x,y,level,item) {
+
+		if (item) {
+
+		}
+		else {
+			const room = new Room(level.rooms.length, {x:x, y:y});
+			level.rooms.push(room);
+			level.homes.push(room);
+		}
+	}
+
 	doors = [];
 	portals = [];
 	locks = [];
@@ -22,9 +34,8 @@ module.exports = MazeGameSolver => class Room extends MazeGameSolver.Item {
 		this.jacks.push(jack);
 	}
 
-	constructor(id, { x,y }) {
-		super(id,x,y);
-
+	constructor({x,y}) {
+		super(x,y);
 	}
 
 	get object() {
