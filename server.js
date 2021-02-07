@@ -39,6 +39,11 @@ const projects = {
     <li> Implementation of a fun dice game introduced by friends.</li>
     <li> Completed in 2020.</li></ul>`
   },
+  'circuit': {
+    name: 'circuit',
+    title: 'Circuit',
+    description: `Circuit sim`
+  },
   'physicssim': {
     name: 'physicssim',
     title: 'Physics Sim',
