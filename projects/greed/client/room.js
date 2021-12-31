@@ -1,220 +1,201 @@
-const {log,error} = console
-const module = {
-	set exports(
-		get_constructor, // (Function{Function.name}) => Function
-	) {
-		const constructor = get_constructor(Greed)
-		Greed[constructor.name] = constructor
-		console.log(constructor.name)
-	}
-}
+module.exports = Greed => class Room {
 
-function startgame() {
-	Greed.Socket.emit('dostart')
-}
-function seldice(dice_id) {
-  Greed.Socket.emit('doseldice',dice_id)
-}
-function rolldice() {
-  Greed.Socket.emit('doroll')
-}
-function passdice() {
-  Greed.Socket.emit('dopass')
-}
-function cleardice() {
-  Greed.Socket.emit('doclear')
-}
-function rename() {
-	Greed.Lib.set_cookie('name','',1)
-	Greed.Setup(Greed.Socket)
-}
-function htmlbutton(fun,text,state) {
-  switch (state) {
-    case 'disabled-inactive':
-      return `<button onclick="${fun}" disabled><i>${text}</i></button>`
-    case 'disabled-active':
-      return `<button onclick="${fun}" disabled><b>${text}</b></button>`
-    case 'disabled':
-      return `<button onclick="${fun}" disabled>${text}</button>`
-		case 'enabled-inactive':
-      return `<button onclick="${fun}"><i>${text}</i></button>`
-    case 'enabled-active':
-      return `<button onclick="${fun}"><b>${text}</b></button>`
-    case 'enabled':
-    default:
-      return `<button onclick="${fun}">${text}</button>`
+  get timer() {
+    return 15000
   }
-}
 
-function gettimer() {
-	const {room,user_id,Lib} = Greed
-	if (!room) return ''
-	let secs = Math.floor((room.clock - Lib.time)/1000)
-	if (secs < 0) secs = 0
-	const pass = room.passmsg + `<br><i>Passing in ${secs} seconds</i>`
-	room.user_id = user_id
-	return htmlbutton('passdice()',pass,room.canpass ? 'enabled' : 'disabled')
-}
+  init(id) {
+    this.id = id
+    this.players = {}
+    this.users = {}
+    this.user_turn = NaN
+    this.user_list = []
+    this.dice = [0,0,0, 0,0,0]
 
-function drawroom(room,my_user_id) {
-  Greed.room = room
-  Greed.user_id = my_user_id
-	room.user_id = room.whoseturn
-	room.time = Greed.Lib.time
-	room.clock = room.time_offset + room.time
+    const time = this.clock = Greed.Lib.time
+    this.time_offset = this.clock - time
 
-	// if (room.whoseturn != my_user_id) Greed.myturn = false
-	// else if (!Greed.myturn) {
-	// 	alert(`It's Your Turn!`)
-	// 	Greed.myturn = true
-	// }
+    this.started = false
+    this.rolling = false
+    this.vip = null
+    this.passed = true
+    this.cleared = true
+    this.play_score = 0
+    this.roll_score = 0
+  }
 
-  let menu = ''
-	menu += `<p><b>${room.name}'s Greed Game</b>`
-	if (room.canstart) {
-		menu += ' ' + htmlbutton('startgame()','Start Game','enabled')
-	}
-	menu += '<p><a href="greed/rules.html">(Greed Rules)</a>'
-  menu += '<table class="game-table">'
 
-  menu += '<thead><tr>'
-  menu += `<th>Players</th><th>Dice</th>`
-  menu += '</tr></thead>'
+  get whoseturn() {
+    return this.user_list[this.user_turn]
+  }
+  get myturn() {
+    return this.user_id != null && this.whoseturn == this.user_id
+  }
+  get whoseturnname() {
+    const user = this.users[this.whoseturn]
+    return user && user.name
+  }
 
-  menu += '<tbody>'
-	const scores = []
-	for (const user_id in room.users) scores.push(room.users[user_id])
-	scores.sort((a,b)=>b.score-a.score)
-	let value = Infinity, rank = 0
-	for (let i = 0; i < scores.length; ++i) {
-		const user = scores[i]
-		if (user.score == value) user.rank = rank
-		else {
-			user.rank = Greed.Lib.ordinal(++rank) + ' place'
-			value = user.score
-		}
-	}
-	const vip = room.users[room.vip]
-  for (const user_list_idx in room.user_list) {
-		const user_id = room.user_list[user_list_idx]
-    const user = room.users[user_id]
-    menu += `<tr><td>`
-
-		const enabled = user_id == my_user_id ? 'enabled' : 'disabled'
-
-		if (user_id == my_user_id) {
-			menu += user.name
-			menu += `&nbsp` + htmlbutton('rename()','Rename',enabled)
-		}
-		else if (room.players[user.player_id]) menu += `<p>${user.name} (Online)`
-		else menu += `<p><i>${user.name} (Offline)</i>`
-    menu += `<p><i>Score ${user.score}</i>`
-		menu += `<p><i>${user.rank}</i>`
-    menu += `</td>`
-
-		if (room.winner != null) {
-			const win = room.winner == user_id ? 'WINNER' : 'LOSER'
-			menu += `<td><b> ${user.rank}</b></td>`
-		}
-		else if (!room.started) {
-			if (user_id == my_user_id) {
-				if (my_user_id == room.vip) {
-					menu += `<td>Everyone is waiting for <b>You</b> to press`
-				}
-				else {
-					menu += `<td>Waiting for <b>${vip.name}</b> to press`
-				}
-				menu += ' ' + htmlbutton('startgame()','Start Game','enabled') + '</td>'
-			}
-		}
-    else if (room.whoseturn == user_id) {
-      menu += `<td>`
-			const {canscoredice,canseldice} = room
-			let count = 0
-			for (const dice_id in canscoredice) if (!canscoredice[dice_id]) ++count
-			let score_dice = room.dice.length - count
-
-			if (room.lost_score > 0) menu += `Missed ${room.lost_score} points`
-			else {
-				const ps = room.play_score
-				menu += `Play score: ${ps} points`
-				if (ps < 500) menu += ` (<i>${ps} &lt; 500 points</i>)`
-				else if (ps == 500) menu += ` (<i>${ps} = 500 points</i>)`
-				else menu += ` (<i>${ps} &gt; 500 points</i>)`
-			}
-			if (room.passed);
-			else if (score_dice == 0) menu += `<p>No Scoreable Dice = 0 points`
-			else {
-				menu += `<p>Keep: `
-				for (const dice_id in room.dice) {
-					let val = room.dice[dice_id]
-					if (canscoredice[dice_id]) {
-						let dice_enabled = canseldice[dice_id] ? enabled : 'disabled'
-						menu += htmlbutton(`seldice('${dice_id}')`,val,dice_enabled)
-					}
-				}
-				menu += `&nbsp= ${room.roll_score} points`
-			}
-
-			if (room.canclear) {
-				let clearmsg = `Clear <b>Play Score</b> and Roll <b>6 Dice</b>`
-				menu += `<p>` + htmlbutton('cleardice()',clearmsg,enabled)
-			}
-
-			const dice = count == 0 ? 6 : count
-			menu += `<p>${
-				room.canroll ?
-				htmlbutton('rolldice()',`Roll <b>${dice} Dice</b>`,enabled) :
-				htmlbutton('rolldice()',`Can't Roll`,'disabled')
-			}&nbsp`
-
-			if (count == 0) for (let i = 0; i < 6; ++i) {
-				menu += htmlbutton(`seldice('${i}')`,'?','disabled')
-			}
-			else for (const dice_id in room.dice) {
-				let val = room.dice[dice_id]
-				if (!canscoredice[dice_id]) {
-					let dice_enabled = canseldice[dice_id] ? enabled : 'disabled'
-					val = val < 0 ? -val : val == 0 ? '?' : val
-					menu += htmlbutton(`seldice('${dice_id}')`,val,dice_enabled)
-				}
-			}
-
-			menu += `&nbsp`
-			menu += `<p><div id="timer">${gettimer()}</div>`
-      menu += `</td>`
+  get passmsg() {
+    const {canpass,canscoredice,play_score,roll_score} = this
+    const points = play_score + roll_score
+    let score_dice = 0, pass_dice = 0
+    for (const dice_id in canscoredice) {
+      if (canscoredice[dice_id]) ++score_dice
+      else ++pass_dice
     }
-    else menu += `<td></td>`
 
-    menu += `</tr>`
+    if (!canpass);
+    else if (score_dice == 0 || pass_dice == 0 || points < 500) pass_dice = 6
+
+    let user_turn = (this.user_turn + 1) % this.user_list.length
+    const next_player = this.users[this.user_list[user_turn]].name
+
+    const keep_points = !canpass || points < 500 ? 'No' : points
+    let ans = `Pass<br>Keep <b>${keep_points} Points</b>`
+    ans += ` and Pass <b>${pass_dice} Dice</b>`
+    ans += `<br>and <b>${points < 500 ? 'No' : points} Points</b>`
+    ans += ` to <b>${next_player}</b>`
+    return ans
   }
-  menu += '</tbody>'
-  menu += '</table>'
+  get canstart() {
+    return this.vip == this.user_id && !this.started
+  }
+  dostart() {
+    if (!this.canstart) return false
+    this.started = true
+    this.user_list.sort(()=>Math.random()-0.5)
+    this.user_turn = 0
+    return true
+  }
+  get canpass() {
+    return this.myturn && !this.passed
+  }
+  dopass() {
+    return this.passed ? false : this.forcepass()
+  }
 
-  document.getElementById('menu').innerHTML = menu
+  get canclear() {
+    return this.myturn && this.passed && !this.cleared
+  }
+  get canroll() {
+    const {myturn,dice,passed} = this
+    return myturn && (passed || 0 < Greed.Score(dice).score)
+  }
+  get canseldice() {
+    if (!this.myturn) return [false,false,false, false,false,false]
 
+    const ans = [], count = [NaN, 0,0,0, 0,0,0]
+    for (const idx in this.dice) ++count[ans[idx] = Math.abs(this.dice[idx])]
 
-}
+    let score = 0, idx = 0; while (idx < 6) if (count[++idx] == 1) ++score
+    if (score == 6) return [false,false,false, false,false,false]
 
-function Greed() {
-	Greed.myturn = false
-	Greed.winner = false
-  const lobby_socket = io('/greed')
-  Greed.Socket = io('/' + window.location.href.split('/').pop())
-  const {Lib,Setup,Socket,Room} = Greed
+    score = idx = 0; while (idx < 6) if (count[++idx] == 2) ++score
+    if (score == 3) return [false,false,false, false,false,false]
 
-	setInterval(() => {
-		const timer = document.getElementById('timer')
-		if (timer) timer.innerHTML = gettimer()
-	}, 1000)
+    for (const idx in ans) {
+      const val = ans[idx]
+      ans[idx] = val == 1 || val == 5 || count[val] > 2
+    }
+    return ans
+  }
+  get canscoredice() {
+    const count = [NaN, 0,0,0, 0,0,0]
+    for (const idx in this.dice) ++count[this.dice[idx]]
 
-  lobby_socket.on('update', lobby => Setup(lobby_socket))
+    let score = 0, idx = 0; while (idx < 6) if (count[++idx] == 1) ++score
+    if (score == 6) return [true,true,true, true,true,true]
 
-  Socket.on('update', room => {
+    score = idx = 0; while (idx < 6) if (count[++idx] == 2) ++score
+    if (score == 3) return [true,true,true, true,true,true]
 
-    const {id,user_id,name} = Setup(Socket)
+    const ans = []
+    for (const idx in this.dice) {
+      const val = this.dice[idx]
+      ans[idx] = val == 1 || val == 5 || count[val] > 2
+    }
+    return ans
+  }
 
-    drawroom(Object.assign(new Room,room),user_id)
-  })
+  forcepass() {
+    if (!this.myturn) return false
+    else if (!this.canpass) {
+      this.user_turn = (this.user_turn+1) % this.user_list.length
+      return true
+    }
 
+    if (this.roll_score == 0 || (this.play_score + this.roll_score) < 500) {
+      this.play_score = 0
+      this.roll_score = 0
+      this.dice = [0,0,0, 0,0,0]
+      this.cleared = true
+    }
+    else {
+      this.play_score += this.roll_score
+      this.users[this.whoseturn].score += this.play_score
+      this.roll_score = 0
+      this.dice = Greed.Score(this.dice).dice
+      this.cleared = false
+    }
+    this.passed = true
+    this.lost_score = -1
+    const usera = this.whoseturnname
+    this.user_turn = (this.user_turn+1) % this.user_list.length
+    const userb = this.whoseturnname
+
+    this.action_msg = `<b>${usera}</b> passed`
+      + ` <b>${this.dice.length} Dice</b>`
+      + ` and <b>${this.play_score} Points</b>`
+      + ` to <b>${userb}</b>`
+    return true
+  }
+  doclear() {
+    if (!this.canclear) return false
+    this.dice = [0,0,0, 0,0,0]
+    this.roll_score = 0
+    this.play_score = 0
+    this.cleared = true
+    return this.doroll()
+  }
+  doroll() {
+    if (!this.canroll) return false
+
+    this.passed = false
+    this.play_score += this.roll_score
+    const {dice} = Greed.Score(this.dice), {length} = dice
+    for (const i in dice) dice[i] = (Math.floor(Math.random() * 12) % 6) + 1
+    this.roll_score = Greed.Score(this.dice = dice).score
+    if (this.roll_score == 0) {
+      this.lost_score = this.play_score
+      this.play_score = 0
+
+      let winners = []
+      let high_score = 0
+      for (const user_id in this.users) {
+        const {score} = this.users[user_id]
+        if (score > high_score) { winners = [user_id]; high_score = score; }
+        else if (score == high_score) winners.push(user_id)
+      }
+      if (high_score >= 10000 && winners.length < 2) {
+        this.winner = winners.pop()
+        this.user_turn = NaN
+      }
+    }
+    else this.lost_score = -1
+
+    this.action_msg = `<b>${this.whoseturn}</b>`
+    if (this.cleared) this.action_msg += `Cleared play score and`
+    this.action_msg += ` Rolled <b>${length} Dice</b>`
+    return true
+  }
+  doseldice(dice_id) {
+    if (!this.canseldice[dice_id]) return false
+    const {dice} = this, val = dice[dice_id], abs_val = Math.abs(val)
+    if (abs_val == 1 || abs_val == 5) dice[dice_id] = -val
+    else for (const i in dice) if (dice[i] == val) dice[i] = -val
+    this.roll_score = Greed.Score(dice).score
+    this.action_msg = false
+    return true
+  }
 }
