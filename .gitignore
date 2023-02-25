@@ -4,3 +4,5 @@ Blockade/node_modules/
 projects/mazegame_solver/app
 
 node_modules/
+
+package-lock.json
