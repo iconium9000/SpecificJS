@@ -34,13 +34,17 @@ function Blockade() {
     return colors[Math.floor(v / max * colors.length)]
   }
 
+  function getTime() {
+    return (new Date()).getTime() * 1e-3
+  }
+
   // if
-  const gravity = is_mobile ? 0.7 : 0.8
+  const gravity = (is_mobile ? 0.7 : 0.8) * 0.92/0.8
   const thrust = 2.5 * gravity // h per sec per sec
 
   const timeout_freq = 20   // when to timeout
   const max_deltaT = 0.1
-  var start_time = (new Date()).getTime() * 1e-3
+  var start_time = getTime()
   var prev_now = start_time - max_deltaT
 
   const max_bar_queue = 5
@@ -179,6 +183,12 @@ function Blockade() {
     }, 1e3 / timeout_freq)
   })
 
+  // let last_down = false
+  // let last_now = -Infinity
+  // let shortest_dt = Infinity
+  // let short_count = 0
+  // let delta_sum = 0
+
   function tick() {
 
     canvas.width = window.innerWidth - 20
@@ -193,9 +203,28 @@ function Blockade() {
     // const length = Math.sqrt(width*width + height*height)
     const font_size = width * font_size_scale
 
-    const now = (new Date()).getTime() * 1e-3
+    const now = getTime()
+
+    // short_count += 1
+    // if (mouse_down != last_down)
+    // {
+    //   console.log("short_count", short_count, plr_v)
+    //   short_count = 0
+
+    //   delta_sum = 0
+    //   last_down = mouse_down
+
+    //   dt = now - last_now
+    //   if (dt < shortest_dt)
+    //   {
+    //     shortest_dt = dt
+    //     console.log("shortest dt", shortest_dt)
+    //   }
+    //   last_now = now
+    // }
 
     var deltaT = now - prev_now
+    // delta_sum += deltaT
     ctx.lineWidth = line_width
     if (deltaT > max_deltaT) {
       deltaT = max_deltaT
@@ -213,8 +242,14 @@ function Blockade() {
     // move player
     if (!dead) {
       const acceleration = gravity - (mouse_down ? thrust : 0)
-      plr_v += deltaT * acceleration
-      plr_y += deltaT * plr_v
+      // Step 1: Save the old velocity
+      let plr_v_old = plr_v;
+
+      // Step 2: Update velocity (same as before)
+      plr_v += deltaT * acceleration;
+
+      // Step 3: Update position using the average of the old and new velocity
+      plr_y += deltaT * (plr_v_old + plr_v) / 2;
     }
 
     // is plr in bar?
@@ -233,6 +268,13 @@ function Blockade() {
 
     // detect death
     if (plr_y < 0 || 1 < plr_y + plr_h || hitbox) {
+      // console.log("death")
+      // console.log("plr_v", plr_v)
+      // console.log("plr_y", plr_y)
+      // console.log("dt", getTime() - start_time)
+      // console.log("delta_sum", delta_sum)
+
+      // delta_sum = 0
       plr_y = 1/2
       plr_v = 0
       dead = true
