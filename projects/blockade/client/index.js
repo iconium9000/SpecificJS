@@ -1,11 +1,11 @@
 const module = {
-	set exports(
-		get_constructor, // (Function{Function.name}) => Function
-	) {
-		const constructor = get_constructor(Blockade)
-		Blockade[constructor.name] = constructor
-		console.log(constructor.name)
-	}
+  set exports(
+    get_constructor, // (Function{Function.name}) => Function
+  ) {
+    const constructor = get_constructor(Blockade)
+    Blockade[constructor.name] = constructor
+    console.log(constructor.name)
+  }
 }
 
 function Blockade() {
@@ -23,8 +23,8 @@ function Blockade() {
   // client setup
 
   const colors = [
-    'green','yellow','orange','red',
-    'purple','magenta','lightblue','blue'
+    'green', 'yellow', 'orange', 'red',
+    'purple', 'magenta', 'lightblue', 'blue'
   ]
   const high_block_color = '#202020'
   function get_color(v, max) {
@@ -39,7 +39,7 @@ function Blockade() {
   }
 
   // if
-  const gravity = (is_mobile ? 0.7 : 0.8) * 0.92/0.8
+  const gravity = (is_mobile ? 0.7 : 0.8) * 0.92 / 0.8
   const thrust = 2.5 * gravity // h per sec per sec
 
   const timeout_freq = 20   // when to timeout
@@ -48,11 +48,11 @@ function Blockade() {
   var prev_now = start_time - max_deltaT
 
   const max_bar_queue = 5
-  const max_bar_freq = 7/1
-  const bar_freq = 4/1
-  const bar_speed = 2/3     // w per sec
+  const max_bar_freq = 7 / 1
+  const bar_freq = 4 / 1
+  const bar_speed = 2 / 3     // w per sec
 
-  const font_size_scale = 1/20
+  const font_size_scale = 1 / 20
 
   const line_width = 6
 
@@ -60,12 +60,12 @@ function Blockade() {
   const num_msgs = 5
   const msg_key = 109
 
-  const plr_x = 1/15 // 1/60
-  const plr_w = 1/12
-  const plr_h = 1/20
+  const plr_x = 1 / 15 // 1/60
+  const plr_w = 1 / 12
+  const plr_h = 1 / 20
 
   var plr_v = 0
-  var plr_y = 1/2
+  var plr_y = 1 / 2
 
   var score = 0
   var my_deaths = 0
@@ -74,9 +74,9 @@ function Blockade() {
   var dead = true
 
   var thrust_time = 0
-  var bar_timer = start_time + 1/max_bar_freq
+  var bar_timer = start_time + 1 / max_bar_freq
 
-  const min_width_to_height_ratio = 1/1.5
+  const min_width_to_height_ratio = 1 / 1.5
 
   const canvas = document.getElementById('canvas')
   const client_socket = io('/blockade')
@@ -102,7 +102,7 @@ function Blockade() {
   }
 
   // reply to server with name
-  client_socket.emit('client name', {name: name, high_score: player_high_score})
+  client_socket.emit('client name', { name: name, high_score: player_high_score })
 
   const ctx = canvas.getContext('2d')
   ctx.lineWidth = line_width
@@ -137,7 +137,7 @@ function Blockade() {
   client_socket.on('new bar', (x, y, w, h) => {
     if (bar_queue.length < max_bar_queue) {
       const bar = {
-        start_x:x, x:x, y:y, w:w, h:h,
+        start_x: x, x: x, y: y, w: w, h: h,
         dead: dead,
         c: get_color(dead ? 0 : score + bar_speed * bar_freq, temp_high_score)
       }
@@ -146,11 +146,11 @@ function Blockade() {
   })
 
   client_socket.on('msg', (msg) => {
-    msgs.splice(0,0,msg)
+    msgs.splice(0, 0, msg)
     msgs.splice(num_msgs, msgs.length - num_msgs)
   })
 
-  client_socket.on('update', ({plrs}) => {
+  client_socket.on('update', ({ plrs }) => {
     max_score = max_high_score = 0
     for (const i in plrs) {
       const plr = plrs[i]
@@ -207,10 +207,10 @@ function Blockade() {
 
     // get bar
     if (now > bar_timer && bar_queue.length > 0) {
-      const bar = bar_queue.splice(0,1)[0]
+      const bar = bar_queue.splice(0, 1)[0]
       bar.t = now
       bars.push(bar)
-      bar_timer = now + 1/max_bar_freq
+      bar_timer = now + 1 / max_bar_freq
     }
 
     let thrust_active = mouse_down
@@ -225,7 +225,7 @@ function Blockade() {
       const v1 = j0
       const v2 = j1
       let a1 = 10
-      let a2 = v2 + (1/2) * a * (a1 - v1) * (a1 - v1)
+      let a2 = v2 + (1 / 2) * a * (a1 - v1) * (a1 - v1)
       let b2 = 2 * v2 - a2
       let c1 = 2 * v1 - a1
       let b1 = (a1 + c1) / 2
@@ -234,7 +234,7 @@ function Blockade() {
       ctx.strokeStyle = "white"
       ctx.lineTo((a1 * bar_speed + plr_x) * width, a2 * height)
       ctx.quadraticCurveTo((b1 * bar_speed + plr_x) * width, b2 * height,
-                           (c1 * bar_speed + plr_x) * width, c2 * height)
+        (c1 * bar_speed + plr_x) * width, c2 * height)
       ctx.stroke()
     }
 
@@ -267,7 +267,7 @@ function Blockade() {
 
     // detect death
     if (plr_y < 0 || 1 < plr_y + plr_h || hitbox) {
-      plr_y = 1/2
+      plr_y = 1 / 2
       plr_v = 0
       dead = true
       if (score > 0) {
@@ -302,7 +302,7 @@ function Blockade() {
         const color = get_color(player.score, temp_high_score)
         ctx.fillStyle = color
         ctx.beginPath()
-        ctx.rect(plr_x*width, player.plr_y*height, plr_w*width, plr_h*height)
+        ctx.rect(plr_x * width, player.plr_y * height, plr_w * width, plr_h * height)
         ctx.fill()
 
         var x = player.score / temp_high_score * width
@@ -327,7 +327,7 @@ function Blockade() {
     // draw black frost
     ctx.fillStyle = '#000000a0'
     ctx.beginPath()
-    ctx.rect(0,0, width, height)
+    ctx.rect(0, 0, width, height)
     ctx.fill()
 
     // draw bars
@@ -340,14 +340,14 @@ function Blockade() {
         if (!dead && !bar.dead) {
           ++score
         }
-        bars.splice(i--,1)
+        bars.splice(i--, 1)
       }
       else {
         const color = bar.c == 'white' ? high_block_color : bar.c
         ctx.strokeStyle = ctx.fillStyle = color
         // ctx.strokeStyle = ctx.fillStyle = 'white'
         ctx.beginPath()
-        ctx.rect(bar.x*width, bar.y*height, bar.w*width, bar.h*height)
+        ctx.rect(bar.x * width, bar.y * height, bar.w * width, bar.h * height)
         bar.dead ? ctx.stroke() : ctx.fill()
         // ctx.stroke()
       }
@@ -359,8 +359,8 @@ function Blockade() {
     for (var i = 0; i < colors.length; ++i) {
       ctx.strokeStyle = colors[i]
       ctx.beginPath()
-      ctx.moveTo(i / colors.length * width * scale, line_width/2)
-      ctx.lineTo((i+1) / colors.length * width * scale, line_width/2)
+      ctx.moveTo(i / colors.length * width * scale, line_width / 2)
+      ctx.lineTo((i + 1) / colors.length * width * scale, line_width / 2)
       ctx.stroke()
     }
     if (!dead) {
@@ -377,7 +377,7 @@ function Blockade() {
     // draw player
     ctx.strokeStyle = ctx.fillStyle = 'white'
     ctx.beginPath()
-    ctx.rect(plr_x*width, plr_y*height, plr_w*width, plr_h*height)
+    ctx.rect(plr_x * width, plr_y * height, plr_w * width, plr_h * height)
     dead ? ctx.stroke() : ctx.fill()
 
     ctx.textAlign = 'right'
@@ -386,15 +386,15 @@ function Blockade() {
     ctx.fillStyle = 'white'
     for (var i = 0; i < msgs.length; ++i) {
       const msg = msgs[i]
-      ctx.fillText(msg, width, line_width * 2 + (1+i)*font_size)
+      ctx.fillText(msg, width, line_width * 2 + (1 + i) * font_size)
     }
 
-    for (var i = 0 ; i < scores.length; ++i) {
+    for (var i = 0; i < scores.length; ++i) {
       const player = scores[i]
 
       ctx.fillStyle = get_color(player.high_score, temp_high_score)
       const txt = `${player.name}: ${player.score} (${player.high_score})`
-      ctx.fillText(txt, width-20, height - i*font_size*1.2)
+      ctx.fillText(txt, width - 20, height - i * font_size * 1.2)
     }
     if (mouse_down) {
       dead = false
