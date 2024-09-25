@@ -73,7 +73,7 @@ function Blockade() {
   var player_high_score = default_high_score
   var dead = true
 
-  var thrust_time = 0
+  var next_thrust_time = 0
   var bar_timer = start_time + 1 / max_bar_freq
 
   const min_width_to_height_ratio = 1 / 1.5
@@ -183,9 +183,11 @@ function Blockade() {
     }, 1e3 / timeout_freq)
   })
 
-  let last_mouse_down = false
-  let last_plr_y = 1
+  let thrust_active = false
 
+  // Shadow
+  let shw_y = 1 / 2
+  let shw_v = 0
   function tick() {
 
     canvas.width = window.innerWidth - 20
@@ -242,112 +244,108 @@ function Blockade() {
       bar_timer = now + 1 / max_bar_freq
     }
 
-    // if (last_mouse_down != mouse_down) {
-    //   last_mouse_down = mouse_down
-    //   last_plr_y = plr_y
-    // }
-
-    // ctx.strokeStyle = "#ff0000a0"
-    // ctx.beginPath()
-    // ctx.moveTo(0 * width, last_plr_y * height)
-    // ctx.lineTo(1 * width, last_plr_y * height)
-    // ctx.stroke()
-    // ctx.strokeStyle = "#ff0000a0"
-    // ctx.beginPath()
-    // ctx.moveTo(0 * width, (last_plr_y + plr_h) * height)
-    // ctx.lineTo(1 * width, (last_plr_y + plr_h) * height)
-    // ctx.stroke()
-
-    let thrust_active = mouse_down
     {
-      const a = gravity
-      const v0 = plr_v
-      const y0 = plr_y + plr_h
-      const ap_t = - v0 / a
-      const ap_y = y0 - (v0 * v0) / (2 * a)
-      drawParabola("white", a, ap_t, ap_y, 10, plr_x + plr_w)
+      function adjust_math(do_draw) {
+        {
+          const a = gravity
+          const v0 = shw_v
+          const y0 = shw_y + plr_h
+          const ap_t = - v0 / a
+          const ap_y = y0 - (v0 * v0) / (2 * a)
 
-      if (plr_v > 0) {
-        const b = gravity - thrust
-        const b2 = 1
-        const A = a * (b - a)
-        const B = 2 * v0 * (b - a)
-        const C = -v0 * v0 + 2 * b * (-b2) + 2 * b * y0
-        const T = - (B + Math.sqrt(B * B - 4 * A * C)) / (2 * A)
-        const b1 = (T - (a * T + v0) / b)
-        drawParabola("white", b, b1, b2, 10, plr_x + plr_w)
+          const b = gravity - thrust
+          const b2 = 1
+          const A = a * (b - a)
+          const B = 2 * v0 * (b - a)
+          const C = -v0 * v0 + 2 * b * (-b2) + 2 * b * y0
+          const T = - (B + Math.sqrt(B * B - 4 * A * C)) / (2 * A)
+          const b1 = (T - (a * T + v0) / b)
 
-        let line_x0 = 0
-        let line_x1 = 1
-        let line_y = ((1 / 2) * a * (T - ap_t) * (T - ap_t) + ap_y) - (0.4 * plr_h)
-        if ((plr_v > 0) && (plr_y + plr_h > line_y)) {
-          thrust_active = true
+          if (do_draw) {
+            drawParabola("white", a, ap_t, ap_y, 10, plr_x + plr_w)
+          }
+          if (do_draw && !thrust_active) {
+            drawParabola("white", b, b1, b2, 10, plr_x + plr_w)
+            ctx.strokeStyle = "red"
+            ctx.beginPath()
+            ctx.moveTo((plr_x + plr_w + T * bar_speed) * width, 0)
+            ctx.lineTo((plr_x + plr_w + T * bar_speed) * width, height)
+            ctx.stroke()
+          }
+
+          if (!do_draw && thrust_active && (next_thrust_time < now)) {
+            next_thrust_time = now + T * Math.random() * 0.8
+            thrust_active = false
+          }
         }
+        {
+          const a = gravity - thrust
+          const v0 = shw_v
+          const y0 = shw_y
+          const ap_t = - v0 / a
+          const ap_y = y0 - (v0 * v0) / (2 * a)
 
-        ctx.beginPath()
-        ctx.moveTo(line_x0 * width, (plr_y + plr_h) * height)
-        ctx.lineTo(line_x1 * width, (plr_y + plr_h) * height)
-        ctx.stroke()
+          const b = gravity
+          const b2 = 0
+          const A = a * (b - a)
+          const B = 2 * v0 * (b - a)
+          const C = -v0 * v0 + 2 * b * (-b2) + 2 * b * y0
+          const T = - (B + Math.sqrt(B * B - 4 * A * C)) / (2 * A)
+          const b1 = T - (a * T + v0) / b
 
-        ctx.strokeStyle = "red"
-        ctx.beginPath()
-        ctx.moveTo(line_x0 * width, line_y * height)
-        ctx.lineTo(line_x1 * width, line_y * height)
-        ctx.stroke()
-      }
-    }
-    // if (false)
-    {
-      const a = gravity - thrust
-      const v0 = plr_v
-      const y0 = plr_y
-      const ap_t = - v0 / a
-      const ap_y = y0 - (v0 * v0) / (2 * a)
-      drawParabola("white", a, ap_t, ap_y, 10, plr_x + plr_w)
+          if (!do_draw && !thrust_active && (next_thrust_time < now)) {
+            next_thrust_time = now + T * Math.random() * 0.8
+            thrust_active = true
+          }
 
-      if (plr_v < 0) {
-        const b = gravity
-        const b2 = 0
-        const A = a * (b - a)
-        const B = 2 * v0 * (b - a)
-        const C = -v0 * v0 + 2 * b * (-b2) + 2 * b * y0
-        const T = - (B + Math.sqrt(B * B - 4 * A * C)) / (2 * A)
-        const b1 = T - (a * T + v0) / b
-
-        drawParabola("white", b, b1, b2, 10, plr_x + plr_w)
-
-        let line_x0 = 0
-        let line_x1 = 1
-        let line_y = ((1 / 2) * a * (T - ap_t) * (T - ap_t) + ap_y) + (0.4 * plr_h)
-
-        ctx.beginPath()
-        ctx.moveTo(line_x0 * width, plr_y * height)
-        ctx.lineTo(line_x1 * width, plr_y * height)
-        ctx.stroke()
-
-        if ((plr_v < 0) && (plr_y < line_y)) {
-          thrust_active = false
+          if (do_draw) {
+            drawParabola("white", a, ap_t, ap_y, 10, plr_x + plr_w)
+          }
+          if (do_draw && thrust_active) {
+            drawParabola("white", b, b1, b2, 10, plr_x + plr_w)
+            ctx.beginPath()
+            ctx.moveTo((plr_x + plr_w + T * bar_speed) * width, 0)
+            ctx.lineTo((plr_x + plr_w + T * bar_speed) * width, height)
+            ctx.stroke()
+          }
         }
-        ctx.beginPath()
-        ctx.moveTo(line_x0 * width, line_y * height)
-        ctx.lineTo(line_x1 * width, line_y * height)
-        ctx.stroke()
       }
+
+      adjust_math(true)
+      ctx.beginPath()
+      ctx.moveTo((plr_x + (next_thrust_time - now) * bar_speed) * width, 0)
+      ctx.lineTo((plr_x + (next_thrust_time - now) * bar_speed) * width, height)
+      ctx.stroke()
+
+      const acceleration = gravity - (thrust_active ? thrust : 0)
+      // Step 1: Save the old velocity
+      let prr_v_old = shw_v;
+
+      // Step 2: Update velocity (same as before)
+      shw_v += deltaT * acceleration;
+
+      // Step 3: Update position using the average of the old and new velocity
+      shw_y += deltaT * (prr_v_old + shw_v) / 2;
+
+      ctx.fillStyle = 'white'
+      ctx.beginPath()
+      ctx.rect(plr_x * width, shw_y * height, plr_w * width, plr_h * height)
+      ctx.fill()
+
+      adjust_math(false)
     }
 
     // move player
     if (!dead) {
-      const acceleration = gravity - (thrust_active ? thrust : 0)
+      const acceleration = gravity - (mouse_down ? thrust : 0)
       // Step 1: Save the old velocity
-      let plr_v_old = plr_v;
+      let prr_v_old = plr_v;
 
       // Step 2: Update velocity (same as before)
       plr_v += deltaT * acceleration;
 
       // Step 3: Update position using the average of the old and new velocity
-      plr_y += deltaT * (plr_v_old + plr_v) / 2;
-
-      // console.log("plr_v", plr_v)
+      plr_y += deltaT * (prr_v_old + plr_v) / 2;
     }
 
     // is plr in bar?
@@ -424,12 +422,7 @@ function Blockade() {
     }
 
     // draw black frost
-    if (thrust_active != mouse_down) {
-      ctx.fillStyle = '#440000a0'
-    }
-    else {
-      ctx.fillStyle = '#000000a0'
-    }
+    ctx.fillStyle = '#000000a0'
     ctx.beginPath()
     ctx.rect(0, 0, width, height)
     ctx.fill()
