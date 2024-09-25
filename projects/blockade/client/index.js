@@ -183,12 +183,6 @@ function Blockade() {
     }, 1e3 / timeout_freq)
   })
 
-  // let last_down = false
-  // let last_now = -Infinity
-  // let shortest_dt = Infinity
-  // let short_count = 0
-  // let delta_sum = 0
-
   function tick() {
 
     canvas.width = window.innerWidth - 20
@@ -200,31 +194,11 @@ function Blockade() {
 
     const width = canvas.width
     const height = canvas.height
-    // const length = Math.sqrt(width*width + height*height)
     const font_size = width * font_size_scale
 
     const now = getTime()
 
-    // short_count += 1
-    // if (mouse_down != last_down)
-    // {
-    //   console.log("short_count", short_count, plr_v)
-    //   short_count = 0
-
-    //   delta_sum = 0
-    //   last_down = mouse_down
-
-    //   dt = now - last_now
-    //   if (dt < shortest_dt)
-    //   {
-    //     shortest_dt = dt
-    //     console.log("shortest dt", shortest_dt)
-    //   }
-    //   last_now = now
-    // }
-
     var deltaT = now - prev_now
-    // delta_sum += deltaT
     ctx.lineWidth = line_width
     if (deltaT > max_deltaT) {
       deltaT = max_deltaT
@@ -239,9 +213,34 @@ function Blockade() {
       bar_timer = now + 1/max_bar_freq
     }
 
+    let thrust_active = mouse_down
+    {
+      const a = gravity
+      const v0 = plr_v
+      const y0 = plr_y
+      const j0 = - v0 / a
+      const j1 = y0 - (v0 * v0) / (2 * a)
+
+
+      const v1 = j0
+      const v2 = j1
+      let a1 = 10
+      let a2 = v2 + (1/2) * a * (a1 - v1) * (a1 - v1)
+      let b2 = 2 * v2 - a2
+      let c1 = 2 * v1 - a1
+      let b1 = (a1 + c1) / 2
+      let c2 = a2
+
+      ctx.strokeStyle = "white"
+      ctx.lineTo((a1 * bar_speed + plr_x) * width, a2 * height)
+      ctx.quadraticCurveTo((b1 * bar_speed + plr_x) * width, b2 * height,
+                           (c1 * bar_speed + plr_x) * width, c2 * height)
+      ctx.stroke()
+    }
+
     // move player
     if (!dead) {
-      const acceleration = gravity - (mouse_down ? thrust : 0)
+      const acceleration = gravity - (thrust_active ? thrust : 0)
       // Step 1: Save the old velocity
       let plr_v_old = plr_v;
 
@@ -259,22 +258,15 @@ function Blockade() {
       if (bar.dead) {
         continue
       }
-      if (hitbox = (plr_x < bar.x + bar.w) && (plr_x + plr_w > bar.x) &&
-        (plr_y < bar.y + bar.h) && (plr_y + plr_h > bar.y)
-      ) {
-        break
-      }
+      // if (hitbox = (plr_x < bar.x + bar.w) && (plr_x + plr_w > bar.x) &&
+      //   (plr_y < bar.y + bar.h) && (plr_y + plr_h > bar.y)
+      // ) {
+      //   break
+      // }
     }
 
     // detect death
     if (plr_y < 0 || 1 < plr_y + plr_h || hitbox) {
-      // console.log("death")
-      // console.log("plr_v", plr_v)
-      // console.log("plr_y", plr_y)
-      // console.log("dt", getTime() - start_time)
-      // console.log("delta_sum", delta_sum)
-
-      // delta_sum = 0
       plr_y = 1/2
       plr_v = 0
       dead = true
