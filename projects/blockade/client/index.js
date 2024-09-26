@@ -138,6 +138,7 @@ function Blockade() {
       const bar = {
         start_x: x, x: x, y: y, w: w, h: h,
         dead: dead,
+        coin: false,
         c: get_color(dead ? 0 : score + bar_speed * bar_freq, temp_high_score)
       }
       bar_queue.push(bar)
@@ -386,10 +387,11 @@ function Blockade() {
         for (const j in bars) {
           const bar = bars[j]
           const bar_x = bar.start_x - bar_speed * (shw_now - bar.t)
-          if ((bar_x > -bar.w) && !bar.dead) {
-            bar.dead = (plr_x < bar_x + bar.w) && (plr_x + plr_w > bar_x) &&
+          if ((bar_x > -bar.w) && !bar.dead && !bar.coin) {
+            bar.coin = (plr_x < bar_x + bar.w) && (plr_x + plr_w > bar_x) &&
               (shw_y < bar.y + bar.h) && (shw_y + plr_h > bar.y);
-            if (bar.dead) {
+            if (bar.coin) {
+              bar.c = "grey"
               bar_timer = now
             }
           }
@@ -416,12 +418,21 @@ function Blockade() {
     var hitbox = false
     for (const i in bars) {
       const bar = bars[i]
-      if (bar.dead) {
+      if (bar.dead || (bar.c == "black")) {
         continue
       }
-      if (hitbox = (plr_x < bar.x + bar.w) && (plr_x + plr_w > bar.x) &&
+      bar.x = bar.start_x - bar_speed * (now - bar.t)
+      const collide = (plr_x < bar.x + bar.w) && (plr_x + plr_w > bar.x) &&
         (plr_y < bar.y + bar.h) && (plr_y + plr_h > bar.y)
-      ) {
+
+      if (collide) {
+        if (bar.coin) {
+          bar.c = "black"
+          score += 1
+        }
+        else {
+          hitbox = true
+        }
         break
       }
     }
@@ -530,7 +541,7 @@ function Blockade() {
 
       if (bar.x < -bar.w) {
         if (!dead && !bar.dead) {
-          ++score
+          // ++score
         }
         bars.splice(i--, 1)
       }
