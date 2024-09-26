@@ -73,7 +73,6 @@ function Blockade() {
   var player_high_score = default_high_score
   var dead = true
 
-  var next_thrust_time = 0
   var bar_timer = start_time + 1 / max_bar_freq
 
   const min_width_to_height_ratio = 1 / 1.5
@@ -184,10 +183,16 @@ function Blockade() {
   })
 
   let thrust_active = false
+  let next_thrust_time = 0
 
   // Shadow
   let shw_y = 1 / 2
   let shw_v = 0
+  let shw_now = getTime()
+  let shw_cache = []
+  let shw_cache_len = 1 / bar_speed / 0.015
+  console.log("shw_cache_len", shw_cache_len)
+  let shw_cache_i = 0
   function tick() {
 
     canvas.width = window.innerWidth - 20
@@ -229,6 +234,7 @@ function Blockade() {
       let c2 = a2
 
       ctx.strokeStyle = strokeStyle
+      ctx.beginPath()
       ctx.moveTo((a1 * bar_speed + offset_x) * width, a2 * height)
       ctx.quadraticCurveTo((b1 * bar_speed + offset_x) * width,
         b2 * height,
@@ -295,7 +301,16 @@ function Blockade() {
     }
 
     {
-      function adjust_math() {
+      // drawBlockPath(shw_y, shw_v, thrust_active)
+
+      ctx.beginPath()
+      ctx.moveTo((plr_x + (next_thrust_time - now) * bar_speed) * width, 0)
+      ctx.lineTo((plr_x + (next_thrust_time - now) * bar_speed) * width, height)
+      ctx.stroke()
+
+      const future = 1 / bar_speed
+
+      while (shw_now < now + future) {
         {
           const a = gravity
           const v0 = shw_v
@@ -307,8 +322,8 @@ function Blockade() {
           const C = -v0 * v0 + 2 * b * (-b2) + 2 * b * y0
           const T = - (B + Math.sqrt(B * B - 4 * A * C)) / (2 * A)
 
-          if (thrust_active && (next_thrust_time < now)) {
-            next_thrust_time = now + T * Math.random() * 0.8
+          if (thrust_active && (next_thrust_time < shw_now)) {
+            next_thrust_time = shw_now + T * Math.random() * 0.9
             thrust_active = false
           }
         }
@@ -323,40 +338,40 @@ function Blockade() {
           const C = -v0 * v0 + 2 * b * (-b2) + 2 * b * y0
           const T = - (B + Math.sqrt(B * B - 4 * A * C)) / (2 * A)
 
-          if (!thrust_active && (next_thrust_time < now)) {
-            next_thrust_time = now + T * Math.random() * 0.8
+          if (!thrust_active && (next_thrust_time < shw_now)) {
+            next_thrust_time = shw_now + T * Math.random() * 0.9
             thrust_active = true
           }
+        }
+
+        if (shw_y > 1)
+        {
+          thrust_active = true
+        }
+        if (shw_y < 0)
+        {
+          thrust_active = false
         }
 
         const acceleration = gravity - (thrust_active ? thrust : 0)
 
         // Step 1: Save the old velocity
-        let prr_v_old = shw_v;
+        let shw_v_old = shw_v;
 
         // Step 2: Update velocity (same as before)
         shw_v += deltaT * acceleration;
 
         // Step 3: Update position using the average of the old and new velocity
-        shw_y += deltaT * (prr_v_old + shw_v) / 2;
+        shw_y += deltaT * (shw_v_old + shw_v) / 2;
+
+        shw_cache[shw_cache_i % shw_cache_len] = [shw_y, shw_v, shw_now]
+        shw_cache_i += 1
+        shw_now += deltaT
       }
-
-      // drawBlockPath(shw_y, shw_v, thrust_active)
-
-      ctx.beginPath()
-      ctx.moveTo((plr_x + (next_thrust_time - now) * bar_speed) * width, 0)
-      ctx.lineTo((plr_x + (next_thrust_time - now) * bar_speed) * width, height)
-      ctx.stroke()
-
-      ctx.fillStyle = 'white'
-      ctx.beginPath()
-      ctx.rect(plr_x * width, shw_y * height, plr_w * width, plr_h * height)
-      ctx.fill()
-
-      adjust_math()
     }
 
     drawBlockPath(plr_y, plr_v, mouse_down)
+
     // move player
     if (!dead) {
       const acceleration = gravity - (mouse_down ? thrust : 0)
@@ -449,6 +464,21 @@ function Blockade() {
     ctx.rect(0, 0, width, height)
     ctx.fill()
 
+    for (const i in shw_cache) {
+      const [shw_y, shw_v, shw_now] = shw_cache[i]
+      ctx.fillStyle = "#223344"
+      ctx.beginPath()
+      ctx.rect((plr_x + (shw_now - now) * bar_speed) * width, shw_y * height, plr_w * width, plr_h * height)
+      ctx.fill()
+    }
+
+    {
+      ctx.fillStyle = '#445566'
+      ctx.beginPath()
+      ctx.rect(plr_x * width, shw_y * height, plr_w * width, plr_h * height)
+      ctx.fill()
+    }
+
     // draw bars
     ctx.lineWidth = 1
     for (var i = 0; i < bars.length; ++i) {
@@ -491,7 +521,6 @@ function Blockade() {
       ctx.lineTo(x, line_width * 2)
       ctx.stroke()
     }
-
 
     // draw player
     ctx.strokeStyle = ctx.fillStyle = 'white'
