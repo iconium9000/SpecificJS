@@ -43,7 +43,7 @@ function Blockade() {
   const thrust = 2.5 * gravity // h per sec per sec
 
   const timeout_freq = 20   // when to timeout
-  const max_deltaT = 0.1
+  const max_deltaT = 0.03
   var start_time = getTime()
   var prev_now = start_time - max_deltaT
 
@@ -242,14 +242,6 @@ function Blockade() {
       ctx.stroke()
     }
 
-    // get bar
-    if (now > bar_timer && bar_queue.length > 0) {
-      const bar = bar_queue.splice(0, 1)[0]
-      bar.t = now
-      bars.push(bar)
-      bar_timer = now + 1 / max_bar_freq
-    }
-
     function drawBlockPath(y0, v0, thrust_active) {
       {
         const a = gravity - thrust
@@ -310,7 +302,7 @@ function Blockade() {
 
       const future = 1 / bar_speed
 
-      while (shw_now < now + future) {
+      while ((shw_now < now + future) || (shw_cache.length < shw_cache_len)) {
         {
           const a = gravity
           const v0 = shw_v
@@ -344,12 +336,16 @@ function Blockade() {
           }
         }
 
-        if (shw_y > 1)
-        {
+        if ((shw_y < -2) || (shw_y > 2)) {
+          shw_y = 1 / 2
+          shw_v = 0
+          next_thrust_time = shw_now
+          thrust_active = false
+        }
+        if (shw_y > 1) {
           thrust_active = true
         }
-        if (shw_y < 0)
-        {
+        if (shw_y < 0) {
           thrust_active = false
         }
 
@@ -370,7 +366,38 @@ function Blockade() {
       }
     }
 
-    drawBlockPath(plr_y, plr_v, mouse_down)
+    // get bar
+    if (now > bar_timer && bar_queue.length > 0) {
+      const bar = bar_queue.splice(0, 1)[0]
+      bar.t = now
+      bars.push(bar)
+      bar_timer = now + 1 / max_bar_freq
+    }
+
+    // if (false)
+    {
+      const s = shw_cache_i + 1
+      const e = s + shw_cache_len
+      let i = s
+      while (i < e) {
+        const [shw_y, shw_v, shw_now] = shw_cache[i % shw_cache_len]
+        i += 1
+
+        for (const j in bars) {
+          const bar = bars[j]
+          const bar_x = bar.start_x - bar_speed * (shw_now - bar.t)
+          if ((bar_x > -bar.w) && !bar.dead) {
+            bar.dead = (plr_x < bar_x + bar.w) && (plr_x + plr_w > bar_x) &&
+              (shw_y < bar.y + bar.h) && (shw_y + plr_h > bar.y);
+            if (bar.dead) {
+              bar_timer = now
+            }
+          }
+        }
+      }
+    }
+
+    // drawBlockPath(plr_y, plr_v, mouse_down)
 
     // move player
     if (!dead) {
@@ -392,11 +419,11 @@ function Blockade() {
       if (bar.dead) {
         continue
       }
-      // if (hitbox = (plr_x < bar.x + bar.w) && (plr_x + plr_w > bar.x) &&
-      //   (plr_y < bar.y + bar.h) && (plr_y + plr_h > bar.y)
-      // ) {
-      //   break
-      // }
+      if (hitbox = (plr_x < bar.x + bar.w) && (plr_x + plr_w > bar.x) &&
+        (plr_y < bar.y + bar.h) && (plr_y + plr_h > bar.y)
+      ) {
+        break
+      }
     }
 
     // detect death
@@ -464,20 +491,36 @@ function Blockade() {
     ctx.rect(0, 0, width, height)
     ctx.fill()
 
-    for (const i in shw_cache) {
-      const [shw_y, shw_v, shw_now] = shw_cache[i]
-      ctx.fillStyle = "#223344"
-      ctx.beginPath()
-      ctx.rect((plr_x + (shw_now - now) * bar_speed) * width, shw_y * height, plr_w * width, plr_h * height)
-      ctx.fill()
-    }
+    // for (const i in shw_cache) {
+    //   const [shw_y, shw_v, shw_now] = shw_cache[i]
+    //   ctx.fillStyle = "#223344"
+    //   ctx.beginPath()
+    //   ctx.rect((plr_x + (shw_now - now) * bar_speed) * width, shw_y * height, plr_w * width, plr_h * height)
+    //   ctx.fill()
+    // }
 
-    {
-      ctx.fillStyle = '#445566'
-      ctx.beginPath()
-      ctx.rect(plr_x * width, shw_y * height, plr_w * width, plr_h * height)
-      ctx.fill()
-    }
+    // {
+    //   let tmp_y = shw_y
+    //   const s = shw_cache_i + 1
+    //   const e = s + shw_cache_len
+    //   let i = s
+    //   while (i < e) {
+    //     const [shw_y, shw_v, shw_now] = shw_cache[i % shw_cache_len]
+    //     tmp_y = shw_y
+    //     tmp_now = shw_now
+    //     if (shw_now < now) {
+    //       i += 1
+    //     }
+    //     else {
+    //       break
+    //     }
+    //   }
+
+    //   ctx.fillStyle = '#445566'
+    //   ctx.beginPath()
+    //   ctx.rect(plr_x * width, tmp_y * height, plr_w * width, plr_h * height)
+    //   ctx.fill()
+    // }
 
     // draw bars
     ctx.lineWidth = 1
@@ -498,7 +541,6 @@ function Blockade() {
         ctx.beginPath()
         ctx.rect(bar.x * width, bar.y * height, bar.w * width, bar.h * height)
         bar.dead ? ctx.stroke() : ctx.fill()
-        // ctx.stroke()
       }
     }
     ctx.lineWidth = line_width
