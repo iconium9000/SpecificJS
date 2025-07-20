@@ -2,6 +2,11 @@
   <title id="title">Greed Rules</title>
   <link rel="shortcut icon" href="/images/favicon.ico"/>
   <link rel="stylesheet" href="style.css">
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true });
+  </script>
 </head>
 <body>
   <b>Introduction:</b>
@@ -52,23 +57,26 @@
       <b>Step 3:</b>
       <ul>
         <li>
-          If the cumulative play score is greater than or equal to 500 points,
-          decide whether to:
+          <b>If the player does not have any points on the board</b> (first scoring move):
+          <ul>
+            <li>You must score at least <b>500 points</b> in a single turn to get on the board.</li>
+            <li>If your cumulative play score is less than 500 points, your turn ends with no points added.</li>
+            <li>If your cumulative play score is 500 or more, you may add it to your total and continue as normal.</li>
+          </ul>
+        </li>
+        <li>
+          <b>Otherwise</b> (if you already have points on the board):
           <ul>
             <li>
-              Add the cumulative score to your total score
+              Add the cumulative score to your total score, then:
               <ul>
+                <li>You may bank any amount of points, regardless of total.</li>
                 <li>Pass the non-scoring dice to the next player</li>
                 <li>Pass the cumulative score to the next player</li>
                 <li>Jump to Step 4</li>
               </ul>
             </li>
-            <li>Jump to Step 5</li>
-          </ul>
-        </li>
-        <li>If the cumulative play score is less than 500 points:
-          <ul>
-            <li>Jump to Step 5</li>
+            <li>Or continue rolling and risk your points (Jump to Step 5)</li>
           </ul>
         </li>
       </ul>
@@ -119,6 +127,24 @@
     <li>Three pairs = 1500 points.</li>
     <li>A straight with all six dice = 2000 points.</li>
   </ul>
-
-
+  <pre class="mermaid">
+flowchart LR
+    A[Start Turn: Roll 6 Dice] --> B{Do all dice score?}
+    B -- Yes --> C[Add score to cumulative score]
+    C --> D[Roll all 6 dice again]
+    D -- Roll All --> B
+    B -- No --> E{Do some dice score?}
+    E -- No --> F[Clear cumulative score<br>No points added<br>Pass 6 dice to next player]
+    F -- Turn Ends --> A
+    E -- Yes --> Ee[Optionally discard some scoring dice<br>as long as at least one scoring die remains.<br>Those discarded dice are now considered non-scoring.<br>This increases the probability of scoring on the next roll.]
+    Ee -- Discard Some --> G{Bank cumulative score and Pass<br>or roll again?}
+    Ee -- Keep --> G
+    G -- Bank --> H{Is this the Player's<br>First scoring move?}
+    H -- No --> K[Add to total score<br>Pass non-scoring dice<br>and cumulative score to next player]
+    G -- Roll --> B
+    H -- Yes --> I{Cumulative score >= 500?<br>You must score at least <b>500 points</b><br>on your first turn<br>to get on the board.}
+    I -- No --> F
+    I -- Yes --> K
+    K -- End Turn --> A
+</pre>
 </body>
