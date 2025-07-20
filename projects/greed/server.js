@@ -21,7 +21,7 @@ module.exports = (project,info) => {
   lobby_socket.on('connection', lobby_client_socket => {
     const id = lobby_client_socket.id.split('#').pop()
 
-    app.get('/' + id, (req,res) => res.sendFile(client_path + `/room.html`))
+    app.get('/' + id, (req,res) => res.sendFile(client_path + `/room_index.html`))
     const room_socket = socket_io.of('/' + id)
     const room = new Room; room.init(id)
     let room_user = null, timeout = undefined
